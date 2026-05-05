@@ -67,7 +67,7 @@ Recommended companion mods (not bundled — drop them in yourself):
 | Key | Action |
 |---|---|
 | `]` | Open Fox Menu |
-| `Right Shift` | Open ClickGUI |
+| `Right Shift` | Open Module Menu |
 | `End` | Open HUD editor |
 | `C` (hold) | Zoom |
 | `G` | Toggle Full Brightness |
