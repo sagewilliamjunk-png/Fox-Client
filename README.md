@@ -150,8 +150,8 @@ directory.
 |---|---|
 | `]` | Open Fox Menu |
 | `Right Shift` | Open ClickGUI |
-| `End` | Open HUD editor |
-| `C` (hold) | Zoom |
+| `[` | Open HUD editor |
+| `V` (hold) | Zoom |
 | `G` | Toggle Full Brightness |
 
 All bindings are rebindable in vanilla Controls under category *"Fox Client"*.

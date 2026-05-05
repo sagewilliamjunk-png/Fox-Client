@@ -98,7 +98,7 @@ public class KitsuneClient implements ClientModInitializer {
         zoomKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kitsune.zoom",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_C,
+                GLFW.GLFW_KEY_V,
                 FOX_CATEGORY
         ));
         fullBrightKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
@@ -116,7 +116,7 @@ public class KitsuneClient implements ClientModInitializer {
         hudEditorKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.kitsune.hud_editor",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_END,
+                GLFW.GLFW_KEY_LEFT_BRACKET,
                 FOX_CATEGORY
         ));
 
