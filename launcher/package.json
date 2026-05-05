@@ -1,0 +1,44 @@
+{
+  "name": "fox-launcher",
+  "version": "0.1.0",
+  "description": "Fox Launcher — desktop launcher for the Kitsune Minecraft client",
+  "main": "src/main/index.js",
+  "author": "Kitsune / Fox Client",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "dev.kitsune.foxlauncher",
+    "productName": "Fox Launcher",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "src/renderer/assets/fox.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "src/renderer/assets/fox.icns",
+      "category": "public.app-category.games"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "src/renderer/assets/fox-256.png",
+      "category": "Game"
+    }
+  }
+}

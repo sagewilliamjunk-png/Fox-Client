@@ -1,0 +1,32 @@
+{
+    "required": true,
+    "package": "dev.kitsune.client.mixin",
+    "compatibilityLevel": "JAVA_21",
+    "client": [
+        "TitleScreenMixin",
+        "ConnectScreenMixin",
+        "GuiMixin",
+        "LogoRendererMixin",
+        "SplashRendererMixin",
+        "ChatComponentMixin",
+        "PauseScreenMixin",
+        "CameraMixin",
+        "GameRendererMixin",
+        "MouseHandlerMixin",
+        "LevelRendererMixin",
+        "ScreenScrollMixin",
+        "GuiVanillaHudMixin",
+        "AbstractButtonRenderMixin",
+        "AbstractSliderButtonRenderMixin",
+        "EditBoxRenderMixin",
+        "AbstractSelectionListMixin",
+        "SafetyScreenMixin",
+        "MenuBackgroundMixin",
+        "PlayerAttackMixin",
+        "PlayerTabOverlayPingMixin",
+        "AvatarRendererCapeMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

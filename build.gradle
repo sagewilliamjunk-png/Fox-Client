@@ -1,0 +1,97 @@
+plugins {
+    id "fabric-loom" version "${loom_version}"
+    id "maven-publish"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = "kitsune-client"
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://maven.fabricmc.net/" }
+    // ---- Optimization-mod repos ----
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+        content { includeGroup "maven.modrinth" }
+    }
+    maven {
+        name = "CurseForge"
+        url = "https://cursemaven.com"
+        content { includeGroup "curse.maven" }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // ---- Local optimization-mod drop-in ----
+    // Any .jar placed in `kitsune-libs/` is auto-picked-up at runtime so the
+    // user can drop Sodium/Lithium/etc without editing this file.
+    modRuntimeOnly fileTree(dir: "kitsune-libs", include: ["*.jar"])
+
+    // ---- Unit tests ----
+    // Pure-Java tests for the parts of the mod that don't touch Minecraft
+    // (Setting serialization, profile JSON, etc.). Run with `./gradlew test`.
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly    "org.junit.platform:junit-platform-launcher"
+    testImplementation "com.google.code.gson:gson:2.10.1"
+
+    // ---- Optimization Mods ----
+    //
+    // The Modrinth Maven slugs change every Minecraft patch and 1.21.11
+    // release IDs aren't stable enough to pin in source control. Instead,
+    // drop optimization-mod JARs into the `kitsune-libs/` directory (the
+    // fileTree above auto-picks them up) or your local `run/mods/` folder.
+    //
+    // Recommended permanent set (download from Modrinth for your MC patch):
+    //   - Sodium            (rendering engine)
+    //   - Lithium           (game-logic optimization)
+    //   - EntityCulling     (occlusion culling)
+    //   - ImmediatelyFast   (GUI / entity rendering optimization)
+    //   - FerriteCore       (RAM reduction for block models)
+    //   - MemoryLeakFix     (stability)
+    //
+    // Optional:
+    //   - Iris              (shader support — needs Sodium)
+    //   - Xaero's Minimap   (waypoints + minimap, kept as a permanent dep)
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version,
+                "minecraft_version": project.minecraft_version,
+                "loader_version": project.loader_version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+tasks.named("test") {
+    useJUnitPlatform()
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_kitsune-client" }
+    }
+}

@@ -1,0 +1,7 @@
+{
+  "_doc": "Fox Client cosmetics manifest. To add a cape: drop a 64x32 PNG (standard MC cape sheet) into assets/kitsune/textures/cape/<id>.png and register the id under 'capes' below. To grant ownership: list cape ids under 'owners' for that player's UUID. UUID accepted with or without dashes, any case.",
+
+  "capes": {},
+
+  "owners": {}
+}

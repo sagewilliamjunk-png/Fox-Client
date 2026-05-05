@@ -1,0 +1,109 @@
+package dev.kitsune.client.module.hud;
+
+import dev.kitsune.client.hud.HudManager;
+import dev.kitsune.client.hud.HudWidget;
+import dev.kitsune.client.module.Category;
+import dev.kitsune.client.module.Module;
+import dev.kitsune.client.setting.BooleanSetting;
+import dev.kitsune.client.setting.ColorSetting;
+import dev.kitsune.client.setting.SliderSetting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+/**
+ * Counts totems of undying across the player's entire inventory (main inventory,
+ * hotbar, and both hands). Renders the item icon with a live count and turns
+ * red when the total drops below a configurable warning threshold.
+ */
+public class TotemCounterHudModule extends Module implements HudWidget {
+
+    private final BooleanSetting showIcon      = addSetting(new BooleanSetting("Show Icon",   true));
+    private final BooleanSetting warnLow       = addSetting(new BooleanSetting("Warn Low",    true));
+    private final BooleanSetting hideWhenZero  = addSetting(new BooleanSetting("Hide at Zero", false));
+    private final SliderSetting  warnThreshold = addSetting(new SliderSetting("Warn At", 2, 0, 16, 1));
+    private final SliderSetting  bgOpacity     = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
+    private final ColorSetting   accent        = addSetting(new ColorSetting("Accent",     0xFFFFAA33));
+    private final ColorSetting   textColor     = addSetting(new ColorSetting("Text Color", 0xFFFFFFFF));
+    private final ColorSetting   warnColor     = addSetting(new ColorSetting("Warn Color", 0xFFFF4444));
+
+    private int totalTotems = 0;
+
+    public TotemCounterHudModule() {
+        super("Totem Counter", "Counts totems of undying in inventory", Category.HUD);
+        HudManager.register(this);
+    }
+
+    @Override public String widgetId()    { return "totem_counter"; }
+    @Override public String displayName() { return "Totems"; }
+
+    @Override
+    public int widgetWidth() {
+        return showIcon.get() ? 38 : 22;
+    }
+
+    @Override
+    public int widgetHeight() {
+        return showIcon.get() ? 20 : 14;
+    }
+
+    @Override
+    public boolean isWidgetVisible() {
+        if (!isEnabled()) return false;
+        if (hideWhenZero.get() && totalTotems == 0) return false;
+        return true;
+    }
+
+    @Override
+    public void onTick() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null) { totalTotems = 0; return; }
+
+        int n = 0;
+        var inv = p.getInventory();
+        int size = inv.getContainerSize();
+        for (int i = 0; i < size; i++) {
+            ItemStack s = inv.getItem(i);
+            if (!s.isEmpty() && s.getItem() == Items.TOTEM_OF_UNDYING) n += s.getCount();
+        }
+        // Off-hand is usually covered by containerSize on 1.21, but guard anyway
+        ItemStack off = p.getItemBySlot(EquipmentSlot.OFFHAND);
+        if (!off.isEmpty() && off.getItem() == Items.TOTEM_OF_UNDYING) {
+            // Avoid double-counting: if off-hand slot appears in inventory, skip
+            // (getInventory() on 1.21 includes offhand at the end; be defensive)
+            // No reliable portable check — trust container traversal above.
+        }
+        totalTotems = n;
+    }
+
+    @Override
+    public void renderWidget(GuiGraphics gfx, int x, int y) {
+        Minecraft mc = Minecraft.getInstance();
+        Font font = mc.font;
+        int w = widgetWidth();
+        int h = widgetHeight();
+        int bg = (int)(bgOpacity.get() * 255) << 24;
+        boolean low = warnLow.get() && totalTotems <= warnThreshold.get().intValue();
+        int barColor = low ? warnColor.get() : accent.get();
+
+        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg | 0x000000);
+        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, barColor);
+
+        int textX = x + 2;
+        if (showIcon.get()) {
+            ItemStack icon = new ItemStack(Items.TOTEM_OF_UNDYING);
+            gfx.renderItem(icon, x + 2, y + 2);
+            textX = x + 22;
+        }
+
+        int color = low ? warnColor.get() : textColor.get();
+        String label = String.valueOf(totalTotems);
+        int ty = y + (showIcon.get() ? 6 : 3);
+        gfx.drawString(font, label, textX, ty, color, false);
+    }
+}

@@ -1,0 +1,33 @@
+{
+    "schemaVersion": 1,
+    "id": "kitsune",
+    "version": "${version}",
+    "name": "Fox Client",
+    "description": "Lunar/Feather-style Minecraft client with a fox twist. Modules, ClickGUI, profiles, server-safe by design.",
+    "authors": ["Sage"],
+    "contact": {},
+    "license": "MIT",
+    "icon": "assets/kitsune/textures/icon/icon.png",
+    "environment": "client",
+    "entrypoints": {
+        "client": ["dev.kitsune.client.KitsuneClient"],
+        "preLaunch": ["dev.kitsune.client.PreLaunchBootstrap"]
+    },
+    "mixins": [
+        { "config": "kitsune.mixins.json", "environment": "client" }
+    ],
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "minecraft": "~${minecraft_version}",
+        "java": ">=21",
+        "fabric-api": "*"
+    },
+    "recommends": {
+        "sodium": "*",
+        "lithium": "*"
+    },
+    "suggests": {
+        "ferritecore": "*",
+        "memoryleakfix": "*"
+    }
+}

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>Fox Launcher</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Boot splash shown during the first authStatus round-trip -->
+  <div id="splash" class="splash">
+    <img src="assets/fox.png" alt="" class="splash-logo" />
+    <div class="splash-title">Fox Launcher</div>
+    <div class="splash-sub">Loading…</div>
+  </div>
+
+  <!-- Main app shell: login view OR authenticated shell -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/fox.png" alt="" class="brand-logo" />
+        <div>
+          <div class="brand-title">Fox Launcher</div>
+          <div class="brand-ver" id="brand-version"></div>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <button class="nav-btn" data-route="home">      <span class="nav-ico">⌂</span> Home       </button>
+        <button class="nav-btn" data-route="profiles">  <span class="nav-ico">☰</span> Profiles   </button>
+        <button class="nav-btn" data-route="logs">      <span class="nav-ico">☳</span> Logs       </button>
+        <button class="nav-btn" data-route="settings">  <span class="nav-ico">⚙</span> Settings   </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card" id="user-card">
+          <div class="avatar-wrap" id="user-avatar-wrap">
+            <div class="avatar" id="user-avatar">?</div>
+            <span class="avatar-status" id="user-avatar-status"></span>
+          </div>
+          <div class="user-meta">
+            <div class="user-name" id="user-name">Not signed in</div>
+            <div class="user-profile muted" id="user-profile-line"></div>
+            <button class="link" id="sign-out">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main" id="main"></main>
+  </div>
+
+  <!-- Transient toast notifications (auth expiry, update results, etc.) -->
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- Login view -->
+  <div id="login" class="login hidden">
+    <div class="login-card">
+      <img src="assets/fox.png" alt="" class="login-logo" />
+      <h1>Welcome to Fox Launcher</h1>
+      <p>Sign in with your Microsoft account to play.</p>
+      <button id="btn-signin" class="btn btn-primary btn-large">Sign in with Microsoft</button>
+
+      <div class="msa-setup hidden" id="msa-setup-panel">
+        <p class="msa-setup-title">One-time Microsoft sign-in setup</p>
+        <p class="msa-setup-sub">
+          Paste your Azure Application (client) ID below. <a href="#" id="msa-setup-help">Get one at portal.azure.com</a>.
+        </p>
+        <input type="text" id="msa-setup-input" class="input" placeholder="00000000-0000-0000-0000-000000000000" autocomplete="off" />
+        <div class="msa-setup-actions">
+          <button class="btn" id="msa-setup-cancel">Cancel</button>
+          <button class="btn btn-primary" id="msa-setup-save">Save &amp; sign in</button>
+        </div>
+      </div>
+
+      <div class="guest-divider"><span>or</span></div>
+      <div class="guest-row">
+        <input type="text" id="guest-name" class="input" placeholder="Guest name" maxlength="16" autocomplete="off" />
+        <button id="btn-guest" class="btn">Play as Guest</button>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:6px;">
+        Offline mode — singleplayer + LAN only. Online servers require a real Microsoft account.
+      </div>
+
+      <div class="browser-waiting hidden" id="browser-waiting-panel">
+        <div class="browser-waiting-spinner"></div>
+        <div class="browser-waiting-text">Browser opened — sign in with Microsoft, then return here.</div>
+        <div class="muted" style="font-size:11px;margin-top:4px;">Waiting for you to complete sign-in…</div>
+      </div>
+
+      <div class="error hidden" id="login-error"></div>
+    </div>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
