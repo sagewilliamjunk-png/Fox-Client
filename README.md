@@ -62,6 +62,88 @@ Recommended companion mods (not bundled — drop them in yourself):
 - **Simple Voice Chat** — proximity voice (server-side mod required)
 - **Jade** — block info HUD
 
+## Launcher
+
+Fox Launcher is a desktop app (built with Electron) that handles everything
+between clicking a button and actually playing on Kitsune — Microsoft login,
+Java detection, Fabric version resolution, automatic mod updates, and live log
+streaming. You never touch a terminal or copy jar files by hand.
+
+**What it does:**
+- Signs you in via the **OAuth 2.0 device-code flow** (opens a browser tab,
+  you enter a short code — no passwords stored in the launcher)
+- Auto-detects Java 21+ on your machine; shows a clear error if none is found
+- Reads the Minecraft version metadata that the official launcher already
+  downloaded, then builds and spawns the full Java launch command
+- Downloads the latest Kitsune jar from GitHub Releases on startup and drops
+  it into your `mods/` folder automatically (can be turned off in Settings)
+- Streams game stdout/stderr into a built-in **Logs** tab in real time
+- Keeps running in the system tray while the game is open so you can relaunch
+  quickly without reopening the app
+
+All launcher data lives in `~/.foxlauncher/` (credentials, settings, cached
+jars). Nothing is written outside that folder or your existing Minecraft game
+directory.
+
+### How to run the launcher
+
+**Prerequisites — do these once:**
+
+1. **Install Java 21 or newer.**
+   Download from [Adoptium](https://adoptium.net/) or any JDK 21+ distribution.
+   The launcher auto-detects it; no manual path needed unless you have multiple
+   JDKs and want to pick a specific one.
+
+2. **Install Minecraft 1.21.11 via the official Minecraft Launcher.**
+   Open the official launcher, add a 1.21.11 installation, and press Play once.
+   This downloads the game files Fox Launcher will read. You don't need to play
+   through the official launcher again after this.
+
+3. **Install Fabric Loader 0.18.6 or newer.**
+   Run the [Fabric Installer](https://fabricmc.net/use/installer/), select
+   Minecraft 1.21.11, and click Install. This creates a `fabric-loader-*`
+   profile that Fox Launcher picks up automatically.
+
+**Running the launcher from source:**
+
+4. Make sure **Node.js 20+** is installed
+   (`node --version` should print `v20.*` or higher).
+
+5. Clone or download this repo, then open a terminal in the repo root:
+   ```bash
+   cd launcher
+   npm install
+   npm start
+   ```
+   The launcher window opens. That's it.
+
+**Or run a packaged build (no Node.js required):**
+
+4. Download the latest `.exe` (Windows), `.dmg` (macOS), or `.AppImage`
+   (Linux) from the [GitHub Releases page](../../releases).
+
+5. Run the installer / open the app image. No Node.js or npm needed for
+   packaged builds.
+
+**First launch:**
+
+6. Click **Sign In**. A browser tab opens with a Microsoft login page and a
+   short device code. Enter the code, log in with the Microsoft account linked
+   to your Minecraft purchase, and switch back to the launcher — it completes
+   automatically.
+
+7. *(Optional)* Open **Settings** to adjust RAM allocation, select a custom
+   Java path, or change your game directory if it isn't in the default location.
+
+8. Click **Play**. The launcher downloads the latest Kitsune jar if needed,
+   injects it into your `mods/` folder, and launches the game. Switch to the
+   **Logs** tab to watch game output in real time.
+
+> For developer setup (DevTools mode, packaging a distributable) see
+> [`launcher/README.md`](launcher/README.md).
+
+---
+
 ## Key bindings
 
 | Key | Action |
