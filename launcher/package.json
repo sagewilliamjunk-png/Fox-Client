@@ -12,6 +12,9 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
   "devDependencies": {
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0"
@@ -39,6 +42,11 @@
       "target": "AppImage",
       "icon": "src/renderer/assets/fox-256.png",
       "category": "Game"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "sagewilliamjunk-png",
+      "repo": "Fox-Client"
     }
   }
 }

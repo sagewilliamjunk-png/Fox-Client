@@ -15,7 +15,7 @@ export async function renderHome(mount) {
   for (const off of activeUnsubs) { try { off(); } catch (_) {} }
   activeUnsubs = [];
 
-  const [s, summary, status, lastLaunch, readiness, profilesDoc, running] = await Promise.all([
+  const [s, summary, status, lastLaunch, readiness, profilesDoc, running, launcherUpdate] = await Promise.all([
     window.fox.getSettings(),
     window.fox.updateSummary().catch(() => ({})),
     window.fox.authStatus().catch(() => ({})),
@@ -23,6 +23,7 @@ export async function renderHome(mount) {
     window.fox.clientReadiness().catch(() => null),
     window.fox.listProfiles().catch(() => ({ profiles: [] })),
     window.fox.isRunning().catch(() => false),
+    window.fox.launcherUpdateState().catch(() => ({ state: 'idle' })),
   ]);
   const profiles = profilesDoc.profiles || [];
   const activeProfileId = s.selectedProfile || (profiles[0] && profiles[0].id) || '';
@@ -68,11 +69,24 @@ export async function renderHome(mount) {
       </div>
     </div>` : '';
 
+  const showLauncherBanner = launcherUpdate.state === 'ready';
+  const launcherBannerHtml = showLauncherBanner
+    ? `<div class="update-banner" id="launcher-update-banner" style="border-color:rgba(78,194,122,0.4);">
+         <span class="update-banner-ico">⬆</span>
+         <span>Launcher <span class="update-banner-tag">${escapeHtml(launcherUpdate.version || '')}</span> ready — restart to install</span>
+         <div class="update-banner-actions">
+           <button class="btn btn-primary" id="btn-install-launcher" style="padding:5px 12px;font-size:12px;">Restart now</button>
+           <button class="update-banner-dismiss" id="btn-dismiss-launcher-update" title="Dismiss">✕</button>
+         </div>
+       </div>`
+    : `<div id="launcher-update-banner" style="display:none;"></div>`;
+
   mount.innerHTML = `
     <h1 class="screen-title">Welcome back${status.username ? ', ' + escapeHtml(status.username) : ''}.</h1>
     <p class="screen-sub" id="screen-sub">${earlyFailures.length ? 'Resolve the issue below to launch.' : 'Checking system requirements…'}</p>
 
     ${updateBannerHtml}
+    ${launcherBannerHtml}
 
     <div class="play-hero">
       <div class="big-title">${running ? 'Game running' : 'Ready to play'}</div>
@@ -156,6 +170,7 @@ export async function renderHome(mount) {
           <div class="stat-row"><span>Java</span><span class="v" id="java-stat-value"><span class="badge">Checking…</span></span></div>
           <div class="stat-row"><span>Fabric ${readiness?.targetMcVersion || ''}</span><span class="v">${readiness?.fabricProfile ? '<span class="badge badge-ok">installed</span>' : '<span class="badge badge-error">missing</span>'}</span></div>
           <div class="stat-row"><span>Client jar</span><span class="v">${readiness?.modJarSource === 'release' ? '<span class="badge badge-ok">release</span>' : readiness?.modJarSource === 'dev-build' ? '<span class="badge badge-warn">dev build</span>' : '<span class="badge badge-error">none</span>'}</span></div>
+          <div class="stat-row"><span>Mojang services</span><span class="v" id="mojang-stat-value"><span class="badge">Checking…</span></span></div>
         </div>
 
         <div class="section">
@@ -176,7 +191,9 @@ export async function renderHome(mount) {
   wireQuickActions();
   wireFailureLinks();
   wireUpdateBanner();
+  wireLauncherUpdateBanner();
   patchJava();
+  loadMojangStatus();
 
   // ---- functions ----
 
@@ -435,6 +452,91 @@ export async function renderHome(mount) {
         }
       }
     }
+  }
+
+  // Launcher self-update banner wiring.
+  function wireLauncherUpdateBanner() {
+    const banner = document.getElementById('launcher-update-banner');
+    if (!banner) return;
+
+    const showBanner = (version) => {
+      banner.style.display = '';
+      banner.style.borderColor = 'rgba(78,194,122,0.4)';
+      banner.innerHTML = `
+        <span class="update-banner-ico">⬆</span>
+        <span>Launcher <span class="update-banner-tag">${escapeHtml(version || '')}</span> ready — restart to install</span>
+        <div class="update-banner-actions">
+          <button class="btn btn-primary" id="btn-install-launcher" style="padding:5px 12px;font-size:12px;">Restart now</button>
+          <button class="update-banner-dismiss" id="btn-dismiss-launcher-update" title="Dismiss">✕</button>
+        </div>`;
+      document.getElementById('btn-install-launcher')
+        ?.addEventListener('click', () => window.fox.installLauncherUpdate());
+      document.getElementById('btn-dismiss-launcher-update')
+        ?.addEventListener('click', () => { banner.style.display = 'none'; });
+    };
+
+    // Wire buttons when the banner was pre-rendered at load time.
+    if (showLauncherBanner) {
+      document.getElementById('btn-install-launcher')
+        ?.addEventListener('click', () => window.fox.installLauncherUpdate());
+      document.getElementById('btn-dismiss-launcher-update')
+        ?.addEventListener('click', () => { banner.style.display = 'none'; });
+    }
+
+    // React to push events for updates that land while the screen is open.
+    if (window.fox.onLauncherUpdate) {
+      const off = window.fox.onLauncherUpdate(({ state, version }) => {
+        if (state === 'ready') showBanner(version);
+      });
+      activeUnsubs.push(off);
+    }
+  }
+
+  // Mojang service status — fetches asynchronously and updates the stat row.
+  async function loadMojangStatus() {
+    const el = document.getElementById('mojang-stat-value');
+    if (!el) return;
+    let result;
+    try { result = await window.fox.mojangStatus(); }
+    catch (_) { result = { services: [], error: 'unavailable' }; }
+
+    if (!document.body.contains(el)) return;
+
+    const { services = [], error } = result;
+    if (error && !services.length) {
+      el.innerHTML = '<span class="badge badge-warn">Unavailable</span>';
+      return;
+    }
+
+    const allGreen   = services.every(s => s.status === 'green');
+    const anyRed     = services.some(s  => s.status === 'red');
+    const anyYellow  = services.some(s  => s.status === 'yellow');
+    const anyUnknown = services.every(s => s.status === 'unknown');
+
+    const dotColor = (st) => {
+      if (st === 'green')  return 'var(--success)';
+      if (st === 'yellow') return 'var(--warn)';
+      if (st === 'red')    return 'var(--danger)';
+      return 'var(--text-3)';
+    };
+
+    if (anyUnknown) {
+      el.innerHTML = `<span class="badge badge-warn" title="${escapeHtml(error || 'Status unavailable')}">Unknown</span>`;
+      return;
+    }
+
+    const summaryBadge = allGreen
+      ? '<span class="badge badge-ok">All OK</span>'
+      : anyRed || anyYellow
+        ? '<span class="badge badge-warn">Degraded</span>'
+        : '<span class="badge">Unknown</span>';
+
+    const dots = services.map(s =>
+      `<span title="${escapeHtml(s.label + ': ' + s.status)}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor(s.status)};margin-left:4px;vertical-align:middle;"></span>`
+    ).join('');
+
+    el.innerHTML = `${summaryBadge}${dots}`;
+    el.title = services.map(s => `${s.label}: ${s.status}`).join(', ');
   }
 
   // Lifecycle: drop subs when this screen unmounts.

@@ -20,6 +20,8 @@ const presence = require('./presence');
 const addons = require('./addons');
 const recommendedMods = require('./recommendedMods');
 const profiles = require('./profiles');
+const launcherSelfUpdate = require('./launcherSelfUpdate');
+const mojangStatus = require('./mojangStatus');
 
 // Subscribers fired after every successful settings:patch. Lets other main-
 // process modules (e.g. index.js's auto-update timer) react to user changes
@@ -634,6 +636,18 @@ function register(getWindow) {
     const w = getWindow();
     if (w && !w.isDestroyed()) w.webContents.send('launch:stage', { message });
   });
+
+  // ---- Launcher self-update ----
+  launcherSelfUpdate.setEmitter((channel, payload) => {
+    const w = getWindow();
+    if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
+  });
+  ipcMain.handle('launcher:updateState', () => launcherSelfUpdate.currentState());
+  ipcMain.handle('launcher:check',       () => { launcherSelfUpdate.check(); return true; });
+  ipcMain.handle('launcher:install',     () => { launcherSelfUpdate.install(); return true; });
+
+  // ---- Mojang service status ----
+  ipcMain.handle('mojang:status', (_e, force) => mojangStatus.getStatus(!!force));
 }
 
 /**

@@ -18,6 +18,7 @@ const launcher = require('./launcher');
 const updater = require('./updater');
 const presence = require('./presence');
 const recommendedMods = require('./recommendedMods');
+const launcherSelfUpdate = require('./launcherSelfUpdate');
 
 let mainWindow = null;
 let autoUpdateTimer = null;
@@ -254,6 +255,10 @@ app.whenReady().then(() => {
   ipc.register(() => mainWindow);
   createWindow();
   presence.init();
+  launcherSelfUpdate.init();
+  // Check for a launcher update 3 s after boot — after ipc is wired so the
+  // renderer can receive the push event if a download is already ready.
+  setTimeout(() => launcherSelfUpdate.check(), 3000);
 
   // When the game exits and the window is hidden in the tray, bring it
   // back so the user doesn't get stranded without a visible launcher.

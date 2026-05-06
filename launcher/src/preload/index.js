@@ -120,4 +120,13 @@ contextBridge.exposeInMainWorld('fox', {
   resetSettings: () => invoke('settings:reset'),
   saveLogs:      () => invoke('logs:save'),
   about:         () => invoke('app:about'),
+
+  // Launcher self-update
+  launcherUpdateState:   ()  => invoke('launcher:updateState'),
+  checkLauncherUpdate:   ()  => invoke('launcher:check'),
+  installLauncherUpdate: ()  => invoke('launcher:install'),
+  onLauncherUpdate:      (fn) => on('launcher:update', fn),
+
+  // Mojang service status
+  mojangStatus: (force) => invoke('mojang:status', !!force),
 });
