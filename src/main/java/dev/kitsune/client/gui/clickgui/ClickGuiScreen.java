@@ -8,7 +8,7 @@ import dev.kitsune.client.screen.FoxSettingsScreen;
 import dev.kitsune.client.screen.FoxTheme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -84,7 +84,7 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         // Frame delta
         long now = System.nanoTime();
         float dt = lastFrameNanos == 0 ? 0f : (now - lastFrameNanos) / 1_000_000_000f;
@@ -104,7 +104,7 @@ public class ClickGuiScreen extends Screen {
         // ---- Top bar ----
         gfx.fill(0, 0, this.width, TOP_BAR_H, 0xE0181210);
         gfx.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, KitsuneTheme.ORANGE);
-        gfx.drawString(font, "\u00a76Fox \u00a7eClient", MARGIN, 9, 0xFFFFFFFF, true);
+        gfx.text(font, "\u00a76Fox \u00a7eClient", MARGIN, 9, 0xFFFFFFFF);
 
         // Profile pill (right side)
         String profileText = FoxTheme.capitalize(ProfileManager.getActiveName());
@@ -112,14 +112,14 @@ public class ClickGuiScreen extends Screen {
         profileX = this.width - profileW - 30;
         gfx.fill(profileX - 1, 5, profileX + profileW + 1, 21, KitsuneTheme.BARK_SOFT);
         gfx.fill(profileX, 6, profileX + profileW, 20, 0xE0201810);
-        gfx.drawString(font, profileText, profileX + 4, 9, 0xFFDDDDDD, false);
+        gfx.text(font, profileText, profileX + 4, 9, 0xFFDDDDDD);
 
         // Gear icon
         gearX = this.width - 22;
         gearY = 6;
         gfx.fill(gearX - 1, gearY - 1, gearX + 17, gearY + 15, KitsuneTheme.BARK_SOFT);
         gfx.fill(gearX, gearY, gearX + 16, gearY + 14, 0xE0201810);
-        gfx.drawCenteredString(font, "\u2699", gearX + 8, gearY + 3, KitsuneTheme.ORANGE);
+        gfx.centeredText(font, "\u2699", gearX + 8, gearY + 3, KitsuneTheme.ORANGE);
 
         // ---- Search bar (below top bar, spans the tab area) ----
         searchX = MARGIN;
@@ -139,7 +139,7 @@ public class ClickGuiScreen extends Screen {
         gfx.fill(iconX + 4, iconY + 4, iconX + 7, iconY + 7, 0xFFCCCCCC);
         int textStartX = searchX + 12;
         String placeholder = searchText.isEmpty() ? "\u00a78Search..." : searchText;
-        gfx.drawString(font, placeholder, textStartX, searchY + 3, 0xFFCCCCCC, false);
+        gfx.text(font, placeholder, textStartX, searchY + 3, 0xFFCCCCCC);
         if (searchFocused && (System.currentTimeMillis() / 500) % 2 == 0) {
             int cursorX = textStartX + font.width(searchText);
             gfx.fill(cursorX, searchY + 2, cursorX + 1, searchY + 12, 0xFFFFFFFF);
@@ -176,7 +176,7 @@ public class ClickGuiScreen extends Screen {
                 textColor = 0xFFAAAAAA;
             }
             String tabLabel = cat.icon() + " " + cat.displayName();
-            gfx.drawString(font, tabLabel, tabX + 6, tabY + 5, textColor, false);
+            gfx.text(font, tabLabel, tabX + 6, tabY + 5, textColor);
 
             // Module count badge — FAVORITES shows the favorited-module count
             // because no modules are actually registered under that category.
@@ -186,8 +186,8 @@ public class ClickGuiScreen extends Screen {
             if (count > 0) {
                 String countStr = String.valueOf(count);
                 int cw = font.width(countStr);
-                gfx.drawString(font, countStr, tabX + TAB_WIDTH - cw - 3, tabY + 5,
-                        selected ? 0xFFFFFFFF : 0xFF777777, false);
+                gfx.text(font, countStr, tabX + TAB_WIDTH - cw - 3, tabY + 5,
+                        selected ? 0xFFFFFFFF : 0xFF777777);
             }
 
             tabY += TAB_HEIGHT + TAB_GAP;
@@ -210,10 +210,10 @@ public class ClickGuiScreen extends Screen {
                     hudEditorBtnX + hudEditorBtnW, hudEditorBtnY + hudEditorBtnH, bg);
             String label = "✎ Open HUD Editor";
             int lw = font.width(label);
-            gfx.drawString(font, label,
+            gfx.text(font, label,
                     hudEditorBtnX + (hudEditorBtnW - lw) / 2,
                     hudEditorBtnY + (hudEditorBtnH - 7) / 2,
-                    fg, false);
+                    fg);
         } else {
             hudEditorBtnW = 0;
             hudEditorBtnH = 0;
@@ -232,7 +232,7 @@ public class ClickGuiScreen extends Screen {
         // F4 tooltip last so it sits on top of everything else
         activePanel.renderTooltip(gfx, mouseX, mouseY);
 
-        super.render(gfx, mouseX, mouseY, delta);
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
     }
 
     private void cycleProfile() {

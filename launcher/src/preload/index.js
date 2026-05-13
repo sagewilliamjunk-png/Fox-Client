@@ -16,14 +16,20 @@ contextBridge.exposeInMainWorld('fox', {
   patchSettings: (p) => invoke('settings:patch', p),
 
   // Auth
-  authStatus: () => invoke('auth:status'),
-  login:      () => invoke('auth:login'),
-  loginGuest: (username) => invoke('auth:guest', username),
-  logout:     () => invoke('auth:logout'),
+  authStatus:       () => invoke('auth:status'),
+  login:            () => invoke('auth:login'),
+  loginGuest:       (username) => invoke('auth:guest', username),
+  logout:           () => invoke('auth:logout'),
   onAuthBrowserOpened: (fn) => on('auth:browser-opened', fn),
   onAuthDone:          (fn) => on('auth:done',            fn),
   onAuthError:         (fn) => on('auth:error',           fn),
-  onSessionExpired: (fn) => on('auth:session-expired', fn),
+  onSessionExpired:    (fn) => on('auth:session-expired', fn),
+
+  // Multi-account
+  listAccounts:      ()    => invoke('auth:listAccounts'),
+  setActiveAccount:  (id)  => invoke('auth:setActiveAccount', id),
+  removeAccount:     (id)  => invoke('auth:removeAccount', id),
+  onAccountChanged:  (fn)  => on('auth:accountChanged', fn),
 
   // Java
   detectJava:    () => invoke('java:detect'),
@@ -71,6 +77,18 @@ contextBridge.exposeInMainWorld('fox', {
   openModsFolder: () => invoke('mods:openFolder'),
   deleteMod:      (baseName) => invoke('mods:delete', baseName),
 
+  // Resource packs (<gameDir>/resourcepacks)
+  listResourcePacks:       () => invoke('resourcepacks:list'),
+  addResourcePacks:        () => invoke('resourcepacks:add'),
+  deleteResourcePack: (n) => invoke('resourcepacks:delete', n),
+  openResourcePacksFolder: () => invoke('resourcepacks:openFolder'),
+
+  // Shader packs (<gameDir>/shaderpacks)
+  listShaderPacks:         () => invoke('shaders:list'),
+  addShaderPacks:          () => invoke('shaders:add'),
+  deleteShaderPack:   (n) => invoke('shaders:delete', n),
+  openShadersFolder:       () => invoke('shaders:openFolder'),
+
   // Game
   launchGame:   () => invoke('game:launch'),
   stopGame:     () => invoke('game:stop'),
@@ -107,6 +125,10 @@ contextBridge.exposeInMainWorld('fox', {
   // Minecraft skin head (Crafatar, fetched in main process → data URI)
   fetchAvatar: (uuid) => invoke('avatar:fetch', uuid),
 
+  // Skin manager (Mojang API — main process only, token never crosses IPC)
+  fetchSkin:  ()            => invoke('skins:fetch'),
+  uploadSkin: (variant)     => invoke('skins:upload', variant),
+
   // Launch stage progress events
   onLaunchStage: (fn) => on('launch:stage', fn),
 
@@ -120,4 +142,7 @@ contextBridge.exposeInMainWorld('fox', {
   resetSettings: () => invoke('settings:reset'),
   saveLogs:      () => invoke('logs:save'),
   about:         () => invoke('app:about'),
+
+  // Launcher self-update (electron-updater)
+  onLauncherUpdateReady: (fn) => on('launcher:update-ready', fn),
 });

@@ -311,8 +311,15 @@ function buildLaunchCommand(opts) {
   const assetsDir = path.join(gameDir, 'assets');
   const assetIndex = version.assetIndex ? version.assetIndex.id : (version.assets || 'legacy');
 
+  // A resolution override is only active when both width AND height are valid
+  // positive integers. A profile that only sets fullscreen (width/height null)
+  // must not emit --width null --height null to the game process.
+  const resW = resolution && typeof resolution.width  === 'number' && resolution.width  > 0 ? resolution.width  : null;
+  const resH = resolution && typeof resolution.height === 'number' && resolution.height > 0 ? resolution.height : null;
+  const hasCustomRes = resW != null && resH != null;
+
   const features = {
-    has_custom_resolution: !!resolution,
+    has_custom_resolution: hasCustomRes,
     is_demo_user: false,
   };
 
@@ -336,8 +343,8 @@ function buildLaunchCommand(opts) {
     launcher_name: 'FoxLauncher',
     launcher_version: '0.1.0',
     classpath,
-    resolution_width: resolution ? String(resolution.width) : '854',
-    resolution_height: resolution ? String(resolution.height) : '480',
+    resolution_width:  resW != null ? String(resW) : '854',
+    resolution_height: resH != null ? String(resH) : '480',
     library_directory: path.join(gameDir, 'libraries'),
     classpath_separator: process.platform === 'win32' ? ';' : ':',
   };
@@ -365,8 +372,8 @@ function buildLaunchCommand(opts) {
   }
 
   // Add resolution if requested and not already present
-  if (resolution && !gameArgs.includes('--width')) {
-    gameArgs.push('--width', String(resolution.width), '--height', String(resolution.height));
+  if (hasCustomRes && !gameArgs.includes('--width')) {
+    gameArgs.push('--width', String(resW), '--height', String(resH));
   }
   if (resolution && resolution.fullscreen && !gameArgs.includes('--fullscreen')) {
     gameArgs.push('--fullscreen');

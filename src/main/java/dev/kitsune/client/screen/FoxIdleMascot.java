@@ -1,6 +1,6 @@
 package dev.kitsune.client.screen;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
  * animation and pulsing fireflies orbiting behind it.
  *
  * <p>Previously this class drew a procedural fox from hand-coded pixel
- * coordinates via {@link GuiGraphics#fill}. Now that the user supplied
+ * coordinates via {@link GuiGraphicsExtractor#fill}. Now that the user supplied
  * real pixel art, we use the texture directly; the procedural code is
  * removed to keep the file small.
  */
@@ -29,7 +29,7 @@ public final class FoxIdleMascot {
      * Draw the mascot with its bounding-box top-left at ({@code anchorX},
      * {@code anchorY}). {@code timeSec} drives the bob + firefly phases.
      */
-    public static void draw(GuiGraphics gfx, int anchorX, int anchorY, double timeSec) {
+    public static void draw(GuiGraphicsExtractor gfx, int anchorX, int anchorY, double timeSec) {
         // Fireflies first so the fox draws on top of them.
         drawFireflies(gfx, anchorX, anchorY, timeSec);
 
@@ -48,7 +48,7 @@ public final class FoxIdleMascot {
     }
 
     /** 6 fireflies orbit the mascot with pulsing alpha and a warm glow. */
-    private static void drawFireflies(GuiGraphics gfx, int anchorX, int anchorY, double timeSec) {
+    private static void drawFireflies(GuiGraphicsExtractor gfx, int anchorX, int anchorY, double timeSec) {
         int cx = anchorX + DRAW_SIZE / 2;
         int cy = anchorY + DRAW_SIZE / 2;
         for (int i = 0; i < 6; i++) {

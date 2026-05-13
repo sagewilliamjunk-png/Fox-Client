@@ -2,7 +2,7 @@ package dev.kitsune.client.mixin;
 
 import dev.kitsune.client.gui.chrome.FoxChrome;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.LockIconButton;
@@ -36,8 +36,8 @@ public abstract class AbstractButtonRenderMixin {
     @Unique private float kitsune$hoverLerp = 0f;
     @Unique private long  kitsune$lastRenderMs = 0L;
 
-    @Inject(method = "renderWidget", at = @At("HEAD"), cancellable = true)
-    private void kitsune$paintFoxChrome(GuiGraphics gfx, int mouseX, int mouseY,
+    @Inject(method = "extractWidgetRenderState", at = @At("HEAD"), cancellable = true)
+    private void kitsune$paintFoxChrome(GuiGraphicsExtractor gfx, int mouseX, int mouseY,
                                          float partialTick, CallbackInfo ci) {
         // Skin every AbstractButton EXCEPT the specialized subclasses that
         // render their own icons / state glyphs via the same renderWidget path

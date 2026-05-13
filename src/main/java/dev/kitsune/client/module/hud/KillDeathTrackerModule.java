@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.List;
 
@@ -94,7 +94,7 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         Font font = mc.font;
@@ -111,7 +111,7 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
         // Compact: single line
         if (compactMode.get()) {
             String line = "K " + kills + "  D " + deaths + "  " + String.format("%.2f", kd);
-            gfx.drawString(font, line, x + 2, y + 3, 0xFFFFFFFF, false);
+            gfx.text(font, line, x + 2, y + 3, 0xFFFFFFFF);
             return;
         }
 
@@ -119,11 +119,11 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
         int rowH = 10;
 
         // Kills
-        gfx.drawString(font, "\u2694 Kills   " + kills, x + 2, curY, 0xFF55FF55, false);
+        gfx.text(font, "\u2694 Kills   " + kills, x + 2, curY, 0xFF55FF55);
         curY += rowH;
 
         // Deaths
-        gfx.drawString(font, "\u2620 Deaths  " + deaths, x + 2, curY, 0xFFFF5555, false);
+        gfx.text(font, "\u2620 Deaths  " + deaths, x + 2, curY, 0xFFFF5555);
         curY += rowH;
 
         // K/D ratio
@@ -131,7 +131,7 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
             double g = goodKd.get();
             double o = okKd.get();
             int kdColor = kd >= g ? 0xFF55FF55 : kd >= o ? 0xFFFFFF55 : 0xFFFF5555;
-            gfx.drawString(font, "K/D  " + String.format("%.2f", kd), x + 2, curY, kdColor, false);
+            gfx.text(font, "K/D  " + String.format("%.2f", kd), x + 2, curY, kdColor);
             curY += rowH;
 
             if (showBar.get()) {
@@ -152,7 +152,7 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
             int streakColor = streak >= 5 ? 0xFFFFCC00
                     : streak >= 3 ? 0xFFFFAA33
                     : 0xFFCCCCCC;
-            gfx.drawString(font, streakStr, x + 2, curY, streakColor, false);
+            gfx.text(font, streakStr, x + 2, curY, streakColor);
         }
     }
 

@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.multiplayer.ServerData;
@@ -82,7 +82,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         Font font = mc.font;
@@ -109,7 +109,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
         if (compactMode.get()) {
             String line = "Ping " + (ping >= 0 ? ping + "ms" : "N/A")
                     + "  TPS " + String.format("%.1f", estimatedTps);
-            gfx.drawString(font, line, x + 2, y + 3, 0xFFFFFFFF, false);
+            gfx.text(font, line, x + 2, y + 3, 0xFFFFFFFF);
             return;
         }
 
@@ -123,7 +123,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
             if (font.width(name) > w - 4) {
                 name = font.plainSubstrByWidth(name, w - 12) + "…";
             }
-            gfx.drawString(font, name, x + 2, curY, accent, false);
+            gfx.text(font, name, x + 2, curY, accent);
             curY += rowH;
         }
 
@@ -131,7 +131,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
         int pingColor = pingColor(ping, good, bad);
         if (showNumeric.get()) {
             String pingStr = "Ping  " + (ping >= 0 ? ping + " ms" : "N/A");
-            gfx.drawString(font, pingStr, x + 2, curY, pingColor, false);
+            gfx.text(font, pingStr, x + 2, curY, pingColor);
         }
         curY += rowH;
 
@@ -150,7 +150,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
                 : tps >= 10.0 ? 0xFFFFAA00
                 : 0xFFFF5555;
         if (showNumeric.get()) {
-            gfx.drawString(font, "TPS  " + tps, x + 2, curY, tpsColor, false);
+            gfx.text(font, "TPS  " + tps, x + 2, curY, tpsColor);
         }
         curY += rowH;
 
@@ -164,7 +164,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
 
     // ---- helpers ----
 
-    private static void drawBar(GuiGraphics gfx, int x, int y, int w, int h, float pct, int color) {
+    private static void drawBar(GuiGraphicsExtractor gfx, int x, int y, int w, int h, float pct, int color) {
         gfx.fill(x, y, x + w, y + h, 0xFF222222);
         int fill = Math.max(2, (int)(w * pct));
         gfx.fill(x, y, x + fill, y + h, color);

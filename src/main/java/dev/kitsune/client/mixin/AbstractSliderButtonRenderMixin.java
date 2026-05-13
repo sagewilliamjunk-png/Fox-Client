@@ -3,7 +3,7 @@ package dev.kitsune.client.mixin;
 import dev.kitsune.client.gui.chrome.FoxChrome;
 import dev.kitsune.client.screen.FoxTheme;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -26,8 +26,8 @@ public abstract class AbstractSliderButtonRenderMixin {
     @Unique private float kitsune$hoverLerp = 0f;
     @Unique private long  kitsune$lastRenderMs = 0L;
 
-    @Inject(method = "renderWidget", at = @At("HEAD"), cancellable = true)
-    private void kitsune$paintFoxSlider(GuiGraphics gfx, int mouseX, int mouseY,
+    @Inject(method = "extractWidgetRenderState", at = @At("HEAD"), cancellable = true)
+    private void kitsune$paintFoxSlider(GuiGraphicsExtractor gfx, int mouseX, int mouseY,
                                          float partialTick, CallbackInfo ci) {
         AbstractSliderButton s = (AbstractSliderButton) (Object) this;
         int x = s.getX();
@@ -85,7 +85,7 @@ public abstract class AbstractSliderButtonRenderMixin {
                 : FoxChrome.TEXT_DISABLED;
         int tx = x + w / 2;
         int ty = y + 3;
-        gfx.drawCenteredString(Minecraft.getInstance().font, s.getMessage(), tx, ty, textColor);
+        gfx.centeredText(Minecraft.getInstance().font, s.getMessage(), tx, ty, textColor);
 
         ci.cancel();
     }

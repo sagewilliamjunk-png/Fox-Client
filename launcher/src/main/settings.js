@@ -42,6 +42,10 @@ const DEFAULTS = {
    *  boot completes; we don't try again unless the user explicitly resets
    *  settings or a future schema migration clears it. */
   recommendedModsInstalled: false,
+  /** Launch Fox Launcher automatically when the user logs into Windows / macOS.
+   *  Implemented via Electron's app.setLoginItemSettings(). Defaults off so
+   *  the launcher doesn't silently add itself to startup on fresh installs. */
+  launchOnStartup: false,
 };
 
 // Hard floors/ceilings. RAM bounds in GB; window bounds in pixels. Anything
@@ -103,6 +107,7 @@ function validate(raw) {
     msaClientId:       (asString(merged.msaClientId, '').trim() || DEFAULTS.msaClientId),
     lastGuestName:     asString(merged.lastGuestName, DEFAULTS.lastGuestName),
     recommendedModsInstalled: asBool(merged.recommendedModsInstalled, DEFAULTS.recommendedModsInstalled),
+    launchOnStartup:   asBool(merged.launchOnStartup, DEFAULTS.launchOnStartup),
   };
 }
 

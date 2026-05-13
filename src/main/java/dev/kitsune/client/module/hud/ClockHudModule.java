@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -61,7 +61,7 @@ public class ClockHudModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -82,21 +82,21 @@ public class ClockHudModule extends Module implements HudWidget {
 
         int curY = y + 3;
         int color = textColor.get();
-        gfx.drawString(font, timeStr, x + 2, curY, color, false);
+        gfx.text(font, timeStr, x + 2, curY, color);
         curY += 10;
 
         if (showDate.get()) {
             String dateStr = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            gfx.drawString(font, dateStr, x + 2, curY, 0xFFAAAAAA, false);
+            gfx.text(font, dateStr, x + 2, curY, 0xFFAAAAAA);
             curY += 10;
         }
 
         if (showGameTime.get() && mc.level != null) {
-            long t = mc.level.getDayTime() % 24000L;
+            long t = mc.level.getOverworldClockTime() % 24000L;
             int hours = (int)((t / 1000L + 6L) % 24L);
             int minutes = (int)(((t % 1000L) * 60L) / 1000L);
             String g = String.format("MC %02d:%02d", hours, minutes);
-            gfx.drawString(font, g, x + 2, curY, 0xFFDDAA55, false);
+            gfx.text(font, g, x + 2, curY, 0xFFDDAA55);
         }
     }
 }

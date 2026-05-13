@@ -2,7 +2,7 @@ package dev.kitsune.client.screen;
 
 import dev.kitsune.client.server.ServerRule;
 import dev.kitsune.client.server.ServerRuleStore;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -138,22 +138,22 @@ public class ServerRuleEditScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
-        super.render(gfx, mouseX, mouseY, delta);
-        gfx.drawCenteredString(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        gfx.centeredText(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
 
         int cx = this.width / 2;
         int labelX = cx - 130 - 60;
         int y = 40;
-        gfx.drawString(this.font, "Name:", labelX, y + 5, 0xFFCCCCCC, false);
+        gfx.text(this.font, "Name:", labelX, y + 5, 0xFFCCCCCC);
         y += 28;
-        gfx.drawString(this.font, "Host:", labelX, y + 5, 0xFFCCCCCC, false);
+        gfx.text(this.font, "Host:", labelX, y + 5, 0xFFCCCCCC);
         y += 56; // skip action button row
-        gfx.drawString(this.font, "Mods:", labelX, y + 5, 0xFFCCCCCC, false);
+        gfx.text(this.font, "Mods:", labelX, y + 5, 0xFFCCCCCC);
         y += 28;
-        gfx.drawString(this.font, "Features:", labelX, y + 5, 0xFFCCCCCC, false);
+        gfx.text(this.font, "Features:", labelX, y + 5, 0xFFCCCCCC);
         y += 28;
-        gfx.drawString(this.font, "Note:", labelX, y + 5, 0xFFCCCCCC, false);
+        gfx.text(this.font, "Note:", labelX, y + 5, 0xFFCCCCCC);
     }
 
     @Override

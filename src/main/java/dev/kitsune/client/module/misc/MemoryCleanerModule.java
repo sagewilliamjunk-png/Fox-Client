@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Heap-usage display with optional automatic cleanup.
@@ -88,7 +88,7 @@ public class MemoryCleanerModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -114,9 +114,9 @@ public class MemoryCleanerModule extends Module implements HudWidget {
             int fill = (int)(barW * (pct / 100.0));
             int fillColor = pct > threshold.get() ? warnColor.get() : 0xFF33CC55;
             gfx.fill(barX, barY, barX + fill, barY + barH, fillColor);
-            gfx.drawString(font, label, barX + barW + 4, y + 3, color, false);
+            gfx.text(font, label, barX + barW + 4, y + 3, color);
         } else {
-            gfx.drawString(font, label, x + 2, y + 3, color, false);
+            gfx.text(font, label, x + 2, y + 3, color);
         }
     }
 

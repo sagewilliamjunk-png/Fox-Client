@@ -1,6 +1,6 @@
 package dev.kitsune.client.screen;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.Random;
 
@@ -51,12 +51,12 @@ public final class StarrySkyRenderer {
      * Render the full starry sky background. Call this BEFORE any other title screen
      * rendering so it replaces the panorama.
      *
-     * @param gfx        the current GuiGraphics
+     * @param gfx        the current GuiGraphicsExtractor
      * @param width      screen width
      * @param height     screen height
      * @param tickCount  client tick counter for animation
      */
-    public static void render(GuiGraphics gfx, int width, int height, float tickCount) {
+    public static void render(GuiGraphicsExtractor gfx, int width, int height, float tickCount) {
         // === Sky gradient: dark navy top → deep forest bottom ===
         int topColor    = 0xFF0A0E1A; // very dark navy
         int midColor    = 0xFF0F1528; // midnight blue
@@ -110,7 +110,7 @@ public final class StarrySkyRenderer {
      * Draws a simple crescent moon using overlapping circles (filled rectangles
      * approximating a circle). The moon gently pulses in brightness.
      */
-    private static void drawMoon(GuiGraphics gfx, int cx, int cy, float tickCount) {
+    private static void drawMoon(GuiGraphicsExtractor gfx, int cx, int cy, float tickCount) {
         int radius = 12;
         float pulse = 0.85f + 0.15f * (float) Math.sin(tickCount * 0.02f);
 
@@ -167,7 +167,7 @@ public final class StarrySkyRenderer {
      *   <li>Aurora ripple — ~10% of cycles; no streak at all, a soft horizon wave</li>
      * </ol>
      */
-    private static void drawShootingStar(GuiGraphics gfx, int width, int height, float tickCount) {
+    private static void drawShootingStar(GuiGraphicsExtractor gfx, int width, int height, float tickCount) {
         final int CYCLE = 160;
         float cycle = tickCount % CYCLE;
         int cycleIdx = (int) (tickCount / CYCLE);
@@ -188,7 +188,7 @@ public final class StarrySkyRenderer {
     }
 
     /** Original classic / fast-meteor code path, parameterized. */
-    private static void drawClassicStreak(GuiGraphics gfx, int width, int height,
+    private static void drawClassicStreak(GuiGraphicsExtractor gfx, int width, int height,
                                           float progress, Random rng, int rgb, int streakLen) {
         if (progress < 0f || progress > 1f) return;
         int startX = (int) (rng.nextFloat() * width * 0.6f) + (int) (width * 0.1f);
@@ -212,7 +212,7 @@ public final class StarrySkyRenderer {
     }
 
     /** Long dim tail, quadratic-bezier arc for a slight curve. */
-    private static void drawSlowComet(GuiGraphics gfx, int width, int height, float progress, Random rng) {
+    private static void drawSlowComet(GuiGraphicsExtractor gfx, int width, int height, float progress, Random rng) {
         if (progress < 0f || progress > 1f) return;
         int startX = (int) (rng.nextFloat() * width * 0.5f) + (int) (width * 0.05f);
         int startY = (int) (rng.nextFloat() * height * 0.2f) + 5;
@@ -235,7 +235,7 @@ public final class StarrySkyRenderer {
     }
 
     /** Two parallel streaks 8 px apart. */
-    private static void drawTwinMeteors(GuiGraphics gfx, int width, int height, float progress, Random rng) {
+    private static void drawTwinMeteors(GuiGraphicsExtractor gfx, int width, int height, float progress, Random rng) {
         if (progress < 0f || progress > 1f) return;
         int startX = (int) (rng.nextFloat() * width * 0.6f) + (int) (width * 0.1f);
         int startY = (int) (rng.nextFloat() * height * 0.3f) + 10;
@@ -251,7 +251,7 @@ public final class StarrySkyRenderer {
                        progress, angle, streakLen, 0xFFE0D0);
     }
 
-    private static void drawStreakLine(GuiGraphics gfx, int startX, int startY,
+    private static void drawStreakLine(GuiGraphicsExtractor gfx, int startX, int startY,
                                        float progress, float angle, int streakLen, int rgb) {
         int headX = startX + (int) (progress * streakLen * 3 * Math.cos(angle));
         int headY = startY + (int) (progress * streakLen * 3 * Math.sin(angle));
@@ -269,7 +269,7 @@ public final class StarrySkyRenderer {
     }
 
     /** 5 small streaks emerging from a shared vanishing point. */
-    private static void drawMeteorShower(GuiGraphics gfx, int width, int height, float progress, Random rng) {
+    private static void drawMeteorShower(GuiGraphicsExtractor gfx, int width, int height, float progress, Random rng) {
         if (progress < 0f || progress > 1f) return;
         int vpX = (int) (rng.nextFloat() * width * 0.4f) + (int) (width * 0.1f);
         int vpY = (int) (rng.nextFloat() * height * 0.15f);

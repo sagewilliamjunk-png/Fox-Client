@@ -2,7 +2,7 @@ package dev.kitsune.client.gui.chrome;
 
 import dev.kitsune.client.screen.FoxTheme;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 
@@ -53,7 +53,7 @@ public final class FoxChrome {
      * Does not draw any content — caller is responsible for text / icon / slider
      * thumb / etc on top.
      */
-    public static void paintPanel(GuiGraphics gfx, int x, int y, int w, int h,
+    public static void paintPanel(GuiGraphicsExtractor gfx, int x, int y, int w, int h,
                                    boolean active, float hoverLerp) {
         if (w <= 0 || h <= 0) return;
 
@@ -88,7 +88,7 @@ public final class FoxChrome {
      * Paint standard centered text inside a panel — respects active + hover state.
      * Truncates with an ellipsis if the text is wider than the panel minus padding.
      */
-    public static void paintCenteredText(GuiGraphics gfx, Font font, Component msg,
+    public static void paintCenteredText(GuiGraphicsExtractor gfx, Font font, Component msg,
                                           int x, int y, int w, int h,
                                           boolean active, float hoverLerp) {
         int color = active
@@ -104,11 +104,11 @@ public final class FoxChrome {
                     font.substrByWidth(msg, maxW - font.width("...")),
                     FormattedText.of("..."));
         }
-        gfx.drawCenteredString(font, Component.literal(drawn.getString()), tx, ty, color);
+        gfx.centeredText(font, Component.literal(drawn.getString()), tx, ty, color);
     }
 
     /** Thin 1-px rectangular border with 1-px corner chamfer. */
-    private static void drawRectBorder(GuiGraphics gfx, int x, int y, int w, int h, int color) {
+    private static void drawRectBorder(GuiGraphicsExtractor gfx, int x, int y, int w, int h, int color) {
         // Top / bottom edges, skipping corner pixels for a chamfered look
         gfx.fill(x + 1, y,         x + w - 1, y + 1,     color);
         gfx.fill(x + 1, y + h - 1, x + w - 1, y + h,     color);

@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -65,7 +65,7 @@ public class CoordsHudModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -96,7 +96,7 @@ public class CoordsHudModule extends Module implements HudWidget {
                 float yaw = normalizeYaw(player.getYRot());
                 line += "  " + getCardinal(yaw) + (facingArrow.get() ? arrowFor(yaw) : "");
             }
-            gfx.drawString(font, line, x + 2, y + 3, 0xFFFFFFFF, false);
+            gfx.text(font, line, x + 2, y + 3, 0xFFFFFFFF);
             return;
         }
 
@@ -106,13 +106,13 @@ public class CoordsHudModule extends Module implements HudWidget {
 
         // XYZ
         String xyz = "XYZ  " + fmtCoord(px) + "  " + fmtCoord(py) + "  " + fmtCoord(pz);
-        gfx.drawString(font, xyz, x + 2, curY, 0xFFDDDDDD, false);
+        gfx.text(font, xyz, x + 2, curY, 0xFFDDDDDD);
         curY += rowH;
 
         // Block position
         if (showBlock.get()) {
             String block = "Block " + player.getBlockX() + " / " + player.getBlockY() + " / " + player.getBlockZ();
-            gfx.drawString(font, block, x + 2, curY, 0xFFAAAAAA, false);
+            gfx.text(font, block, x + 2, curY, 0xFFAAAAAA);
             curY += rowH;
         }
 
@@ -120,7 +120,7 @@ public class CoordsHudModule extends Module implements HudWidget {
         if (showChunk.get()) {
             int cx2 = player.getBlockX() >> 4;
             int cz2 = player.getBlockZ() >> 4;
-            gfx.drawString(font, "Chunk " + cx2 + " / " + cz2, x + 2, curY, 0xFF888888, false);
+            gfx.text(font, "Chunk " + cx2 + " / " + cz2, x + 2, curY, 0xFF888888);
             curY += rowH;
         }
 
@@ -142,7 +142,7 @@ public class CoordsHudModule extends Module implements HudWidget {
             }
             if (label != null) {
                 String conv = label + " " + fmtCoord(nx) + " / " + fmtCoord(nz);
-                gfx.drawString(font, conv, x + 2, curY, accent, false);
+                gfx.text(font, conv, x + 2, curY, accent);
                 curY += rowH;
             }
         }
@@ -157,7 +157,7 @@ public class CoordsHudModule extends Module implements HudWidget {
             if (pitch > 30) pitchStr = " \u2193";       // looking down
             else if (pitch < -30) pitchStr = " \u2191"; // looking up
             String facing = dir + arrow + pitchStr + " (" + Math.round(yaw) + "\u00b0)";
-            gfx.drawString(font, facing, x + 2, curY, accent, false);
+            gfx.text(font, facing, x + 2, curY, accent);
             curY += rowH;
         }
 
@@ -174,7 +174,7 @@ public class CoordsHudModule extends Module implements HudWidget {
                     // Capitalize first letter, replace underscores
                     bn = bn.replace('_', ' ');
                     if (!bn.isEmpty()) bn = Character.toUpperCase(bn.charAt(0)) + bn.substring(1);
-                    gfx.drawString(font, "Biome " + bn, x + 2, curY, 0xFF88BBAA, false);
+                    gfx.text(font, "Biome " + bn, x + 2, curY, 0xFF88BBAA);
                 }
             } catch (Throwable ignored) {}
         }

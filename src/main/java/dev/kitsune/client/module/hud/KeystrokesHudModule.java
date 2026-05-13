@@ -11,7 +11,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * On-screen overlay of WASD + mouse-button key states. Popular for content
@@ -97,7 +97,7 @@ public class KeystrokesHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Options opts = mc.options;
         if (opts == null) return;
@@ -149,23 +149,23 @@ public class KeystrokesHudModule extends Module implements HudWidget {
         }
     }
 
-    private void drawKey(GuiGraphics gfx, Font font, int x, int y, int size, String label, boolean pressed) {
+    private void drawKey(GuiGraphicsExtractor gfx, Font font, int x, int y, int size, String label, boolean pressed) {
         int bg = pressed ? pressColor.get() : idleColor.get();
         int fg = pressed ? pressedText.get() : textColor.get();
         gfx.fill(x, y, x + size, y + size, bg);
         int tw = font.width(label);
         int tx = x + (size - tw) / 2;
         int ty = y + (size - 8) / 2;
-        gfx.drawString(font, label, tx, ty, fg, false);
+        gfx.text(font, label, tx, ty, fg);
     }
 
-    private void drawWideKey(GuiGraphics gfx, Font font, int x, int y, int w, int h, String label, boolean pressed) {
+    private void drawWideKey(GuiGraphicsExtractor gfx, Font font, int x, int y, int w, int h, String label, boolean pressed) {
         int bg = pressed ? pressColor.get() : idleColor.get();
         int fg = pressed ? pressedText.get() : textColor.get();
         gfx.fill(x, y, x + w, y + h, bg);
         int tw = font.width(label);
         int tx = x + (w - tw) / 2;
         int ty = y + (h - 8) / 2;
-        gfx.drawString(font, label, tx, ty, fg, false);
+        gfx.text(font, label, tx, ty, fg);
     }
 }

@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 
 /**
@@ -65,7 +65,7 @@ public class ChunkBordersModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -90,11 +90,11 @@ public class ChunkBordersModule extends Module implements HudWidget {
         int color = textColor.get();
 
         if (showCoords.get()) {
-            gfx.drawString(font, String.format("Chunk: %d, %d", chunkX, chunkZ), x, curY, color, true);
+            gfx.text(font, String.format("Chunk: %d, %d", chunkX, chunkZ), x, curY, color);
             curY += 10;
         }
         if (showInChunkPos.get()) {
-            gfx.drawString(font, String.format("In-chunk: %d, %d", inChunkX, inChunkZ), x, curY, color, true);
+            gfx.text(font, String.format("In-chunk: %d, %d", inChunkX, inChunkZ), x, curY, color);
             curY += 10;
         }
 

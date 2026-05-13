@@ -274,10 +274,17 @@ function showUser(status) {
       img.id        = 'user-avatar';
       img.className = 'avatar-img';
       img.alt       = '';
+      // Set onerror BEFORE src so it is registered before any synchronous decode.
+      img.onerror   = () => { if (img.parentNode) img.replaceWith(current); };
       img.src       = dataUri;
-      img.onerror   = () => { img.replaceWith(current); };
       current.replaceWith(img);
     }).catch(() => { /* silently keep letter initial */ });
+  }
+
+  // Show "Change skin" link only for real (non-guest) MSA accounts.
+  const changeSkinBtn = el('btn-change-skin');
+  if (changeSkinBtn) {
+    changeSkinBtn.style.display = (!status.guest && status.uuid) ? '' : 'none';
   }
 
   // Populate the active-profile line + color dot
@@ -335,8 +342,17 @@ function initNav() {
   }
   el('sign-out').addEventListener('click', async () => {
     await window.fox.logout();
-    location.reload();
+    // If other accounts remain, stay in-app and switch to the new active one.
+    const status = await window.fox.authStatus().catch(() => null);
+    if (status && status.signedIn) {
+      showUser(status);
+    } else {
+      location.reload();
+    }
   });
+
+  initSkinManager();
+  initAccountSwitcher();
   window.addEventListener('hashchange', () => {
     navigate(window.location.hash.replace('#', '') || 'home');
   });
@@ -345,6 +361,14 @@ function initNav() {
   window.fox.isRunning().then(setRunningDot).catch(() => {});
   window.fox.onGameExit(() => setRunningDot(false));
   window.fox.onGameStart(() => setRunningDot(true));
+
+  // Launcher self-update: show a persistent toast when a new version has been
+  // downloaded and is waiting to be installed on the next quit.
+  if (window.fox.onLauncherUpdateReady) {
+    window.fox.onLauncherUpdateReady(() => {
+      showToast('A launcher update is ready — restart to apply it.', 'info', 0 /* no auto-dismiss */);
+    });
+  }
 
   // When the active profile changes (sidebar dropdown, profile-card Play
   // button, or Settings switch), refresh the sidebar AND check whether
@@ -363,6 +387,245 @@ function initNav() {
       // Update the user pill (name, avatar) for the new account.
       showUser(status);
     } catch (_) { /* keep going — best effort */ }
+  });
+}
+
+// ---- account switcher ----
+
+function initAccountSwitcher() {
+  const switcher    = el('account-switcher');
+  const userCard    = el('user-card');
+  const accountList = el('account-list');
+  const addBtn      = el('btn-add-account');
+
+  if (!switcher || !userCard) return;
+
+  let switcherOpen = false;
+
+  function closeSwitcher() {
+    switcher.classList.add('hidden');
+    switcherOpen = false;
+  }
+
+  async function renderAccountList() {
+    if (!accountList) return;
+    let accounts = [];
+    try { accounts = await window.fox.listAccounts(); } catch (_) {}
+
+    const status = await window.fox.authStatus().catch(() => null);
+    const currentUuid = status && status.uuid;
+
+    if (!accounts.length) {
+      accountList.innerHTML = `<div class="account-row muted" style="font-size:12px;padding:8px 10px;">No other accounts</div>`;
+      return;
+    }
+
+    accountList.innerHTML = accounts.map(acc => {
+      const isActive = acc.uuid === currentUuid;
+      const initial  = (acc.username || '?').charAt(0).toUpperCase();
+      return `
+        <div class="account-row ${isActive ? 'account-row-active' : ''}" data-id="${escapeForHtml(acc.id)}" data-uuid="${escapeForHtml(acc.uuid)}">
+          <div class="account-row-avatar">${escapeForHtml(initial)}</div>
+          <div class="account-row-info">
+            <div class="account-row-name">${escapeForHtml(acc.username)}</div>
+            ${isActive ? '<div class="account-row-badge">Active</div>' : ''}
+          </div>
+          ${!isActive ? `<button class="btn btn-sm account-switch-btn" data-id="${escapeForHtml(acc.id)}">Switch</button>` : ''}
+          <button class="btn btn-sm account-remove-btn" data-id="${escapeForHtml(acc.id)}" title="Remove account" aria-label="Remove">×</button>
+        </div>
+      `;
+    }).join('');
+
+    // Wire switch buttons
+    for (const btn of accountList.querySelectorAll('.account-switch-btn')) {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const r = await window.fox.setActiveAccount(id);
+        if (r && r.ok) {
+          closeSwitcher();
+          const newStatus = await window.fox.authStatus().catch(() => null);
+          if (newStatus && newStatus.signedIn) {
+            showUser(newStatus);
+          } else {
+            location.reload();
+          }
+        }
+      });
+    }
+
+    // Wire remove buttons
+    for (const btn of accountList.querySelectorAll('.account-remove-btn')) {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const row = btn.closest('.account-row');
+        const name = row ? row.querySelector('.account-row-name') : null;
+        if (!confirm(`Remove account "${name ? name.textContent : id}"?`)) return;
+        await window.fox.removeAccount(id);
+        const newStatus = await window.fox.authStatus().catch(() => null);
+        if (!newStatus || !newStatus.signedIn) {
+          closeSwitcher();
+          location.reload();
+          return;
+        }
+        showUser(newStatus);
+        await renderAccountList();
+      });
+    }
+  }
+
+  // Toggle switcher on user-card click
+  userCard.style.cursor = 'pointer';
+  userCard.addEventListener('click', async (e) => {
+    // Don't intercept clicks on the sign-out / change-skin buttons
+    if (e.target.closest('button')) return;
+    if (switcherOpen) { closeSwitcher(); return; }
+    await renderAccountList();
+    switcher.classList.remove('hidden');
+    switcherOpen = true;
+  });
+
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (!switcherOpen) return;
+    if (!switcher.contains(e.target) && !userCard.contains(e.target)) closeSwitcher();
+  });
+
+  // "Add account" — triggers the normal login flow
+  addBtn && addBtn.addEventListener('click', async () => {
+    closeSwitcher();
+    const s = await window.fox.getSettings();
+    if (!s.msaClientId || !s.msaClientId.trim()) {
+      showToast('Set up your Azure client ID in Settings → Updates first.', 'warn', 5000);
+      return;
+    }
+    const r = await window.fox.login();
+    if (r && r.ok) {
+      const newStatus = await window.fox.authStatus().catch(() => null);
+      if (newStatus && newStatus.signedIn) showUser(newStatus);
+    }
+  });
+
+  // Keep switcher live when accounts change from another event
+  window.fox.onAccountChanged(async () => {
+    if (switcherOpen) await renderAccountList();
+    const status = await window.fox.authStatus().catch(() => null);
+    if (status && status.signedIn) showUser(status);
+  });
+}
+
+// ---- skin manager ----
+
+function initSkinManager() {
+  const panel      = el('skin-panel');
+  const openBtn    = el('btn-change-skin');
+  const closeBtn   = el('btn-skin-close');
+  const uploadBtn  = el('btn-skin-upload');
+  const statusEl   = el('skin-status');
+  const previewImg = el('skin-preview-img');
+  const fallback   = el('skin-preview-fallback');
+  const variantText = el('skin-variant-text');
+
+  if (!panel || !openBtn) return;
+
+  function setSkinStatus(msg, ok) {
+    if (!statusEl) return;
+    const color = ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--muted)';
+    statusEl.innerHTML = `<span style="color:${color};">${escapeForHtml(msg)}</span>`;
+  }
+
+  function closeSkinPanel() {
+    panel.classList.add('hidden');
+  }
+
+  async function openSkinPanel() {
+    // Reset state
+    setSkinStatus('Loading current skin…', null);
+    if (previewImg)  { previewImg.classList.add('hidden'); previewImg.src = ''; }
+    if (fallback)    { fallback.classList.remove('hidden'); fallback.textContent = 'Loading…'; }
+    if (variantText) variantText.textContent = 'Classic';
+
+    panel.classList.remove('hidden');
+
+    try {
+      const info = await window.fox.fetchSkin();
+      if (info && info.ok) {
+        const v = info.variant === 'slim' ? 'slim' : 'classic';
+        if (variantText) variantText.textContent = v === 'slim' ? 'Slim (Alex)' : 'Classic (Steve)';
+        const radio = el(v === 'slim' ? 'skin-var-slim' : 'skin-var-classic');
+        if (radio) radio.checked = true;
+
+        if (info.skinUrl && previewImg) {
+          // Skin URL is on Mojang's CDN — fetch via main process → data URI
+          // so the renderer's CSP (img-src 'self' data:) is satisfied.
+          window.fox.fetchAvatar /* re-use the base64 fetch */ ;
+          // Use a direct img src — skin textures are public, no auth needed,
+          // and sessionserver.mojang.com is on a different host than the
+          // avatar proxy.  Mojang's texture CDN URLs are plain HTTPS so we
+          // fetch via the existing _fetchBase64 helper through avatar:fetch.
+          // The easiest path: just show the URL of the Steve/Alex face using
+          // the avatar we already fetched.  Full body render would require a
+          // third-party renderer; skip for now and just confirm the variant.
+          previewImg.src = '';
+          previewImg.classList.add('hidden');
+          if (fallback) { fallback.textContent = 'Skin active ✓'; }
+        } else {
+          if (fallback) { fallback.textContent = 'Default skin'; }
+        }
+        setSkinStatus('');
+      } else {
+        if (fallback) { fallback.textContent = 'Could not load skin'; }
+        setSkinStatus(info && info.error ? info.error : 'Failed to load skin info', false);
+      }
+    } catch (err) {
+      if (fallback) { fallback.textContent = 'Error'; }
+      setSkinStatus(err.message || 'Unknown error', false);
+    }
+  }
+
+  openBtn.addEventListener('click', openSkinPanel);
+  closeBtn && closeBtn.addEventListener('click', closeSkinPanel);
+
+  // Close on backdrop click (clicking the darkened area outside the panel)
+  panel.addEventListener('click', (e) => {
+    if (e.target === panel) closeSkinPanel();
+  });
+
+  uploadBtn && uploadBtn.addEventListener('click', async () => {
+    const variantRadio = document.querySelector('input[name="skin-variant"]:checked');
+    const variant = variantRadio ? variantRadio.value : 'classic';
+    uploadBtn.disabled = true;
+    setSkinStatus('Uploading…', null);
+    try {
+      const r = await window.fox.uploadSkin(variant);
+      if (r && r.cancelled) {
+        setSkinStatus('');
+      } else if (r && r.ok) {
+        setSkinStatus('Skin uploaded! It may take a moment to appear in-game.', true);
+        // Refresh the avatar in the sidebar
+        const status = await window.fox.authStatus().catch(() => null);
+        if (status && status.uuid) {
+          window.fox.fetchAvatar(status.uuid).then((dataUri) => {
+            if (!dataUri) return;
+            const wrap = el('user-avatar-wrap');
+            if (!wrap) return;
+            let img = wrap.querySelector('#user-avatar');
+            if (!img) return;
+            const newImg = document.createElement('img');
+            newImg.id = 'user-avatar'; newImg.className = 'avatar-img'; newImg.alt = '';
+            newImg.src = dataUri;
+            img.replaceWith(newImg);
+          }).catch(() => {});
+        }
+      } else {
+        setSkinStatus((r && r.error) ? r.error : 'Upload failed', false);
+      }
+    } catch (err) {
+      setSkinStatus(err.message || 'Upload error', false);
+    } finally {
+      uploadBtn.disabled = false;
+    }
   });
 }
 

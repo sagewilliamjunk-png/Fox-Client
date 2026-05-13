@@ -3,7 +3,7 @@ package dev.kitsune.client.hud;
 import dev.kitsune.client.screen.FoxTheme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -80,7 +80,7 @@ public final class NotificationManager {
     /**
      * Render all active toasts. Called from GuiMixin at the end of HUD rendering.
      */
-    public static void render(GuiGraphics gfx) {
+    public static void render(GuiGraphicsExtractor gfx) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.font == null) return;
         Font font = mc.font;
@@ -175,7 +175,7 @@ public final class NotificationManager {
 
                 int textAlpha = (int) (alpha * 255);
                 int textColor = (textAlpha << 24) | (t.type.textColor & 0x00FFFFFF);
-                gfx.drawString(font, t.message, x + PADDING_X, y + PADDING_Y, textColor, false);
+                gfx.text(font, t.message, x + PADDING_X, y + PADDING_Y, textColor);
             }
         }
     }

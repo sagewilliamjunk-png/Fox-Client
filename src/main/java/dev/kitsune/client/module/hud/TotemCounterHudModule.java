@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
@@ -82,7 +82,7 @@ public class TotemCounterHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -97,13 +97,13 @@ public class TotemCounterHudModule extends Module implements HudWidget {
         int textX = x + 2;
         if (showIcon.get()) {
             ItemStack icon = new ItemStack(Items.TOTEM_OF_UNDYING);
-            gfx.renderItem(icon, x + 2, y + 2);
+            gfx.item(icon, x + 2, y + 2);
             textX = x + 22;
         }
 
         int color = low ? warnColor.get() : textColor.get();
         String label = String.valueOf(totalTotems);
         int ty = y + (showIcon.get() ? 6 : 3);
-        gfx.drawString(font, label, textX, ty, color, false);
+        gfx.text(font, label, textX, ty, color);
     }
 }

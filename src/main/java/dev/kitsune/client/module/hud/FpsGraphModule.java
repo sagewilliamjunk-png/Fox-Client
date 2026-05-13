@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.List;
 
@@ -66,7 +66,7 @@ public class FpsGraphModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int gw = graphWidth.get().intValue();
@@ -101,7 +101,7 @@ public class FpsGraphModule extends Module implements HudWidget {
         // Current FPS number
         if (showNumber.get()) {
             int col = fpsColor(currentFps, target, good, mid, bad);
-            gfx.drawString(font, currentFps + " FPS", x + 2, curY, col, true);
+            gfx.text(font, currentFps + " FPS", x + 2, curY, col);
             curY += 12;
         }
 
@@ -149,7 +149,7 @@ public class FpsGraphModule extends Module implements HudWidget {
         // Avg/Min/Max row
         if (showAvg.get()) {
             String stats = String.format("avg%d lo%d hi%d", avgFps, minFps, maxFps);
-            gfx.drawString(font, stats, x + 2, curY, 0xFF999999, false);
+            gfx.text(font, stats, x + 2, curY, 0xFF999999);
         }
     }
 

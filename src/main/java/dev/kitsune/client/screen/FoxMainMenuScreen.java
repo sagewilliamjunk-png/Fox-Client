@@ -6,7 +6,7 @@ import dev.kitsune.client.features.FeatureRegistry;
 import dev.kitsune.client.features.FoxFeature;
 import dev.kitsune.client.gui.widget.FoxButton;
 import dev.kitsune.client.server.ServerRuleStore;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -140,16 +140,16 @@ public class FoxMainMenuScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         // Solid dark backdrop so text is always readable
         gfx.fill(0, 0, this.width, this.height, 0xE0101010);
 
-        super.render(gfx, mouseX, mouseY, delta);
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
 
         // Title
-        gfx.drawCenteredString(this.font, "\u00a76Fox \u00a7eClient",
+        gfx.centeredText(this.font, "\u00a76Fox \u00a7eClient",
                 this.width / 2, 12, 0xFFFFFFFF);
-        gfx.drawCenteredString(this.font,
+        gfx.centeredText(this.font,
                 Component.literal("\u00a77server-safe by design \u00b7 no blatant hacks"),
                 this.width / 2, 26, FoxTheme.TEXT_MUTED);
 
@@ -157,15 +157,15 @@ public class FoxMainMenuScreen extends Screen {
         // button (ends at MANAGE_PROFILES_BOTTOM) and the list (starts at
         // FEATURE_LIST_TOP), so nothing clips.
         int featureCount = FeatureRegistry.all().size();
-        gfx.drawString(this.font, "\u00a76Features (" + featureCount + ")",
-                this.width / 2 - 145, HEADER_Y, 0xFFFFFFFF, true);
+        gfx.text(this.font, "\u00a76Features (" + featureCount + ")",
+                this.width / 2 - 145, HEADER_Y, 0xFFFFFFFF);
 
         // Scroll hint if applicable
         int maxVisible = Math.max(1, (this.height - BOTTOM_MARGIN - FEATURE_LIST_TOP) / 22);
         if (featureCount > maxVisible) {
-            gfx.drawString(this.font,
+            gfx.text(this.font,
                     "\u00a78scroll for more",
-                    this.width / 2 + 60, HEADER_Y, 0xFFAAAAAA, false);
+                    this.width / 2 + 60, HEADER_Y, 0xFFAAAAAA);
         }
 
         // Idle fox mascot in the bottom-right corner

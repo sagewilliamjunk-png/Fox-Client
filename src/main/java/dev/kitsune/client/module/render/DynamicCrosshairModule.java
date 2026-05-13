@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Monster;
@@ -60,7 +60,7 @@ public class DynamicCrosshairModule extends Module {
         LocalPlayer player = mc.player;
         if (player == null || mc.options.hideGui) return;
 
-        GuiGraphics gfx = event.graphics;
+        GuiGraphicsExtractor gfx = event.graphics;
         int cx = mc.getWindow().getGuiScaledWidth() / 2;
         int cy = mc.getWindow().getGuiScaledHeight() / 2;
 
@@ -136,7 +136,7 @@ public class DynamicCrosshairModule extends Module {
 
     // ---- drawing helpers ----
 
-    private static void drawCross(GuiGraphics gfx, int cx, int cy,
+    private static void drawCross(GuiGraphicsExtractor gfx, int cx, int cy,
                                   int sz, int t, int g, int color, int outline) {
         // Top arm
         if (outline != 0) {
@@ -151,7 +151,7 @@ public class DynamicCrosshairModule extends Module {
         gfx.fill(cx + g + 1,  cy, cx + g + 1 + sz, cy + t, color); // right
     }
 
-    private static void drawBrackets(GuiGraphics gfx, int cx, int cy,
+    private static void drawBrackets(GuiGraphicsExtractor gfx, int cx, int cy,
                                      int sz, int t, int g, int color, int outline) {
         // Four L-shaped corners
         int r = sz + g;
@@ -170,7 +170,7 @@ public class DynamicCrosshairModule extends Module {
         gfx.fill(cx + r + 1 - t, cy + r - arm + 1, cx + r + 1, cy + r + 1, color);
     }
 
-    private static void drawFilledCircle(GuiGraphics gfx, int cx, int cy, int r, int color) {
+    private static void drawFilledCircle(GuiGraphicsExtractor gfx, int cx, int cy, int r, int color) {
         for (int dy = -r; dy <= r; dy++) {
             for (int dx = -r; dx <= r; dx++) {
                 if (dx * dx + dy * dy <= r * r) {
@@ -180,7 +180,7 @@ public class DynamicCrosshairModule extends Module {
         }
     }
 
-    private static void drawCircleOutline(GuiGraphics gfx, int cx, int cy,
+    private static void drawCircleOutline(GuiGraphicsExtractor gfx, int cx, int cy,
                                           int r, int t, int color, int outline) {
         for (int dy = -r - 1; dy <= r + 1; dy++) {
             for (int dx = -r - 1; dx <= r + 1; dx++) {

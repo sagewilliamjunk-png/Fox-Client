@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.PlayerInfo;
 
 import java.util.UUID;
@@ -30,7 +30,7 @@ import java.util.UUID;
  *       same value the tab list uses.</li>
  * </ul>
  *
- * <p>Sodium-compat note: pure GuiGraphics calls, no shader binding, no GL
+ * <p>Sodium-compat note: pure GuiGraphicsExtractor calls, no shader binding, no GL
  * state changes. Safe under any rendering backend.
  */
 public class PerfDashboardModule extends Module implements HudWidget {
@@ -140,7 +140,7 @@ public class PerfDashboardModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -156,22 +156,22 @@ public class PerfDashboardModule extends Module implements HudWidget {
         if (showFps.get()) {
             int fps = mc.getFps();
             int c = color ? fpsColor(fps) : 0xFFFFFFFF;
-            gfx.drawString(font, "FPS: " + fps, x + 2, rowY, c, false);
+            gfx.text(font, "FPS: " + fps, x + 2, rowY, c);
             rowY += 10;
         }
 
         if (showTps.get()) {
             double tps = Math.min(20.0, 1000.0 / Math.max(1.0, avgMspt()));
             int c = color ? tpsColor(tps) : 0xFFFFFFFF;
-            gfx.drawString(font, String.format("TPS: %.1f", tps), x + 2, rowY, c, false);
+            gfx.text(font, String.format("TPS: %.1f", tps), x + 2, rowY, c);
             rowY += 10;
         }
 
         if (showRam.get()) {
             int c = color ? ramColor(heapUsedMb, heapMaxMb) : 0xFFFFFFFF;
-            gfx.drawString(font,
+            gfx.text(font,
                     String.format("RAM: %d / %d MB", heapUsedMb, heapMaxMb),
-                    x + 2, rowY, c, false);
+                    x + 2, rowY, c);
             rowY += 10;
         }
 
@@ -184,7 +184,7 @@ public class PerfDashboardModule extends Module implements HudWidget {
             }
             String txt = ms < 0 ? "Ping: —" : ("Ping: " + ms + "ms");
             int c = (color && ms >= 0) ? pingColor(ms) : 0xFFFFFFFF;
-            gfx.drawString(font, txt, x + 2, rowY, c, false);
+            gfx.text(font, txt, x + 2, rowY, c);
         }
     }
 }

@@ -8,7 +8,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 
 import java.util.List;
@@ -47,7 +47,7 @@ public class ToggleSprintModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled() && showHud.get(); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -63,13 +63,13 @@ public class ToggleSprintModule extends Module implements HudWidget {
         String sprintLabel = "\u00bb Sprint";
         int sprintColor = sprinting ? 0xFF55FF55 : 0xFF666666;
         gfx.fill(x - 2, y - 2, x - 2 + (sprinting ? 3 : 1), y + (sneakToggle.get() ? 10 : widgetHeight() + 2), sprinting ? 0xFF55FF55 : 0xFF333333);
-        gfx.drawString(font, sprintLabel, x + 2, y + 2, sprintColor, false);
+        gfx.text(font, sprintLabel, x + 2, y + 2, sprintColor);
 
         // Sneak indicator
         if (sneakToggle.get()) {
             String sneakLabel = "\u25bc Sneak";
             int sneakColor = sneaking ? 0xFFFFCC44 : 0xFF666666;
-            gfx.drawString(font, sneakLabel, x + 2, y + 12, sneakColor, false);
+            gfx.text(font, sneakLabel, x + 2, y + 12, sneakColor);
         }
     }
 

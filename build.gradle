@@ -28,14 +28,13 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
     // ---- Local optimization-mod drop-in ----
     // Any .jar placed in `kitsune-libs/` is auto-picked-up at runtime so the
     // user can drop Sodium/Lithium/etc without editing this file.
-    modRuntimeOnly fileTree(dir: "kitsune-libs", include: ["*.jar"])
+    runtimeOnly fileTree(dir: "kitsune-libs", include: ["*.jar"])
 
     // ---- Unit tests ----
     // Pure-Java tests for the parts of the mod that don't touch Minecraft
@@ -77,7 +76,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
+    it.options.release = 25
 }
 
 tasks.named("test") {
@@ -86,8 +85,8 @@ tasks.named("test") {
 
 java {
     withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 jar {

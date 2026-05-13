@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.HitResult;
 
@@ -64,7 +64,7 @@ public class ReachDisplayModule extends Module {
                 ? hit.getLocation().distanceTo(player.getEyePosition())
                 : 0;
 
-        GuiGraphics gfx = event.graphics;
+        GuiGraphicsExtractor gfx = event.graphics;
         Font font = mc.font;
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
@@ -112,6 +112,6 @@ public class ReachDisplayModule extends Module {
         // Small background pill
         int tw = font.width(text);
         gfx.fill(tx - 2, ty - 1, tx + tw + 2, ty + 9, 0x70000000);
-        gfx.drawString(font, text, tx, ty, color, false);
+        gfx.text(font, text, tx, ty, color);
     }
 }

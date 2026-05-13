@@ -1,7 +1,7 @@
 package dev.kitsune.client.server;
 
 import dev.kitsune.client.core.ModJarSwapper;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -63,19 +63,19 @@ public class RestartConfirmScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
-        super.render(gfx, mouseX, mouseY, delta);
-        gfx.drawCenteredString(this.font, this.title, this.width / 2, 30, 0xFFA060);
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        gfx.centeredText(this.font, this.title, this.width / 2, 30, 0xFFA060);
         Component msg = Component.translatable("kitsune.restart.message",
                 Component.literal(targetAddress).withStyle(s -> s.withColor(0xFFFFFFFF)));
-        gfx.drawCenteredString(this.font, msg, this.width / 2, 60, 0xFFFFFF);
+        gfx.centeredText(this.font, msg, this.width / 2, 60, 0xFFFFFF);
 
         int y = 90;
         for (String mod : modsToDisable) {
-            gfx.drawCenteredString(this.font, Component.literal("\u2022 " + mod), this.width / 2, y, 0xFF8060);
+            gfx.centeredText(this.font, Component.literal("\u2022 " + mod), this.width / 2, y, 0xFF8060);
             y += 12;
         }
-        gfx.drawCenteredString(
+        gfx.centeredText(
                 this.font,
                 Component.literal("(Fox Client will close. Relaunch to apply.)").withStyle(s -> s.withColor(0xFF888888)),
                 this.width / 2, y + 10, 0xAAAAAA

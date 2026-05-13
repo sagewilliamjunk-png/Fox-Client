@@ -7,6 +7,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 
@@ -43,10 +44,10 @@ public class ShulkerTooltipFeature implements FoxFeature {
             ItemContainerContents contents = stack.get(DataComponents.CONTAINER);
             if (contents == null) return;
             int idx = 0;
-            for (ItemStack inner : contents.nonEmptyItems()) {
-                if (inner.isEmpty()) continue;
-                Component name = inner.getHoverName().copy().withStyle(s -> s.withColor(0xFFA060));
-                Component line = Component.literal(inner.getCount() + "x ").append(name);
+            for (ItemStackTemplate inner : contents.nonEmptyItems()) {
+                ItemStack innerStack = inner.create();
+                Component name = innerStack.getHoverName().copy().withStyle(s -> s.withColor(0xFFA060));
+                Component line = Component.literal(inner.count() + "x ").append(name);
                 lines.add(line);
                 if (++idx >= 27) break;
             }

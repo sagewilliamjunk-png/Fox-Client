@@ -1461,3 +1461,161 @@ a:hover { color: var(--fox-warm); }
   font-size: 11px;
   color: var(--text-muted, #888);
 }
+
+/* ---- account switcher dropdown ---- */
+.account-switcher {
+  position: fixed;
+  bottom: 80px;
+  left: 12px;
+  width: 240px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 190;
+  overflow: hidden;
+  animation: modal-in 180ms ease-out;
+}
+.account-switcher.hidden { display: none; }
+.account-switcher-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 12px 6px;
+}
+.account-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  transition: background 100ms ease;
+}
+.account-row:hover { background: rgba(255,255,255,0.04); }
+.account-row-active { background: rgba(255,140,66,0.08); }
+.account-row-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--fox-orange);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.account-row-info {
+  flex: 1;
+  min-width: 0;
+}
+.account-row-name {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-row-badge {
+  font-size: 10px;
+  color: var(--fox-orange);
+  font-weight: 700;
+}
+.account-switch-btn,
+.account-remove-btn {
+  font-size: 11px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+.account-remove-btn {
+  color: var(--text-2);
+  background: transparent;
+  border-color: transparent;
+  font-size: 14px;
+  line-height: 1;
+}
+.account-remove-btn:hover { color: var(--danger); border-color: var(--danger); }
+.account-switcher-footer {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+/* ---- skin manager panel ---- */
+.skin-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0 16px 16px;
+  animation: backdrop-in 160ms ease-out;
+}
+.skin-panel.hidden { display: none; }
+.skin-panel-inner {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: modal-in 200ms ease-out;
+}
+.skin-panel-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: var(--fox-orange);
+}
+.skin-panel-sub {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+.skin-preview-wrap {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+  background: var(--bg-3);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.skin-preview-img {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+}
+.skin-preview-img.hidden { display: none; }
+.skin-preview-fallback {
+  font-size: 11px;
+  text-align: center;
+  padding: 4px;
+}
+.skin-variant-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-1);
+}

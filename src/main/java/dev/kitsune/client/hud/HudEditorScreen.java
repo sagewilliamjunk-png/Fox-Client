@@ -1,7 +1,7 @@
 package dev.kitsune.client.hud;
 
 import dev.kitsune.client.screen.FoxTheme;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -66,7 +66,7 @@ public class HudEditorScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         // Dim background
         gfx.fill(0, 0, this.width, this.height, 0xA0000000);
 
@@ -74,10 +74,10 @@ public class HudEditorScreen extends Screen {
         if (gridSize > 0) drawGrid(gfx);
 
         // Title and hint
-        gfx.drawString(this.font, "\u00a76Fox \u00a7eHUD Editor", 8, 8, 0xFFFFFFFF, true);
-        gfx.drawString(this.font,
+        gfx.text(this.font, "\u00a76Fox \u00a7eHUD Editor", 8, 8, 0xFFFFFFFF);
+        gfx.text(this.font,
                 "\u00a77Drag widgets to reposition. G cycles grid, edges snap. ESC to close.",
-                8, 20, 0xFFCCCCCC, false);
+                8, 20, 0xFFCCCCCC);
 
         // Only show widgets that are actually enabled — they render exactly
         // as they appear in-game so the user is positioning the real thing,
@@ -102,20 +102,20 @@ public class HudEditorScreen extends Screen {
             outline(gfx, x - 1, y - 1, x2 + 1, y2 + 1, border);
 
             // Label above the box
-            gfx.drawString(this.font, w.displayName(), x, Math.max(0, y - 9), 0xFFFFFFFF, true);
+            gfx.text(this.font, w.displayName(), x, Math.max(0, y - 9), 0xFFFFFFFF);
         }
 
-        super.render(gfx, mouseX, mouseY, delta);
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
     }
 
-    private static void outline(GuiGraphics gfx, int x1, int y1, int x2, int y2, int color) {
+    private static void outline(GuiGraphicsExtractor gfx, int x1, int y1, int x2, int y2, int color) {
         gfx.fill(x1, y1, x2, y1 + 1, color);
         gfx.fill(x1, y2 - 1, x2, y2, color);
         gfx.fill(x1, y1, x1 + 1, y2, color);
         gfx.fill(x2 - 1, y1, x2, y2, color);
     }
 
-    private void drawGrid(GuiGraphics gfx) {
+    private void drawGrid(GuiGraphicsExtractor gfx) {
         // Faint cell lines + slightly stronger every-4th line so the eye can
         // pick out alignment columns without the screen looking like graph paper.
         int faint = 0x14FFFFFF;

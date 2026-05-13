@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 
 import java.util.List;
@@ -59,7 +59,7 @@ public class ReachCooldownHudModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -90,7 +90,7 @@ public class ReachCooldownHudModule extends Module implements HudWidget {
         // --- Cooldown label + numeric ---
         String cdLabel = "CD";
         if (showNumericCd.get()) cdLabel += "  " + (int)(cd * 100) + "%";
-        gfx.drawString(font, cdLabel, x + 2, curY, col, false);
+        gfx.text(font, cdLabel, x + 2, curY, col);
         curY += 10;
 
         // --- Cooldown visualisation ---
@@ -140,7 +140,7 @@ public class ReachCooldownHudModule extends Module implements HudWidget {
         if (showNumericMs.get()) {
             // Full cooldown is ~12 ticks = ~600 ms in vanilla
             int ms = (int)((1f - cd) * 600);
-            gfx.drawString(font, ms + " ms", x + 2, curY, 0xFFAAAAAA, false);
+            gfx.text(font, ms + " ms", x + 2, curY, 0xFFAAAAAA);
             curY += 10;
         }
 
@@ -158,7 +158,7 @@ public class ReachCooldownHudModule extends Module implements HudWidget {
                     : reach < 3.5 ? 0xFF55FF55
                     : reach < 5.0 ? 0xFFFFFF55
                     : 0xFFFF9955;
-            gfx.drawString(font, reachStr, x + 2, curY, reachCol, false);
+            gfx.text(font, reachStr, x + 2, curY, reachCol);
         }
     }
 }

@@ -1,6 +1,6 @@
 package dev.kitsune.client.hud;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Read-only "ghost" {@link HudWidget}s that represent vanilla HUD elements
@@ -50,7 +50,7 @@ public final class VanillaHudProxies {
         @Override public int widgetHeight()   { return h; }
 
         @Override
-        public void renderWidget(GuiGraphics gfx, int x, int y) {
+        public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
             // Intentionally empty. Vanilla Gui draws the real element; this
             // proxy only exists so the editor can reposition it via the
             // GuiVanillaHudMixin pose translate.

@@ -4,7 +4,7 @@ import dev.kitsune.client.core.Profile;
 import dev.kitsune.client.core.ProfileManager;
 import dev.kitsune.client.features.FeatureRegistry;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -130,9 +130,9 @@ public class ProfileManagementScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
-        super.render(gfx, mouseX, mouseY, delta);
-        gfx.drawCenteredString(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        gfx.centeredText(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
 
         List<String> names = ProfileManager.getProfileNames();
         String activeName = ProfileManager.getActiveName();
@@ -152,7 +152,7 @@ public class ProfileManagementScreen extends Screen {
             String display = FoxTheme.capitalize(name);
             if (isActive) display = "\u00a76\u2b50 " + display + " \u00a7a(active)";
             else display = "\u00a7f  " + display;
-            gfx.drawString(this.font, display, 14, rowY + 7, 0xFFFFFFFF, false);
+            gfx.text(this.font, display, 14, rowY + 7, 0xFFFFFFFF);
         }
     }
 

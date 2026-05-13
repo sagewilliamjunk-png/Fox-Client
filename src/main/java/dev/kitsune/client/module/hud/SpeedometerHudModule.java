@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
@@ -103,7 +103,7 @@ public class SpeedometerHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -118,11 +118,11 @@ public class SpeedometerHudModule extends Module implements HudWidget {
         int color = textColor.get();
 
         if (showLabel.get()) main = "Spd " + main;
-        gfx.drawString(font, main, x + 2, y + 3, color, false);
+        gfx.text(font, main, x + 2, y + 3, color);
 
         if (showPeak.get()) {
             String peakStr = "Peak " + formatSpeed(peak);
-            gfx.drawString(font, peakStr, x + 2, y + 13, 0xFFAAAAAA, false);
+            gfx.text(font, peakStr, x + 2, y + 13, 0xFFAAAAAA);
         }
     }
 

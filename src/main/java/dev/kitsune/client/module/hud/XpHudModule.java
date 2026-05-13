@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 
 /**
@@ -60,7 +60,7 @@ public class XpHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         Font font = mc.font;
@@ -72,7 +72,7 @@ public class XpHudModule extends Module implements HudWidget {
         gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
 
         if (p == null) {
-            gfx.drawString(font, "§8XP —", x + 2, y + 3, 0xFFAAAAAA, false);
+            gfx.text(font, "§8XP —", x + 2, y + 3, 0xFFAAAAAA);
             return;
         }
 
@@ -89,7 +89,7 @@ public class XpHudModule extends Module implements HudWidget {
         if (showPointsToNext.get()) {
             line.append("  -").append(remaining).append("xp");
         }
-        gfx.drawString(font, line.toString(), x + 2, y + 3, 0xFFFFFFFF, false);
+        gfx.text(font, line.toString(), x + 2, y + 3, 0xFFFFFFFF);
 
         if (showProgressBar.get()) {
             int barY = y + h - 6;

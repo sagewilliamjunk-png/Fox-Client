@@ -22,7 +22,7 @@ import dev.kitsune.client.server.ServerRuleStore;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -89,31 +89,31 @@ public class KitsuneClient implements ClientModInitializer {
         VanillaHudProxies.registerAll();
 
         // 3. Key bindings
-        openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        openMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.menu",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_BRACKET,
                 FOX_CATEGORY
         ));
-        zoomKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.zoom",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_C,
                 FOX_CATEGORY
         ));
-        fullBrightKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        fullBrightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.full_bright",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_G,
                 FOX_CATEGORY
         ));
-        clickGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        clickGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.clickgui",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_SHIFT,
                 FOX_CATEGORY
         ));
-        hudEditorKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        hudEditorKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.hud_editor",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_END,

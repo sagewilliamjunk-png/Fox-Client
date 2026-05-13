@@ -4,7 +4,7 @@ import dev.kitsune.client.core.KitsuneConfig;
 import dev.kitsune.client.core.ProfileIO;
 import dev.kitsune.client.gui.widget.FoxButton;
 import dev.kitsune.client.hud.NotificationManager;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -127,15 +127,15 @@ public class FoxSettingsScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
         // Dark backdrop
         gfx.fill(0, 0, this.width, this.height, 0xE0101010);
 
-        super.render(gfx, mouseX, mouseY, delta);
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
 
-        gfx.drawCenteredString(this.font, "\u00a76Fox \u00a7eClient Settings",
+        gfx.centeredText(this.font, "\u00a76Fox \u00a7eClient Settings",
                 this.width / 2, 14, 0xFFFFFFFF);
-        gfx.drawCenteredString(this.font,
+        gfx.centeredText(this.font,
                 Component.literal("\u00a77Global settings"),
                 this.width / 2, 28, FoxTheme.TEXT_MUTED);
     }

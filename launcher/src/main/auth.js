@@ -6,7 +6,8 @@
 //
 // Redirect URI: https://login.live.com/oauth20_desktop.srf
 //   — Microsoft's official "desktop app" redirect; no local HTTP server needed.
-//   Add this URI to your Azure app registration's Redirect URIs list.
+//   Add this URI to your Azure app registration under
+//   Authentication → Mobile and desktop applications.
 //
 // Steps:
 //   1. Generate code_verifier + code_challenge (SHA-256 / PKCE)
@@ -26,6 +27,7 @@ const { BrowserWindow }        = require('electron');
 
 const paths    = require('./paths');
 const settings = require('./settings');
+const accounts = require('./accounts');
 
 const REDIRECT_URI = 'https://login.live.com/oauth20_desktop.srf';
 const SCOPES       = 'XboxLive.signin offline_access';
@@ -35,7 +37,7 @@ const SCOPES       = 'XboxLive.signin offline_access';
 function clientId() {
   const id = (settings.load().msaClientId || '').trim();
   if (!id) {
-    const e = new Error('No Microsoft Application ID configured. Open Settings and paste a client ID from portal.azure.com.');
+    const e = new Error('No Microsoft Application ID configured. Check that a valid msaClientId is set in settings.json.');
     e.fatal = true;
     throw e;
   }
@@ -89,8 +91,26 @@ function postJson(urlStr, body, headers = {}) {
 }
 
 // ---- auth persistence ----
+//
+// For isolated profiles the auth vault is still a per-instance auth.json so
+// different people (or alt accounts) can use separate isolated profiles without
+// affecting each other's global session.
+//
+// For linked (non-isolated) profiles we use accounts.js so the user can switch
+// between multiple Microsoft accounts without signing out.
 
-function vaultPath() {
+function isIsolatedProfile() {
+  try {
+    const s = settings.load();
+    const profilesStore = require('./profiles');
+    const profile = profilesStore.find(s.selectedProfile);
+    return !!(profile && profile.isolated);
+  } catch (_) {
+    return false;
+  }
+}
+
+function isolatedVaultPath() {
   try {
     const s = settings.load();
     const profilesStore = require('./profiles');
@@ -101,22 +121,72 @@ function vaultPath() {
   }
 }
 
+/**
+ * Load the current auth record.
+ * - Isolated profiles: read from the per-instance auth.json (unchanged behaviour).
+ * - Linked profiles: read from accounts.js (active account).
+ */
 function loadCached() {
-  try { return JSON.parse(fs.readFileSync(vaultPath(), 'utf8')); }
-  catch (_) { return null; }
+  if (isIsolatedProfile()) {
+    // Per-instance auth.json takes priority — supports alt-account isolation.
+    const vaultPath = isolatedVaultPath();
+    try {
+      const data = JSON.parse(fs.readFileSync(vaultPath, 'utf8'));
+      if (data && (data.username || data.guest)) return data;
+    } catch (_) { /* fall through to global accounts */ }
+    // No per-instance vault yet — fall back to the global accounts store so
+    // switching to a new isolated profile doesn't force a second sign-in.
+    // The vault will be written the next time getValid() refreshes tokens.
+  }
+  // Linked profile (or isolated fallback) — use accounts store.
+  const account = accounts.getActive();
+  if (!account) return null;
+  // The accounts store doesn't persist the short-lived accessToken.
+  // Return a skeleton; getValid() will refresh it before use.
+  return {
+    username:       account.username,
+    uuid:           account.uuid,
+    msRefreshToken: account.msRefreshToken,
+    accessToken:    null,   // will be refreshed by getValid()
+    expiresAt:      0,      // force refresh
+    savedAt:        account.savedAt,
+    guest:          !!account.guest,
+    _accountId:     account.id,
+  };
 }
 
 function saveCached(data) {
-  paths.ensureAll();
-  const dst = vaultPath();
-  try { fs.mkdirSync(path.dirname(dst), { recursive: true }); } catch (_) {}
-  const tmp = dst + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
-  fs.renameSync(tmp, dst);
+  if (isIsolatedProfile()) {
+    paths.ensureAll();
+    const dst = isolatedVaultPath();
+    try { fs.mkdirSync(path.dirname(dst), { recursive: true }); } catch (_) {}
+    const tmp = dst + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+    fs.renameSync(tmp, dst);
+    return;
+  }
+  // Linked profile — upsert into accounts store.
+  accounts.upsert({
+    username:       data.username,
+    uuid:           data.uuid,
+    msRefreshToken: data.msRefreshToken || null,
+    savedAt:        data.savedAt || Date.now(),
+    guest:          !!data.guest,
+  }, true /* makeActive */);
 }
 
 function clearCached() {
-  try { fs.unlinkSync(vaultPath()); } catch (_) {}
+  if (isIsolatedProfile()) {
+    // Remove per-instance vault if it exists.
+    try { fs.unlinkSync(isolatedVaultPath()); } catch (_) {}
+    // Also clear the global account so the sidebar updates correctly.
+    const id = accounts.getActiveId();
+    if (id) accounts.remove(id);
+    return;
+  }
+  // Linked profile — remove the active account from the store.
+  const id = accounts.getActiveId();
+  if (id) accounts.remove(id);
 }
 
 // ---- step 1: embedded-browser OAuth + PKCE ----
@@ -158,34 +228,24 @@ function requestBrowserAuth({ onBrowserOpen } = {}) {
 
     if (onBrowserOpen) onBrowserOpen();
 
-    win.webContents.on('will-redirect', (_e, url) => {
+    const handleRedirect = (url) => {
       if (!url.startsWith(REDIRECT_URI)) return;
       const parsed = new URL(url);
       const code   = parsed.searchParams.get('code');
       const error  = parsed.searchParams.get('error');
       const desc   = parsed.searchParams.get('error_description');
-      try { win.destroy(); } catch (_) {}
+      // Resolve/reject BEFORE destroying the window — win.destroy() fires the
+      // 'closed' event synchronously and would otherwise race with done().
       if (code) {
         done(null, { codeVerifier, authCode: code });
       } else {
         done(new Error(desc || error || 'Sign-in was cancelled or failed.'));
       }
-    });
+      try { win.destroy(); } catch (_) {}
+    };
 
-    // Also intercept will-navigate for older Electron versions
-    win.webContents.on('will-navigate', (_e, url) => {
-      if (!url.startsWith(REDIRECT_URI)) return;
-      const parsed = new URL(url);
-      const code   = parsed.searchParams.get('code');
-      const error  = parsed.searchParams.get('error');
-      const desc   = parsed.searchParams.get('error_description');
-      try { win.destroy(); } catch (_) {}
-      if (code) {
-        done(null, { codeVerifier, authCode: code });
-      } else {
-        done(new Error(desc || error || 'Sign-in was cancelled or failed.'));
-      }
-    });
+    win.webContents.on('will-redirect', (_e, url) => handleRedirect(url));
+    win.webContents.on('will-navigate',  (_e, url) => handleRedirect(url));
 
     win.on('closed', () => done(new Error('Sign-in window was closed.')));
     win.loadURL(authUrl.toString());
@@ -254,14 +314,28 @@ async function msToMinecraftToken(msAccessToken) {
   }
 
   // 3c. Minecraft
-  const mc = await postJson('https://api.minecraftservices.com/authentication/login_with_xbox', {
-    identityToken: `XBL3.0 x=${userHash};${xsts.Token}`,
-  });
+  let mc;
+  try {
+    mc = await postJson('https://api.minecraftservices.com/authentication/login_with_xbox', {
+      identityToken: `XBL3.0 x=${userHash};${xsts.Token}`,
+    });
+  } catch (err) {
+    if (err.status === 403) throw new Error(
+      'Minecraft authentication failed (HTTP 403). ' +
+      'Your Azure app registration may still be pending Mojang\'s approval — check aka.ms/mce-reviewappid for status.'
+    );
+    throw err;
+  }
 
   // 3d. Profile
-  const profile = await httpJson('https://api.minecraftservices.com/minecraft/profile', {
-    headers: { Authorization: `Bearer ${mc.access_token}` },
-  });
+  let profile;
+  try {
+    profile = await httpJson('https://api.minecraftservices.com/minecraft/profile', {
+      headers: { Authorization: `Bearer ${mc.access_token}` },
+    });
+  } catch (err) {
+    throw err;
+  }
   if (!profile || !profile.id) {
     throw new Error('This Microsoft account does not own Minecraft Java Edition.');
   }
@@ -289,7 +363,7 @@ async function refreshMsToken(refreshToken) {
 
 /**
  * Start an interactive sign-in via an embedded BrowserWindow.
- * `onBrowserOpen()` is called when the window opens (no URL — window is embedded).
+ * `onBrowserOpen()` is called when the window opens.
  */
 async function login({ onBrowserOpen } = {}) {
   const result = await requestBrowserAuth({ onBrowserOpen });
@@ -308,13 +382,26 @@ async function getValid() {
   const cached = loadCached();
   if (!cached) return null;
   if (cached.guest) return cached;
-  if (cached.expiresAt && cached.expiresAt > Date.now()) return cached;
+  // If we have a live accessToken (isolated profile path), use it.
+  if (cached.accessToken && cached.expiresAt && cached.expiresAt > Date.now()) return cached;
   if (!cached.msRefreshToken) return null;
   try {
     const msTok  = await refreshMsToken(cached.msRefreshToken);
     const mc     = await msToMinecraftToken(msTok.access_token);
-    const record = { ...mc, msRefreshToken: msTok.refresh_token || cached.msRefreshToken, savedAt: Date.now() };
-    saveCached(record);
+    const newRefresh = msTok.refresh_token || cached.msRefreshToken;
+    const record = { ...mc, msRefreshToken: newRefresh, savedAt: Date.now() };
+    if (isIsolatedProfile()) {
+      saveCached(record);
+    } else {
+      // For linked profiles, update only the tokens in the accounts store,
+      // preserving the account id so the UI switcher stays stable.
+      const accountId = cached._accountId || accounts.getActiveId();
+      if (accountId) {
+        accounts.updateTokens(accountId, { msRefreshToken: newRefresh, savedAt: Date.now() });
+      } else {
+        saveCached(record);
+      }
+    }
     return record;
   } catch (err) {
     clearCached();
@@ -366,4 +453,36 @@ function _notifyExpired(reason) {
   for (const fn of expiryListeners) { try { fn(reason); } catch (_) {} }
 }
 
-module.exports = { login, getValid, logout, loadCached, onSessionExpired, loginAsGuest, sanitizeGuestName };
+// ---- multi-account helpers (delegates to accounts.js) ----
+
+/**
+ * List all stored accounts (display fields only — no refresh tokens).
+ * Returns [] for isolated profiles (they use a per-instance vault, not the store).
+ */
+function listAccounts() {
+  if (isIsolatedProfile()) return [];
+  return accounts.list();
+}
+
+/**
+ * Switch the active account for linked profiles.
+ * Returns the new active record (display fields) or null.
+ */
+function setActiveAccount(id) {
+  if (isIsolatedProfile()) return null;
+  return accounts.setActive(id);
+}
+
+/**
+ * Remove an account from the store.
+ * Returns the new activeAccountId (or null).
+ */
+function removeAccount(id) {
+  if (isIsolatedProfile()) return null;
+  return accounts.remove(id);
+}
+
+module.exports = {
+  login, getValid, logout, loadCached, onSessionExpired, loginAsGuest, sanitizeGuestName,
+  listAccounts, setActiveAccount, removeAccount,
+};

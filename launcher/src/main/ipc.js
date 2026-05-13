@@ -20,6 +20,8 @@ const presence = require('./presence');
 const addons = require('./addons');
 const recommendedMods = require('./recommendedMods');
 const profiles = require('./profiles');
+const resourcepacks = require('./resourcepacks');
+const skins = require('./skins');
 
 // Subscribers fired after every successful settings:patch. Lets other main-
 // process modules (e.g. index.js's auto-update timer) react to user changes
@@ -53,12 +55,14 @@ function register(getWindow) {
   ipcMain.handle('auth:status', async () => {
     const cached = auth.loadCached();
     if (!cached) return { signedIn: false };
+    const allAccounts = auth.listAccounts();
     return {
       signedIn: true,
       username: cached.username,
       uuid: cached.uuid,
       expiresAt: cached.expiresAt,
       guest: !!cached.guest,
+      accountCount: allAccounts.length,
     };
   });
 
@@ -82,6 +86,39 @@ function register(getWindow) {
   });
 
   ipcMain.handle('auth:logout', () => { auth.logout(); return { ok: true }; });
+
+  // ---- multi-account helpers ----
+
+  /** List all stored accounts (display fields only). */
+  ipcMain.handle('auth:listAccounts', () => {
+    try { return auth.listAccounts(); }
+    catch (_) { return []; }
+  });
+
+  /** Switch the active account. Returns the new active record or null. */
+  ipcMain.handle('auth:setActiveAccount', (_e, id) => {
+    try {
+      const result = auth.setActiveAccount(id);
+      // Notify the renderer so the sidebar refreshes.
+      const w = getWindow();
+      if (w && !w.isDestroyed()) w.webContents.send('auth:accountChanged', { id });
+      return { ok: !!result, account: result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  /** Remove an account from the store. Fires auth:accountChanged. */
+  ipcMain.handle('auth:removeAccount', (_e, id) => {
+    try {
+      const newActiveId = auth.removeAccount(id);
+      const w = getWindow();
+      if (w && !w.isDestroyed()) w.webContents.send('auth:accountChanged', { id: newActiveId });
+      return { ok: true, newActiveId };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 
   ipcMain.handle('auth:guest', (_e, username) => {
     try {
@@ -179,7 +216,20 @@ function register(getWindow) {
   ipcMain.handle('profiles:list',       () => profiles.load());
   ipcMain.handle('profiles:save',       (_e, profile) => profiles.upsert(profile));
   ipcMain.handle('profiles:patch',      (_e, id, partial) => profiles.patch(id, partial));
-  ipcMain.handle('profiles:delete',     (_e, id) => profiles.remove(id));
+  ipcMain.handle('profiles:delete', (_e, id) => {
+    const doc = profiles.remove(id);
+    // If the deleted profile was the active one, switch to whichever profile
+    // survived. Leaving selectedProfile pointing at a nonexistent id causes
+    // launcher.js to silently drop all profile overrides (mods, RAM, isolation).
+    const s = settings.load();
+    if (s.selectedProfile === id) {
+      const fallback = (doc.profiles[0] && doc.profiles[0].id) || '';
+      settings.patch({ selectedProfile: fallback });
+      const w = getWindow();
+      if (w && !w.isDestroyed()) w.webContents.send('profiles:activeChanged', { id: fallback });
+    }
+    return doc;
+  });
   ipcMain.handle('profiles:setActive',  (_e, id) => {
     const result = settings.patch({ selectedProfile: id });
     // Notify the renderer so the sidebar dot, name, and avatar refresh —
@@ -382,6 +432,68 @@ function register(getWindow) {
     return { ok: removed, error: removed ? null : 'Not found' };
   });
 
+  // ---- resource packs & shader packs ----
+  //
+  // Both types share the same four operations (list / add / delete /
+  // open-folder).  The `type` parameter is either 'resourcepacks' or
+  // 'shaders' and maps to the correct sub-directory inside gameDir.
+
+  function resolveGameDir() {
+    const s = settings.load();
+    return (s.gameDir && s.gameDir.trim()) ? s.gameDir : paths.defaultMinecraft();
+  }
+
+  ipcMain.handle('resourcepacks:list', () => {
+    return resourcepacks.listPacks(resolveGameDir(), 'resourcepacks');
+  });
+
+  ipcMain.handle('resourcepacks:add', async () => {
+    const w = getWindow();
+    const r = await dialog.showOpenDialog(w, {
+      title: 'Add resource packs',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Resource pack', extensions: ['zip'] }],
+    });
+    if (r.canceled || !r.filePaths.length) return { ok: false, cancelled: true };
+    return resourcepacks.addPacks(resolveGameDir(), 'resourcepacks', r.filePaths);
+  });
+
+  ipcMain.handle('resourcepacks:delete', (_e, baseName) => {
+    return resourcepacks.deletePack(resolveGameDir(), 'resourcepacks', baseName);
+  });
+
+  ipcMain.handle('resourcepacks:openFolder', () => {
+    const dir = resourcepacks.packDir(resolveGameDir(), 'resourcepacks');
+    try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+    return shell.openPath(dir);
+  });
+
+  ipcMain.handle('shaders:list', () => {
+    return resourcepacks.listPacks(resolveGameDir(), 'shaders');
+  });
+
+  ipcMain.handle('shaders:add', async () => {
+    const w = getWindow();
+    const r = await dialog.showOpenDialog(w, {
+      title: 'Add shader packs',
+      properties: ['openFile', 'multiSelections'],
+      // Shader packs are usually .zip; some Iris-compatible ones are .jar.
+      filters: [{ name: 'Shader pack', extensions: ['zip', 'jar'] }],
+    });
+    if (r.canceled || !r.filePaths.length) return { ok: false, cancelled: true };
+    return resourcepacks.addPacks(resolveGameDir(), 'shaders', r.filePaths);
+  });
+
+  ipcMain.handle('shaders:delete', (_e, baseName) => {
+    return resourcepacks.deletePack(resolveGameDir(), 'shaders', baseName);
+  });
+
+  ipcMain.handle('shaders:openFolder', () => {
+    const dir = resourcepacks.packDir(resolveGameDir(), 'shaders');
+    try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+    return shell.openPath(dir);
+  });
+
   // ---- launch ----
   ipcMain.handle('game:launch', async () => {
     try {
@@ -461,7 +573,12 @@ function register(getWindow) {
   ipcMain.handle('updater:summary', () => updater.summary());
 
   // ---- shell helpers ----
-  ipcMain.handle('shell:openExternal', (_e, url) => shell.openExternal(url));
+  ipcMain.handle('shell:openExternal', (_e, url) => {
+    // Only allow http(s) URLs — block file://, javascript:, and other schemes
+    // that could be used to execute code or expose local files.
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
+    shell.openExternal(url);
+  });
   ipcMain.handle('shell:openPath', (_e, p) => shell.openPath(p));
 
   // ---- system probes (RAM ceiling for the Settings sliders, etc.) ----
@@ -620,10 +737,50 @@ function register(getWindow) {
     // Sanitise — Minecraft UUIDs are 32 hex chars optionally with hyphens.
     if (!/^[0-9a-f-]{32,36}$/i.test(uuid)) return null;
     const url = `https://crafatar.com/avatars/${uuid}?size=32&overlay=true`;
+    // Crafatar requires a User-Agent header; requests without one are blocked.
+    const ua = 'FoxLauncher/1.0 (Electron; Minecraft launcher; crafatar contact: https://crafatar.com)';
     try {
-      return await _fetchBase64(url, 3);
+      return await _fetchBase64(url, 3, { 'User-Agent': ua });
     } catch (_) {
       return null; // renderer falls back to letter-initial
+    }
+  });
+
+  // ---- skin manager ----
+  //
+  // Both calls resolve auth internally (main-process only) so the access token
+  // is never exposed to the renderer.
+
+  /** Fetch current skin URL + model variant for the signed-in account. */
+  ipcMain.handle('skins:fetch', async () => {
+    try {
+      const record = await auth.getValid();
+      if (!record || record.guest || !record.uuid) return { ok: false, error: 'Not signed in' };
+      const info = await skins.fetchSkinInfo(record.uuid, record.accessToken);
+      return { ok: true, ...info };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  /** Open file picker for a PNG, then upload + activate the chosen skin. */
+  ipcMain.handle('skins:upload', async (_e, variant) => {
+    const w = getWindow();
+    const r = await dialog.showOpenDialog(w, {
+      title: 'Choose skin PNG',
+      properties: ['openFile'],
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
+    });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, cancelled: true };
+    try {
+      const record = await auth.getValid();
+      if (!record || record.guest || !record.accessToken) {
+        return { ok: false, error: 'Not signed in with a Microsoft account' };
+      }
+      const safeVariant = (variant === 'slim') ? 'slim' : 'classic';
+      return await skins.uploadSkin(record.accessToken, r.filePaths[0], safeVariant);
+    } catch (err) {
+      return { ok: false, error: err.message };
     }
   });
 
@@ -641,15 +798,20 @@ function register(getWindow) {
  * data URI string. Follows up to `maxRedirects` HTTP 3xx redirects.
  * Rejects on non-200 status or network error.
  */
-function _fetchBase64(url, maxRedirects = 3) {
+function _fetchBase64(url, maxRedirects = 3, reqHeaders = {}) {
   return new Promise((resolve, reject) => {
     const https = require('https');
     const http  = require('http');
 
-    const req = (url.startsWith('https') ? https : http).get(url, { timeout: 5000 }, (res) => {
-      if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) &&
+    const req = (url.startsWith('https') ? https : http).get(url, {
+      timeout: 5000,
+      headers: reqHeaders,
+    }, (res) => {
+      // Follow common redirects (301/302/307/308), preserving headers.
+      if ((res.statusCode === 301 || res.statusCode === 302 ||
+           res.statusCode === 307 || res.statusCode === 308) &&
           res.headers.location && maxRedirects > 0) {
-        return _fetchBase64(res.headers.location, maxRedirects - 1).then(resolve).catch(reject);
+        return _fetchBase64(res.headers.location, maxRedirects - 1, reqHeaders).then(resolve).catch(reject);
       }
       if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
       const ct = (res.headers['content-type'] || 'image/png').split(';')[0].trim();

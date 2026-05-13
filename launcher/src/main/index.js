@@ -8,6 +8,24 @@
 //   - Apply a minimal OS-level title "Fox Launcher"
 
 const { app, BrowserWindow, shell, dialog, Tray, Menu, nativeImage } = require('electron');
+
+// ---- startup helper ----
+
+/** Sync Electron's login-item (Windows startup / macOS login) with the
+ *  user's launchOnStartup preference.  Safe to call at any time — on
+ *  platforms that don't support login items this is a no-op. */
+function applyLoginItem(s) {
+  try {
+    const enabled = !!(s && s.launchOnStartup);
+    if (process.platform === 'win32') {
+      app.setLoginItemSettings({ openAtLogin: enabled });
+    } else if (process.platform === 'darwin') {
+      // openAsHidden keeps the dock icon suppressed on login.
+      app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: true });
+    }
+    // Linux: app.setLoginItemSettings is a no-op; not supported by Electron.
+  } catch (_) { /* best effort — some sandboxed environments reject this */ }
+}
 const path = require('path');
 const fs = require('fs');
 
@@ -255,6 +273,32 @@ app.whenReady().then(() => {
   createWindow();
   presence.init();
 
+  // ---- Launcher self-update (electron-updater + GitHub Releases) ----
+  // Only active in a packaged build — dev mode skips this entirely.
+  if (app.isPackaged) {
+    try {
+      const { autoUpdater } = require('electron-updater');
+      autoUpdater.autoDownload    = true;   // download in background
+      autoUpdater.autoInstallOnAppQuit = true; // install when user quits
+
+      autoUpdater.on('update-downloaded', () => {
+        // Notify the renderer so it can show a "Restart to update" banner.
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('launcher:update-ready');
+        }
+      });
+
+      // Check on boot (5 s delay so the window is ready) and every 4 hours.
+      setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5_000);
+      setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
+    } catch (_) {
+      // electron-updater not installed or not configured — silently skip.
+    }
+  }
+
+  // Apply launch-on-startup preference immediately on boot.
+  applyLoginItem(settings.load());
+
   // When the game exits and the window is hidden in the tray, bring it
   // back so the user doesn't get stranded without a visible launcher.
   launcher.setExitHook(() => {
@@ -287,13 +331,15 @@ app.whenReady().then(() => {
   // If the user toggles autoUpdate in Settings, react immediately rather
   // than waiting until the next launch. ipc.js fires this after every
   // settings:patch.
-  ipc.onSettingsChanged(() => {
-    const s = settings.load();
-    if (s.autoUpdate) startAutoUpdate();
+  ipc.onSettingsChanged((s) => {
+    const loaded = s || settings.load();
+    if (loaded.autoUpdate) startAutoUpdate();
     else if (autoUpdateTimer) {
       clearInterval(autoUpdateTimer);
       autoUpdateTimer = null;
     }
+    // Re-sync login-item whenever any setting changes — cheap and safe.
+    applyLoginItem(loaded);
   });
 
   app.on('activate', () => {

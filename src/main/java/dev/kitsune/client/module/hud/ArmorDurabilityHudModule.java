@@ -8,7 +8,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
@@ -24,9 +24,9 @@ import java.util.List;
  * rows per slot. That was technically more info (exact % + explicit bar) but
  * the player had no visual link back to "what's in that slot" — you had to
  * read the tiny unicode approximation of a helmet/chestplate/etc. Rendering
- * the real {@link ItemStack} via {@link GuiGraphics#renderItem} is what an
+ * the real {@link ItemStack} via {@link GuiGraphicsExtractor#renderItem} is what an
  * inventory looks like everywhere else in the game, so it reads instantly;
- * {@link GuiGraphics#renderItemDecorations} adds the coloured durability bar
+ * {@link GuiGraphicsExtractor#renderItemDecorations} adds the coloured durability bar
  * and (for stacked items like elytra repair cost) the count, for free.
  *
  * <p>Layout is horizontal by default to match the vanilla inventory row, with
@@ -98,7 +98,7 @@ public class ArmorDurabilityHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -144,7 +144,7 @@ public class ArmorDurabilityHudModule extends Module implements HudWidget {
      * durability bar + count, and a pulsing red tint when the item's
      * durability falls below 15 %.
      */
-    private void drawSlot(GuiGraphics gfx, Font font, int sx, int sy,
+    private void drawSlot(GuiGraphicsExtractor gfx, Font font, int sx, int sy,
                            ItemStack stack, boolean warn) {
         if (drawBg.get()) {
             // Dark slot backdrop with a faint border — roughly vanilla's
@@ -172,10 +172,10 @@ public class ArmorDurabilityHudModule extends Module implements HudWidget {
         if (stack.isEmpty()) return;
 
         // Item icon (centred in the slot: 1 px pad all around).
-        gfx.renderItem(stack, sx + 1, sy + 1);
+        gfx.item(stack, sx + 1, sy + 1);
         // Vanilla decorations: durability bar (green → red auto-coloured) and
         // stack count text. Free, matches every other inventory slot the
         // player has ever seen.
-        gfx.renderItemDecorations(font, stack, sx + 1, sy + 1);
+        gfx.itemDecorations(font, stack, sx + 1, sy + 1);
     }
 }

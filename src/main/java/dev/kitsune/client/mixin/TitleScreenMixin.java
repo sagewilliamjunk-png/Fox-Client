@@ -8,7 +8,7 @@ import dev.kitsune.client.screen.FoxTheme;
 import dev.kitsune.client.screen.StarrySkyRenderer;
 import dev.kitsune.client.server.AutoReconnectHandler;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -87,16 +87,16 @@ public abstract class TitleScreenMixin extends Screen {
 
     private float kitsune$tickAccumulator = 0;
 
-    @Inject(method = "render", at = @At("HEAD"))
-    private void kitsune$preRender(GuiGraphics gfx, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("HEAD"))
+    private void kitsune$preRender(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!KitsuneConfig.get().foxTitleScreen) return;
         kitsune$tickAccumulator += delta;
         // Starry sky replaces the vanilla panorama — draws over it
         StarrySkyRenderer.render(gfx, this.width, this.height, kitsune$tickAccumulator);
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void kitsune$postRender(GuiGraphics gfx, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void kitsune$postRender(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!KitsuneConfig.get().foxTitleScreen) return;
 
         // Bottom vignette: fades from transparent to near-opaque over the last

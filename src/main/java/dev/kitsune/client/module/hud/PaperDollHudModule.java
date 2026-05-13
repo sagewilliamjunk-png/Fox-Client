@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 
@@ -44,7 +44,7 @@ public class PaperDollHudModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -92,11 +92,11 @@ public class PaperDollHudModule extends Module implements HudWidget {
                 mx = (x1 + x2) / 2f - 30;
                 my = (y1 + y2) / 2f - 30;
             }
-            InventoryScreen.renderEntityInInventoryFollowsMouse(
+            InventoryScreen.extractEntityInInventoryFollowsMouse(
                     gfx, x1, y1, x2, y2, s, 0.0625f, mx, my, player);
         } catch (Throwable t) {
             // Render fallback placeholder if API signature changed
-            gfx.drawString(font, "\u00a77[player]", x + 4, y + h / 2 - 4, 0xFFFFFFFF, false);
+            gfx.text(font, "\u00a77[player]", x + 4, y + h / 2 - 4, 0xFFFFFFFF);
         }
     }
 }

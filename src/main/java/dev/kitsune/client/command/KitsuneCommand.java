@@ -215,6 +215,6 @@ public final class KitsuneCommand {
 
     private static void send(String text) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null) mc.player.displayClientMessage(Component.literal(text), false);
+        if (mc.player != null) mc.player.sendSystemMessage(Component.literal(text));
     }
 }

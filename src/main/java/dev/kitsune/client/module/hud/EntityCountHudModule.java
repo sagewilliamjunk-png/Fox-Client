@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -73,7 +73,7 @@ public class EntityCountHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -84,9 +84,9 @@ public class EntityCountHudModule extends Module implements HudWidget {
         gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
 
         int rowY = y + 2;
-        gfx.drawString(font, "Total: " + total, x + 2, rowY, 0xFFFFFFFF, false); rowY += 10;
-        if (showLiving.get())  { gfx.drawString(font, "Living: "  + living,  x + 2, rowY, 0xFFCCCCCC, false); rowY += 10; }
-        if (showPlayers.get()) { gfx.drawString(font, "Players: " + players, x + 2, rowY, 0xFFCCCCCC, false); rowY += 10; }
-        if (showItems.get())   { gfx.drawString(font, "Items: "   + items,   x + 2, rowY, 0xFFCCCCCC, false); }
+        gfx.text(font, "Total: " + total, x + 2, rowY, 0xFFFFFFFF); rowY += 10;
+        if (showLiving.get())  { gfx.text(font, "Living: "  + living,  x + 2, rowY, 0xFFCCCCCC); rowY += 10; }
+        if (showPlayers.get()) { gfx.text(font, "Players: " + players, x + 2, rowY, 0xFFCCCCCC); rowY += 10; }
+        if (showItems.get())   { gfx.text(font, "Items: "   + items,   x + 2, rowY, 0xFFCCCCCC); }
     }
 }

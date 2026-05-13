@@ -2,13 +2,13 @@ package dev.kitsune.client.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * Thin convenience wrapper over {@link GuiGraphics} that prevents three classes
+ * Thin convenience wrapper over {@link GuiGraphicsExtractor} that prevents three classes
  * of bug we keep tripping over in 2D HUD/GUI code:
  *
  * <ol>
@@ -24,22 +24,22 @@ import java.util.Deque;
  *       so callers don't have to remember the bit layout each time.</li>
  * </ol>
  *
- * <p>Existing modules continue to use raw {@code GuiGraphics} — this is a
+ * <p>Existing modules continue to use raw {@code GuiGraphicsExtractor} — this is a
  * convenience for new code, not a forced migration.
  */
 public final class RenderContext2D {
 
-    private final GuiGraphics gfx;
+    private final GuiGraphicsExtractor gfx;
     private final Font font;
     private final Deque<Boolean> scissorStack = new ArrayDeque<>();
     private int poseDepth = 0;
 
-    public RenderContext2D(GuiGraphics gfx) {
+    public RenderContext2D(GuiGraphicsExtractor gfx) {
         this.gfx = gfx;
         this.font = Minecraft.getInstance().font;
     }
 
-    public GuiGraphics raw() { return gfx; }
+    public GuiGraphicsExtractor raw() { return gfx; }
     public Font font() { return font; }
 
     // ---- colour helpers -------------------------------------------------
@@ -77,11 +77,11 @@ public final class RenderContext2D {
     // ---- text ----------------------------------------------------------
 
     public void text(String s, int x, int y, int argb) {
-        gfx.drawString(font, s, x, y, argb, false);
+        gfx.text(font, s, x, y, argb);
     }
 
     public void textShadow(String s, int x, int y, int argb) {
-        gfx.drawString(font, s, x, y, argb, true);
+        gfx.text(font, s, x, y, argb);
     }
 
     public int textWidth(String s) { return font.width(s); }
@@ -120,7 +120,7 @@ public final class RenderContext2D {
     // ---- pose stack ----------------------------------------------------
 
     /**
-     * Push the GuiGraphics matrix stack. Use in try-with-resources to guarantee
+     * Push the GuiGraphicsExtractor matrix stack. Use in try-with-resources to guarantee
      * a balanced pop on every code path including exceptions.
      */
     public Pose pushPose() {

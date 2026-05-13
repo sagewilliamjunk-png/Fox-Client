@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
@@ -72,7 +72,7 @@ public class PotionTimersModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -111,7 +111,7 @@ public class PotionTimersModule extends Module implements HudWidget {
         // but HudEditorScreen may still call renderWidget directly. Draw a
         // faint placeholder so the editor's drag-box isn't empty.
         if (effects.isEmpty()) {
-            gfx.drawString(font, "\u00a78(no active effects)", x + 2, y + 2, 0xFF666666, false);
+            gfx.text(font, "\u00a78(no active effects)", x + 2, y + 2, 0xFF666666);
             return;
         }
 
@@ -149,11 +149,11 @@ public class PotionTimersModule extends Module implements HudWidget {
 
             if (compact) {
                 String line = name + " " + duration;
-                gfx.drawString(font, line, x + 2, ry, nameColor, false);
+                gfx.text(font, line, x + 2, ry, nameColor);
             } else {
-                gfx.drawString(font, name, x + 2, ry, nameColor, false);
+                gfx.text(font, name, x + 2, ry, nameColor);
                 int dw = font.width(duration);
-                gfx.drawString(font, duration, x + w - dw - 4, ry, 0xFFDDDDDD, false);
+                gfx.text(font, duration, x + w - dw - 4, ry, 0xFFDDDDDD);
 
                 if (bars) {
                     int barX  = x + 2;

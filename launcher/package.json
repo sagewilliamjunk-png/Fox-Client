@@ -10,11 +10,13 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "electron": "^32.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "png-to-ico": "^3.0.1"
   },
   "build": {
     "appId": "dev.kitsune.foxlauncher",
@@ -26,6 +28,11 @@
       "src/**/*",
       "package.json"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "sagewilliamjunk-png",
+      "repo": "Fox-Client"
+    },
     "win": {
       "target": "nsis",
       "icon": "src/renderer/assets/fox.ico"
@@ -40,5 +47,8 @@
       "icon": "src/renderer/assets/fox-256.png",
       "category": "Game"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
   }
 }

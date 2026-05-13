@@ -2,7 +2,7 @@ package dev.kitsune.client.mixin;
 
 import dev.kitsune.client.core.KitsuneConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.LogoRenderer;
 import net.minecraft.client.gui.screens.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,13 +20,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LogoRenderer.class)
 public class LogoRendererMixin {
 
-    @Inject(method = "renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IF)V", at = @At("HEAD"), cancellable = true)
-    private void kitsune$cancelOnTitle(GuiGraphics gfx, int width, float fade, CallbackInfo ci) {
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IF)V", at = @At("HEAD"), cancellable = true)
+    private void kitsune$cancelOnTitle(GuiGraphicsExtractor gfx, int width, float fade, CallbackInfo ci) {
         if (kitsune$shouldHide()) ci.cancel();
     }
 
-    @Inject(method = "renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IFI)V", at = @At("HEAD"), cancellable = true)
-    private void kitsune$cancelOnTitleAlt(GuiGraphics gfx, int width, float fade, int yOffset, CallbackInfo ci) {
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IFI)V", at = @At("HEAD"), cancellable = true)
+    private void kitsune$cancelOnTitleAlt(GuiGraphicsExtractor gfx, int width, float fade, int yOffset, CallbackInfo ci) {
         if (kitsune$shouldHide()) ci.cancel();
     }
 

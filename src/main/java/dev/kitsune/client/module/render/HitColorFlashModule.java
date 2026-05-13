@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 
 import java.util.List;
@@ -86,7 +86,7 @@ public class HitColorFlashModule extends Module {
         LocalPlayer player = mc.player;
         if (player == null) return;
 
-        GuiGraphics gfx = event.graphics;
+        GuiGraphicsExtractor gfx = event.graphics;
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
 
@@ -122,7 +122,7 @@ public class HitColorFlashModule extends Module {
         }
     }
 
-    private void drawFlash(GuiGraphics gfx, int color, int w, int h) {
+    private void drawFlash(GuiGraphicsExtractor gfx, int color, int w, int h) {
         int b = borderSize.get().intValue();
         gfx.fill(0,     0,     w, b,         color); // top
         gfx.fill(0,     h - b, w, h,         color); // bottom

@@ -15,7 +15,7 @@ export async function renderHome(mount) {
   for (const off of activeUnsubs) { try { off(); } catch (_) {} }
   activeUnsubs = [];
 
-  const [s, summary, status, lastLaunch, readiness, profilesDoc, running] = await Promise.all([
+  const [s, summary, status, lastLaunch, readiness, profilesDoc, running, versionsData] = await Promise.all([
     window.fox.getSettings(),
     window.fox.updateSummary().catch(() => ({})),
     window.fox.authStatus().catch(() => ({})),
@@ -23,7 +23,13 @@ export async function renderHome(mount) {
     window.fox.clientReadiness().catch(() => null),
     window.fox.listProfiles().catch(() => ({ profiles: [] })),
     window.fox.isRunning().catch(() => false),
+    window.fox.listVersions().catch(() => ({ versions: [] })),
   ]);
+
+  // Vanilla-only version list for the picker (exclude loader profiles).
+  const vanillaVersions = (versionsData.versions || []).filter(id =>
+    !/^(fabric-loader|forge-|quilt-|neoforge-)/i.test(id)
+  ).reverse(); // newest first (listVersions returns sorted ascending)
   const profiles = profilesDoc.profiles || [];
   const activeProfileId = s.selectedProfile || (profiles[0] && profiles[0].id) || '';
   const activeProfile = profiles.find(p => p.id === activeProfileId);
@@ -107,14 +113,31 @@ export async function renderHome(mount) {
 
       <div class="home-version-row" style="margin-top:6px;">
         <label class="muted">Version</label>
-        <span class="home-version-static">
-          Minecraft ${escapeHtml(readiness?.targetMcVersion || '1.21.x')} · Fabric
+        ${vanillaVersions.length > 1 ? `
+        <div class="fox-dropdown" id="home-version-dropdown">
+          <button type="button" class="fox-dropdown-trigger" id="home-version-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="fox-dropdown-value">${escapeHtml(readiness?.selectedMcVersion || readiness?.targetMcVersion || '1.21.x')}</span>
+            <span class="fox-dropdown-caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="fox-dropdown-menu" role="listbox" hidden>
+            ${vanillaVersions.map(v => {
+              const isSel = v === (readiness?.selectedMcVersion || readiness?.targetMcVersion);
+              const isClient = v === readiness?.targetMcVersion;
+              return `<button type="button" role="option" class="fox-dropdown-item ${isSel ? 'is-selected' : ''}" data-value="${escapeHtml(v)}">
+                ${escapeHtml(v)}${isClient ? ' <span class="badge badge-ok" style="font-size:9px;padding:1px 4px;">CLIENT</span>' : ''}${isSel ? ' <span class="fox-dropdown-check">✓</span>' : ''}
+              </button>`;
+            }).join('')}
+          </div>
+        </div>` : `<span class="home-version-static">${escapeHtml(readiness?.selectedMcVersion || readiness?.targetMcVersion || '1.21.x')}</span>`}
+        <span id="version-compat-badge">
+          ${readiness?.modJarSource === 'dev-build' && readiness?.clientSupported
+            ? '<span class="badge badge-warn" style="font-size:10px;">DEV JAR</span>'
+            : readiness?.clientSupported && readiness?.hasModJar
+              ? '<span class="badge badge-ok" style="font-size:10px;">CLIENT</span>'
+              : readiness?.clientSupported
+                ? '<span class="badge badge-error" style="font-size:10px;">VANILLA ONLY</span>'
+                : '<span class="badge" style="font-size:10px;">FABRIC ONLY</span>'}
         </span>
-        ${readiness?.modJarSource === 'dev-build'
-          ? '<span class="badge badge-warn" style="font-size:10px;">DEV JAR</span>'
-          : readiness?.hasModJar
-            ? '<span class="badge badge-ok" style="font-size:10px;">CLIENT</span>'
-            : '<span class="badge badge-error" style="font-size:10px;">VANILLA ONLY</span>'}
       </div>
 
       <button id="btn-launch" class="btn-play ${ready ? 'ready' : ''}" ${ready ? '' : 'disabled'}>
@@ -154,8 +177,8 @@ export async function renderHome(mount) {
           <div class="section-title">Status</div>
           <div class="stat-row"><span>Signed in</span><span class="v">${escapeHtml(status.username || '—')}${status.guest ? ' <span class="badge badge-warn">GUEST</span>' : ''}</span></div>
           <div class="stat-row"><span>Java</span><span class="v" id="java-stat-value"><span class="badge">Checking…</span></span></div>
-          <div class="stat-row"><span>Fabric ${readiness?.targetMcVersion || ''}</span><span class="v">${readiness?.fabricProfile ? '<span class="badge badge-ok">installed</span>' : '<span class="badge badge-error">missing</span>'}</span></div>
-          <div class="stat-row"><span>Client jar</span><span class="v">${readiness?.modJarSource === 'release' ? '<span class="badge badge-ok">release</span>' : readiness?.modJarSource === 'dev-build' ? '<span class="badge badge-warn">dev build</span>' : '<span class="badge badge-error">none</span>'}</span></div>
+          <div class="stat-row"><span>Fabric ${readiness?.selectedMcVersion || readiness?.targetMcVersion || ''}</span><span class="v">${readiness?.fabricProfile ? '<span class="badge badge-ok">installed</span>' : '<span class="badge badge-error">missing</span>'}</span></div>
+          <div class="stat-row"><span>Client jar</span><span class="v">${!readiness?.clientSupported ? '<span class="badge">n/a</span>' : readiness?.modJarSource === 'release' ? '<span class="badge badge-ok">release</span>' : readiness?.modJarSource === 'dev-build' ? '<span class="badge badge-warn">dev build</span>' : '<span class="badge badge-error">none</span>'}</span></div>
         </div>
 
         <div class="section">
@@ -191,6 +214,7 @@ export async function renderHome(mount) {
 
   function wireLaunch() {
     wireProfileDropdown();
+    wireVersionDropdown();
 
     const btn = document.getElementById('btn-launch');
     const stat = document.getElementById('play-status');
@@ -306,6 +330,41 @@ export async function renderHome(mount) {
 
     // Click outside / ESC closes the menu. Listeners attach to document but
     // self-detach via the screen-unmount MutationObserver further down.
+    const onDocClick = (e) => { if (!root.contains(e.target)) close(); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    activeUnsubs.push(() => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    });
+  }
+
+  function wireVersionDropdown() {
+    const root = document.getElementById('home-version-dropdown');
+    if (!root) return;
+    const trigger = root.querySelector('.fox-dropdown-trigger');
+    const menu    = root.querySelector('.fox-dropdown-menu');
+    if (!trigger || !menu) return;
+
+    const open  = () => { menu.hidden = false; trigger.setAttribute('aria-expanded', 'true');  root.classList.add('is-open'); };
+    const close = () => { menu.hidden = true;  trigger.setAttribute('aria-expanded', 'false'); root.classList.remove('is-open'); };
+    trigger.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden ? open() : close(); });
+
+    for (const item of menu.querySelectorAll('.fox-dropdown-item')) {
+      item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ver = item.dataset.value;
+        close();
+        // null means "use the launcher's built-in target version"
+        const override = (ver === readiness?.targetMcVersion) ? null : ver;
+        try {
+          await window.fox.patchProfile(activeProfileId, { mcVersion: override });
+          renderHome(mount);
+        } catch (_) {}
+      });
+    }
+
     const onDocClick = (e) => { if (!root.contains(e.target)) close(); };
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     document.addEventListener('click', onDocClick);

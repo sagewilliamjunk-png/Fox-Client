@@ -3,7 +3,7 @@ package dev.kitsune.client.mixin;
 import dev.kitsune.client.core.KitsuneConfig;
 import dev.kitsune.client.screen.StarrySkyRenderer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * other {@code renderMenuBackground} overload on {@code Screen}, different
  * call site).
  *
- * <p>We hook the four-arg overload {@code renderMenuBackground(GuiGraphics,
+ * <p>We hook the four-arg overload {@code renderMenuBackground(GuiGraphicsExtractor,
  * int, int, int, int)} at HEAD + cancellable. The two-arg overload
  * delegates into this one, so a single hook covers both call paths.
  */
@@ -31,11 +31,11 @@ public abstract class MenuBackgroundMixin {
     private float kitsune$bgTick = 0f;
 
     @Inject(
-            method = "renderMenuBackground(Lnet/minecraft/client/gui/GuiGraphics;IIII)V",
+            method = "extractMenuBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIII)V",
             at = @At("HEAD"),
             cancellable = true
     )
-    private void kitsune$paintStarryBg(GuiGraphics gfx, int x, int y, int w, int h,
+    private void kitsune$paintStarryBg(GuiGraphicsExtractor gfx, int x, int y, int w, int h,
                                         CallbackInfo ci) {
         if (!KitsuneConfig.get().foxTitleScreen) return;
         Minecraft mc = Minecraft.getInstance();

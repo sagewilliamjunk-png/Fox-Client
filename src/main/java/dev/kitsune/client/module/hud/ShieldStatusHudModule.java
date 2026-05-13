@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
@@ -47,7 +47,7 @@ public class ShieldStatusHudModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -61,7 +61,7 @@ public class ShieldStatusHudModule extends Module implements HudWidget {
             if (hideWhenAbsent.get()) return;
             gfx.fill(x - 2, y - 2, x + widgetWidth() + 2, y + widgetHeight() + 2, 0x70000000);
             gfx.fill(x - 2, y - 2, x + widgetWidth() + 2, y - 1, 0xFF555555);
-            gfx.drawString(font, "\u26e8 No shield", x + 2, y + 5, 0xFF888888, false);
+            gfx.text(font, "\u26e8 No shield", x + 2, y + 5, 0xFF888888);
             return;
         }
 
@@ -105,14 +105,14 @@ public class ShieldStatusHudModule extends Module implements HudWidget {
         int curY = y + 2;
 
         // State label
-        gfx.drawString(font, stateLabel, x + 2, curY, stateColor, false);
+        gfx.text(font, stateLabel, x + 2, curY, stateColor);
 
         // Durability % on right
         if (showPercent.get()) {
             String pctStr = (int)(pct * 100) + "%";
             int dw = font.width(pctStr);
             int pctCol = pct > 0.6f ? 0xFF44DD44 : pct > 0.3f ? 0xFFDDDD33 : 0xFFFF5555;
-            gfx.drawString(font, pctStr, x + w - dw - 4, curY, pctCol, false);
+            gfx.text(font, pctStr, x + w - dw - 4, curY, pctCol);
         }
         curY += 10;
 
@@ -140,7 +140,7 @@ public class ShieldStatusHudModule extends Module implements HudWidget {
 
         // Cooldown bar
         if (showCooldown.get() && onCooldown) {
-            gfx.drawString(font, "CD", x + 2, curY, 0xFFFF8888, false);
+            gfx.text(font, "CD", x + 2, curY, 0xFFFF8888);
             int cdW = barW - 18;
             gfx.fill(x + 20, curY, x + 20 + cdW, curY + barH, 0xFF222222);
             int fill = Math.max(2, (int)(cdW * cdFrac));
@@ -150,7 +150,7 @@ public class ShieldStatusHudModule extends Module implements HudWidget {
 
     // ---- helpers ----
 
-    private static void drawSegmented(GuiGraphics gfx, int x, int y, int w, int h, float pct, int color) {
+    private static void drawSegmented(GuiGraphicsExtractor gfx, int x, int y, int w, int h, float pct, int color) {
         int segs   = 10;
         int sw     = (w - segs + 1) / segs;
         int filled = Math.round(pct * segs);

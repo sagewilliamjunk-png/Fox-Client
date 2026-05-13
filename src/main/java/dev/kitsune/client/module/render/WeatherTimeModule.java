@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 
 import java.util.List;
@@ -49,7 +49,7 @@ public class WeatherTimeModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled() && (showClockHud.get() || showWeatherHud.get()); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null) return;
@@ -64,7 +64,7 @@ public class WeatherTimeModule extends Module implements HudWidget {
 
         // Clock
         if (showClockHud.get() && !clockFormat.get().equals("Off")) {
-            long dayTime  = level.getDayTime() % 24000L;
+            long dayTime  = level.getOverworldClockTime() % 24000L;
             String timeStr = switch (clockFormat.get()) {
                 case "24h"  -> format24h(dayTime);
                 case "Ticks" -> dayTime + "t";
@@ -72,7 +72,7 @@ public class WeatherTimeModule extends Module implements HudWidget {
             };
             // Pick icon based on time
             String icon = (dayTime >= 0 && dayTime < 12000) ? "\u2600" : "\u263d"; // sun/moon
-            gfx.drawString(font, icon + " " + timeStr, x + 2, curY, 0xFFFFDD88, false);
+            gfx.text(font, icon + " " + timeStr, x + 2, curY, 0xFFFFDD88);
             curY += 10;
         }
 
@@ -92,7 +92,7 @@ public class WeatherTimeModule extends Module implements HudWidget {
                 weather = "\u2600 Clear";
                 weatherCol = 0xFFFFDD88;
             }
-            gfx.drawString(font, weather, x + 2, curY, weatherCol, false);
+            gfx.text(font, weather, x + 2, curY, weatherCol);
         }
     }
 
@@ -109,13 +109,12 @@ public class WeatherTimeModule extends Module implements HudWidget {
             level.setThunderLevel(0);
         }
 
-        long gameTime = level.getGameTime();
         switch (timeOverride.get()) {
-            case "Day (noon)" -> level.setTimeFromServer(gameTime, 6000, false);
-            case "Sunrise"    -> level.setTimeFromServer(gameTime,    0, false);
-            case "Sunset"     -> level.setTimeFromServer(gameTime, 12000, false);
-            case "Night"      -> level.setTimeFromServer(gameTime, 14000, false);
-            case "Midnight"   -> level.setTimeFromServer(gameTime, 18000, false);
+            case "Day (noon)" -> level.setTimeFromServer(6000);
+            case "Sunrise"    -> level.setTimeFromServer(0);
+            case "Sunset"     -> level.setTimeFromServer(12000);
+            case "Night"      -> level.setTimeFromServer(14000);
+            case "Midnight"   -> level.setTimeFromServer(18000);
         }
     }
 

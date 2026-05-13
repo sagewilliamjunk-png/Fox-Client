@@ -3,7 +3,7 @@ package dev.kitsune.client.gui.widget;
 import dev.kitsune.client.gui.clickgui.KitsuneTheme;
 import dev.kitsune.client.screen.FoxTheme;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.narration.NarratableEntry;
@@ -42,7 +42,7 @@ public class FoxButton extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics gfx, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float partialTick) {
         int bx = this.getX();
         int by = this.getY();
         int bw = this.getWidth();
@@ -112,7 +112,7 @@ public class FoxButton extends AbstractWidget {
         int textColor = this.active ? lerpRGB(baseText, 0xFFFFCC80, h) : baseText;
         int tx = bx + bw / 2;
         int ty = by + (bh - 8) / 2;
-        gfx.drawCenteredString(font, this.getMessage(), tx, ty, textColor);
+        gfx.centeredText(font, this.getMessage(), tx, ty, textColor);
     }
 
     /**
@@ -120,7 +120,7 @@ public class FoxButton extends AbstractWidget {
      * given rectangle. Used for the hover glow ring — cheap enough to
      * stack for a soft bloom effect.
      */
-    private static void drawRingOutside(GuiGraphics gfx, int rx, int ry, int rw, int rh, int thick, int color) {
+    private static void drawRingOutside(GuiGraphicsExtractor gfx, int rx, int ry, int rw, int rh, int thick, int color) {
         int x0 = rx - thick;
         int y0 = ry - thick;
         int x1 = rx + rw + thick;

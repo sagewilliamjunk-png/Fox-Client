@@ -1,5 +1,5 @@
 // Settings — tabbed layout. One screen, four panels (Game, Java, Display,
-// Updates). All inputs write into a single `state` object so partial saves
+// Advanced). All inputs write into a single `state` object so partial saves
 // can't desync; the Save button validates + flushes everything atomically.
 
 import { applyTheme } from '../app.js';
@@ -12,10 +12,10 @@ export async function renderSettings(mount) {
   // Working state — clones the persisted settings so unsaved tweaks live here
   // until the user clicks Save. Refs into this object survive tab switches.
   const state = {
-    javaPath:         s.javaPath || '',
-    minRam:           s.minRam,
-    maxRam:           s.maxRam,
-    gameDir:          s.gameDir || '',
+    javaPath:          s.javaPath || '',
+    minRam:            s.minRam,
+    maxRam:            s.maxRam,
+    gameDir:           s.gameDir || '',
     resolution: {
       width:      s.resolution.width,
       height:     s.resolution.height,
@@ -23,12 +23,9 @@ export async function renderSettings(mount) {
     },
     keepLauncherOpen:  !!s.keepLauncherOpen,
     autoUpdate:        !!s.autoUpdate,
+    launchOnStartup:   !!s.launchOnStartup,
     theme:             s.theme || 'fox',
-    githubRepo:        s.githubRepo || '',
-    newsUrl:           s.newsUrl || '',
     discordRpcEnabled: s.discordRpcEnabled !== false,
-    discordAppId:      s.discordAppId || '',
-    msaClientId:       s.msaClientId || '',
   };
 
   // Slider ceiling: respect both the OS recommendation AND settings.BOUNDS
@@ -48,7 +45,6 @@ export async function renderSettings(mount) {
       <button class="tab active" data-tab="game">Game</button>
       <button class="tab" data-tab="java">Java</button>
       <button class="tab" data-tab="display">Display</button>
-      <button class="tab" data-tab="updates">Updates</button>
       <button class="tab" data-tab="advanced">Advanced</button>
     </div>
 
@@ -92,6 +88,15 @@ export async function renderSettings(mount) {
         <label class="checkbox" style="margin-top:8px;">
           <input type="checkbox" id="f-autoUpdate" ${state.autoUpdate ? 'checked' : ''} />
           Automatically check for client updates on launch
+        </label>
+        <label class="checkbox" style="margin-top:8px;">
+          <input type="checkbox" id="f-launchOnStartup" ${state.launchOnStartup ? 'checked' : ''} />
+          Launch Fox Launcher when you log in to Windows
+        </label>
+        <label class="checkbox" style="margin-top:8px;">
+          <input type="checkbox" id="f-discord-on" ${state.discordRpcEnabled ? 'checked' : ''} />
+          Show "Playing Minecraft" on Discord
+          <span class="badge" id="discord-status-badge" style="margin-left:6px;font-size:10px;">…</span>
         </label>
       </div>
 
@@ -150,51 +155,6 @@ export async function renderSettings(mount) {
           <input type="checkbox" id="f-fullscreen" ${state.resolution.fullscreen ? 'checked' : ''} />
           Start in fullscreen
         </label>
-      </div>
-    </div>
-
-    <div class="tab-panel" data-panel="updates">
-      <div class="section">
-        <div class="section-title">Client updates</div>
-        <div class="section-sub">The launcher polls the GitHub Releases API for the latest tagged build.</div>
-        <div class="field">
-          <label>Repository (owner/repo)</label>
-          <input type="text" class="input" id="f-repo" value="${escapeHtml(state.githubRepo)}" placeholder="Kitsune/Fox-Client" />
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">Microsoft sign-in</div>
-        <div class="section-sub">Azure Application (client) ID for the device-code sign-in flow. Required — Microsoft retired the legacy Mojang client ID. Create one at <a href="#" id="link-azure">portal.azure.com → App registrations</a>.</div>
-        <div class="field">
-          <input type="text" class="input" id="f-msa-id" value="${escapeHtml(state.msaClientId)}" placeholder="00000000-0000-0000-0000-000000000000" />
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">News feed</div>
-        <div class="section-sub">URL to a JSON document for the Home news section. Leave blank to disable.</div>
-        <div class="field">
-          <input type="text" class="input" id="f-news" value="${escapeHtml(state.newsUrl)}" placeholder="https://raw.githubusercontent.com/&lt;owner&gt;/&lt;repo&gt;/main/news.json" />
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">Discord rich presence
-          <span class="badge" id="discord-status-badge" style="margin-left:8px;font-size:10px;">…</span>
-        </div>
-        <div class="section-sub">Show a "Playing Minecraft" status on your Discord profile. Requires the Discord desktop app to be running. Disable here to opt out entirely.</div>
-        <label class="checkbox">
-          <input type="checkbox" id="f-discord-on" ${state.discordRpcEnabled ? 'checked' : ''} />
-          Enable Discord rich presence
-        </label>
-        <div class="field" style="margin-top:10px;">
-          <label>Discord Application ID</label>
-          <input type="text" class="input" id="f-discord-id" value="${escapeHtml(state.discordAppId)}" placeholder="e.g. 1234567890123456789" />
-          <div class="section-sub" style="margin-top:6px;">
-            Get one at <a href="#" id="link-discord-dev">discord.com/developers/applications</a>. See the README under <code>launcher/</code> for setup steps.
-          </div>
-        </div>
       </div>
     </div>
 
@@ -258,7 +218,6 @@ export async function renderSettings(mount) {
       btn.addEventListener('click', () => {
         const picked = btn.dataset.theme;
         state.theme = picked;
-        // Apply immediately for live preview — actual persistence on Save.
         applyTheme(picked);
         for (const b of themePicker.querySelectorAll('.theme-swatch')) {
           b.classList.toggle('active', b.dataset.theme === picked);
@@ -278,8 +237,6 @@ export async function renderSettings(mount) {
   });
 
   // ---- Discord status badge: poll while the Settings page is mounted ----
-  // 4 s cadence — slow enough to be free, fast enough to feel live for the
-  // common "I just opened Discord" case. Cleared on screen unmount.
   const discordBadge = document.getElementById('discord-status-badge');
   const refreshDiscordBadge = async () => {
     if (!document.body.contains(discordBadge)) return;
@@ -287,11 +244,11 @@ export async function renderSettings(mount) {
     try { s = await window.fox.discordStatus(); }
     catch (_) { s = { state: 'disabled' }; }
     const map = {
-      'connected':  ['Connected',     'badge-ok'],
-      'waiting':    ['Connecting…',   'badge-warn'],
-      'starting':   ['Starting…',     'badge-warn'],
-      'no-app-id':  ['No App ID',     'badge-warn'],
-      'disabled':   ['Off',           'badge-error'],
+      'connected':  ['Connected',   'badge-ok'],
+      'waiting':    ['Connecting…', 'badge-warn'],
+      'starting':   ['Starting…',   'badge-warn'],
+      'no-app-id':  ['No App ID',   'badge-warn'],
+      'disabled':   ['Off',         'badge-error'],
     };
     const [label, cls] = map[s.state] || ['Unknown', 'badge-warn'];
     discordBadge.textContent = label;
@@ -333,22 +290,6 @@ export async function renderSettings(mount) {
     }
   });
 
-  // ---- updates tab: external link helpers ----
-  const linkDev = document.getElementById('link-discord-dev');
-  if (linkDev) {
-    linkDev.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.fox.openExternal('https://discord.com/developers/applications');
-    });
-  }
-  const linkAzure = document.getElementById('link-azure');
-  if (linkAzure) {
-    linkAzure.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.fox.openExternal('https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade');
-    });
-  }
-
   // ---- java tab: load all candidates lazily, render cards ----
   loadJavaCards();
 
@@ -357,7 +298,6 @@ export async function renderSettings(mount) {
     if (r && r.path) {
       state.javaPath = r.path;
       $('f-javaPath').value = r.path;
-      // Re-render cards so the new path appears with a SELECTED marker.
       loadJavaCards();
       if (!r.major || r.major < 21) {
         showStatus('warn', `Selected Java is version ${r.major || '?'}. Minecraft requires Java 21+.`);
@@ -373,22 +313,17 @@ export async function renderSettings(mount) {
 
   // ---- save ----
   $('btn-save').addEventListener('click', async () => {
-    // Pull live values out of the DOM for fields not mirrored into state on
-    // every keystroke. Single source of truth at save time.
-    state.gameDir          = $('f-gameDir').value.trim();
-    state.githubRepo       = $('f-repo').value.trim();
-    state.newsUrl          = $('f-news').value.trim();
+    state.gameDir         = $('f-gameDir').value.trim();
     state.discordRpcEnabled = $('f-discord-on').checked;
-    state.discordAppId      = $('f-discord-id').value.trim();
-    state.msaClientId       = $('f-msa-id').value.trim();
     state.resolution = {
       width:      Math.max(320, Number($('f-width').value)  || 1280),
       height:     Math.max(240, Number($('f-height').value) || 720),
       fullscreen: $('f-fullscreen').checked,
     };
-    state.keepLauncherOpen = $('f-keepOpen').checked;
-    state.autoUpdate       = $('f-autoUpdate').checked;
-    state.javaPath         = $('f-javaPath').value.trim();
+    state.keepLauncherOpen  = $('f-keepOpen').checked;
+    state.autoUpdate        = $('f-autoUpdate').checked;
+    state.launchOnStartup   = $('f-launchOnStartup').checked;
+    state.javaPath          = $('f-javaPath').value.trim();
 
     if (state.minRam > state.maxRam) {
       showStatus('error', 'Minimum RAM cannot exceed maximum.');

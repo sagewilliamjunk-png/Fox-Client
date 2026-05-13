@@ -2,7 +2,7 @@ package dev.kitsune.client.screen;
 
 import dev.kitsune.client.server.ServerRule;
 import dev.kitsune.client.server.ServerRuleStore;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -68,13 +68,13 @@ public class ServerRulesScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
-        super.render(gfx, mouseX, mouseY, delta);
-        gfx.drawCenteredString(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        gfx.centeredText(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
 
         List<ServerRule> rules = ServerRuleStore.all();
         if (rules.isEmpty()) {
-            gfx.drawCenteredString(this.font,
+            gfx.centeredText(this.font,
                     Component.literal("\u00a77No server rules defined. Click '+ Add Rule' to create one."),
                     this.width / 2, this.height / 2, 0xFF888888);
             return;
@@ -95,10 +95,10 @@ public class ServerRulesScreen extends Screen {
             String action = rule.action != null ? rule.action.name() : "?";
             int actionColor = rule.action == ServerRule.Action.DISABLE ? 0xFFFF4444 : 0xFFFFAA00;
 
-            gfx.drawString(this.font, "\u00a7f" + name + " \u00a78- " + rule.hostPattern,
-                    12, rowY + 4, 0xFFFFFFFF, false);
-            gfx.drawString(this.font, "\u00a77Action: ", 12, rowY + 16, 0xFF888888, false);
-            gfx.drawString(this.font, action, 12 + this.font.width("Action: "), rowY + 16, actionColor, false);
+            gfx.text(this.font, "\u00a7f" + name + " \u00a78- " + rule.hostPattern,
+                    12, rowY + 4, 0xFFFFFFFF);
+            gfx.text(this.font, "\u00a77Action: ", 12, rowY + 16, 0xFF888888);
+            gfx.text(this.font, action, 12 + this.font.width("Action: "), rowY + 16, actionColor);
 
             // Show affected mods/features
             StringBuilder details = new StringBuilder("\u00a78");
@@ -114,7 +114,7 @@ public class ServerRulesScreen extends Screen {
             if (this.font.width(detailStr) > this.width - 130) {
                 detailStr = detailStr.substring(0, Math.min(detailStr.length(), 60)) + "...";
             }
-            gfx.drawString(this.font, detailStr, 12, rowY + 28, 0xFF666666, false);
+            gfx.text(this.font, detailStr, 12, rowY + 28, 0xFF666666);
         }
     }
 

@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -64,7 +64,7 @@ public class LootHistoryModule extends Module implements HudWidget {
     @Override public boolean isWidgetVisible() { return isEnabled() && (showToast.get() || showHistory.get()); }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font    = mc.font;
         long now     = System.currentTimeMillis();
@@ -85,7 +85,7 @@ public class LootHistoryModule extends Module implements HudWidget {
                 float frac = (t.expiresAt() - now) / (toastDuration.get().floatValue() * 1000f);
                 int alpha  = (int)(Math.min(1f, frac * 3) * 220);
                 int color  = (alpha << 24) | 0x88FF88;
-                gfx.drawString(font, "+ " + t.count() + "x " + t.name(), x + 2, curY, color, false);
+                gfx.text(font, "+ " + t.count() + "x " + t.name(), x + 2, curY, color);
                 curY += rowH;
             }
         }
@@ -95,7 +95,7 @@ public class LootHistoryModule extends Module implements HudWidget {
             int limit  = maxEntries.get().intValue();
             var recent = LootHistory.recent(limit);
             for (int i = recent.size() - 1; i >= 0; i--) {
-                gfx.drawString(font, "\u00b7 " + recent.get(i), x + 2, curY, 0xFFAAAAAA, false);
+                gfx.text(font, "\u00b7 " + recent.get(i), x + 2, curY, 0xFFAAAAAA);
                 curY += rowH;
             }
         }
@@ -143,7 +143,7 @@ public class LootHistoryModule extends Module implements HudWidget {
             int delta = e.getValue() - prev;
             if (delta > 0) {
                 if (ignoreCommon.get() && isCommon(e.getKey())) continue;
-                String name = e.getKey().getName().getString();
+                String name = e.getKey().getName(new net.minecraft.world.item.ItemStack(e.getKey())).getString();
                 LootHistory.record(name, delta);
                 if (showToast.get()) {
                     long expires = System.currentTimeMillis() + (long)(toastDuration.get() * 1000);

@@ -7,7 +7,7 @@ import com.google.gson.JsonParser;
 import dev.kitsune.client.KitsuneClient;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -151,7 +151,7 @@ public final class HudManager {
      * Render every registered visible widget. Called from {@code GuiMixin}'s
      * HUD tail.
      */
-    public static void renderAll(GuiGraphics gfx) {
+    public static void renderAll(GuiGraphicsExtractor gfx) {
         if (!loaded) load();
         Minecraft mc = Minecraft.getInstance();
         int sw = mc.getWindow().getGuiScaledWidth();

@@ -8,7 +8,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -104,7 +104,7 @@ public class EntityRadarModule extends Module implements HudWidget {
     // ---- rendering --------------------------------------------------------
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
@@ -164,7 +164,7 @@ public class EntityRadarModule extends Module implements HudWidget {
         // 6. Tiny compass label — "F" for Forward at the top of the widget
         if (showCompass.get()) {
             Font font = mc.font;
-            gfx.drawString(font, "F", cx - 2, y + 2, 0x88FFFFFF, false);
+            gfx.text(font, "F", cx - 2, y + 2, 0x88FFFFFF);
         }
     }
 
@@ -174,7 +174,7 @@ public class EntityRadarModule extends Module implements HudWidget {
      * Fills a solid circle using horizontal scan lines. O(r) fill calls —
      * fast enough for any practical radar size (r ≤ 100px).
      */
-    private static void drawFilledCircle(GuiGraphics gfx, int cx, int cy, int r, int argb) {
+    private static void drawFilledCircle(GuiGraphicsExtractor gfx, int cx, int cy, int r, int argb) {
         int r2 = r * r;
         for (int row = -r; row <= r; row++) {
             int half = (int) Math.sqrt(r2 - row * row);
@@ -186,7 +186,7 @@ public class EntityRadarModule extends Module implements HudWidget {
      * Draws a 1-pixel-wide circular outline by filling only the outermost ring
      * (between radius r and r-1) using horizontal scan pairs.
      */
-    private static void drawCircleOutline(GuiGraphics gfx, int cx, int cy, int r, int argb) {
+    private static void drawCircleOutline(GuiGraphicsExtractor gfx, int cx, int cy, int r, int argb) {
         int r2 = r * r;
         int ri2 = (r - 1) * (r - 1);
         for (int row = -r; row <= r; row++) {

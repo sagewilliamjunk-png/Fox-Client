@@ -8,7 +8,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
@@ -97,7 +97,7 @@ public class TargetHudModule extends Module implements HudWidget {
     // ---- rendering --------------------------------------------------------
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
 
@@ -137,14 +137,14 @@ public class TargetHudModule extends Module implements HudWidget {
             displayName += "…";
         }
         int nameColor = (ia << 24) | (targetIsPlayer ? 0xFFFFAA : 0xEEEEEE);
-        gfx.drawString(font, displayName, x + 4, y + 4, nameColor, false);
+        gfx.text(font, displayName, x + 4, y + 4, nameColor);
 
         // ---- Distance (optional) ----
         if (showDistance.get() && targetName != null) {
             String distText = String.format("%.1fm", targetDist);
             int dtW = font.width(distText);
             int mutedColor = (ia << 24) | 0x888888;
-            gfx.drawString(font, distText, x + w - dtW - 4, y + 4, mutedColor, false);
+            gfx.text(font, distText, x + w - dtW - 4, y + 4, mutedColor);
         }
 
         // ---- Health bar ----
@@ -168,14 +168,14 @@ public class TargetHudModule extends Module implements HudWidget {
         String hpText = Math.round(targetHp) + " / " + Math.round(targetMaxHp);
         int hpW = font.width(hpText);
         int hpColor = (ia << 24) | 0xCCCCCC;
-        gfx.drawString(font, hpText, x + (w - hpW) / 2, barY + barH + 3, hpColor, false);
+        gfx.text(font, hpText, x + (w - hpW) / 2, barY + barH + 3, hpColor);
 
         // ---- Armor row (optional) ----
         if (showArmor.get()) {
             int armorY = y + h - 10;
             String armorLabel = "Armor: ";
             int labelW = font.width(armorLabel);
-            gfx.drawString(font, armorLabel, x + 4, armorY, (ia << 24) | 0x888888, false);
+            gfx.text(font, armorLabel, x + 4, armorY, (ia << 24) | 0x888888);
             // Draw armor points as small filled squares (like Minecraft's armor icons but simplified)
             int dotX = x + 4 + labelW;
             int full  = targetArmor / 2;  // full armor icons

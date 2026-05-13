@@ -3,7 +3,7 @@ package dev.kitsune.client.gui.clickgui;
 import dev.kitsune.client.setting.ColorSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * A tiny floating HSV color picker for {@link ColorSetting}s in the ClickGUI.
@@ -73,7 +73,7 @@ public class ColorPickerPopup {
         setting.set(packed);
     }
 
-    public void render(GuiGraphics gfx) {
+    public void render(GuiGraphicsExtractor gfx) {
         Font font = Minecraft.getInstance().font;
 
         // Backdrop
@@ -84,7 +84,7 @@ public class ColorPickerPopup {
         int cy = y + 3;
 
         // Title
-        gfx.drawString(font, "\u00a76" + setting.name(), cx, cy, 0xFFFFFFFF, false);
+        gfx.text(font, "\u00a76" + setting.name(), cx, cy, 0xFFFFFFFF);
         cy += 11;
 
         // SV square

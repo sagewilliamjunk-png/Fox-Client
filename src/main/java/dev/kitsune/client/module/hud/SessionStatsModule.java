@@ -8,7 +8,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 
 import java.util.List;
@@ -95,7 +95,7 @@ public class SessionStatsModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         Font font = mc.font;
@@ -117,7 +117,7 @@ public class SessionStatsModule extends Module implements HudWidget {
                     ? String.format("%dh%02dm", hours, minutes % 60)
                     : String.format("%dm%02ds", minutes, seconds % 60);
             String dist = fmtDist(totalDistance);
-            gfx.drawString(font, time + "  " + dist, x + 2, y + 3, 0xFFFFFFFF, false);
+            gfx.text(font, time + "  " + dist, x + 2, y + 3, 0xFFFFFFFF);
             return;
         }
 
@@ -128,12 +128,12 @@ public class SessionStatsModule extends Module implements HudWidget {
             String timeStr = hours > 0
                     ? String.format("Time  %dh %02dm", hours, minutes % 60)
                     : String.format("Time  %dm %02ds", minutes, seconds % 60);
-            gfx.drawString(font, timeStr, x + 2, curY, 0xFFCCCCCC, false);
+            gfx.text(font, timeStr, x + 2, curY, 0xFFCCCCCC);
             curY += rowH;
         }
 
         if (showDistance.get()) {
-            gfx.drawString(font, "Dist  " + fmtDist(totalDistance), x + 2, curY, 0xFFAADDFF, false);
+            gfx.text(font, "Dist  " + fmtDist(totalDistance), x + 2, curY, 0xFFAADDFF);
             curY += rowH;
         }
 
@@ -150,14 +150,14 @@ public class SessionStatsModule extends Module implements HudWidget {
                 spd = String.format("%.1f b/s", avg);
             }
             int spdColor = avg > 8 ? 0xFF55FF55 : avg > 4 ? 0xFFFFFF55 : 0xFFCCCCCC;
-            gfx.drawString(font, "Speed " + spd, x + 2, curY, spdColor, false);
+            gfx.text(font, "Speed " + spd, x + 2, curY, spdColor);
             curY += rowH;
         }
 
         if (showXp.get()) {
             int lvl = mc.player.experienceLevel;
             float prog = mc.player.experienceProgress;
-            gfx.drawString(font, "XP  Lv " + lvl + " (" + (int)(prog * 100) + "%)", x + 2, curY, 0xFF88FF44, false);
+            gfx.text(font, "XP  Lv " + lvl + " (" + (int)(prog * 100) + "%)", x + 2, curY, 0xFF88FF44);
         }
     }
 

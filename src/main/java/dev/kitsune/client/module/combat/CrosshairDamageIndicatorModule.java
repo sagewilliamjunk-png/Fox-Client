@@ -8,7 +8,7 @@ import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.EntityHitResult;
@@ -207,7 +207,7 @@ public class CrosshairDamageIndicatorModule extends Module {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
 
-        GuiGraphics gfx = event.graphics;
+        GuiGraphicsExtractor gfx = event.graphics;
         int cx = mc.getWindow().getGuiScaledWidth() / 2;
         int cy = mc.getWindow().getGuiScaledHeight() / 2 - 18;
 
@@ -243,9 +243,9 @@ public class CrosshairDamageIndicatorModule extends Module {
             pose.translate(-tw / 2f, 0);
             if (shadow) {
                 int shadowCol = (a << 24);
-                gfx.drawString(mc.font, text, 1, 1, shadowCol, false);
+                gfx.text(mc.font, text, 1, 1, shadowCol);
             }
-            gfx.drawString(mc.font, text, 0, 0, col, false);
+            gfx.text(mc.font, text, 0, 0, col);
             pose.popMatrix();
         }
     }

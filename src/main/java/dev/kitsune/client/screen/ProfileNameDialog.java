@@ -1,6 +1,6 @@
 package dev.kitsune.client.screen;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -49,10 +49,10 @@ public class ProfileNameDialog extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
-        super.render(gfx, mouseX, mouseY, delta);
-        gfx.drawCenteredString(this.font, this.title, this.width / 2, this.height / 2 - 30, FoxTheme.FOX_ORANGE);
-        gfx.drawCenteredString(this.font,
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        gfx.centeredText(this.font, this.title, this.width / 2, this.height / 2 - 30, FoxTheme.FOX_ORANGE);
+        gfx.centeredText(this.font,
                 Component.literal("\u00a77Lowercase letters, numbers, and underscores only."),
                 this.width / 2, this.height / 2 + 46, 0xFF888888);
     }

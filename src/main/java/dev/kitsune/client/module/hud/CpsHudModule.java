@@ -10,7 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.List;
 
@@ -93,7 +93,7 @@ public class CpsHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
 
@@ -111,19 +111,19 @@ public class CpsHudModule extends Module implements HudWidget {
             int cy = y + 2;
             if (showLeft.get()) {
                 String s = labels ? ("L: " + lmbCps) : String.valueOf(lmbCps);
-                gfx.drawString(font, s, x + 2, cy, color, false);
+                gfx.text(font, s, x + 2, cy, color);
                 cy += 12;
             }
             if (showRight.get()) {
                 String s = labels ? ("R: " + rmbCps) : String.valueOf(rmbCps);
-                gfx.drawString(font, s, x + 2, cy, color, false);
+                gfx.text(font, s, x + 2, cy, color);
             }
         } else {
             StringBuilder sb = new StringBuilder();
             if (showLeft.get())  sb.append(labels ? "L " : "").append(lmbCps);
             if (showLeft.get() && showRight.get()) sb.append("  ");
             if (showRight.get()) sb.append(labels ? "R " : "").append(rmbCps);
-            gfx.drawString(font, sb.toString(), x + 2, y + 3, color, false);
+            gfx.text(font, sb.toString(), x + 2, y + 3, color);
         }
     }
 }

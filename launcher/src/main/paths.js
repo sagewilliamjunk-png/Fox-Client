@@ -34,7 +34,7 @@ const paths = {
     const dir = paths.instanceDir(profileId);
     try {
       fs.mkdirSync(dir, { recursive: true });
-      for (const sub of ['mods', 'config', 'saves', 'screenshots', 'resourcepacks']) {
+      for (const sub of ['mods', 'config', 'saves', 'screenshots', 'resourcepacks', 'shaderpacks']) {
         fs.mkdirSync(path.join(dir, sub), { recursive: true });
       }
     } catch (_) { /* best effort */ }

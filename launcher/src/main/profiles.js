@@ -30,7 +30,18 @@ function load() {
   const list = Array.isArray(raw && raw.profiles) ? raw.profiles : [];
   const cleaned = list.map(sanitize).filter(Boolean);
   if (!cleaned.length) {
-    cleaned.push(sanitize({ id: 'default', name: 'Default', notes: 'Auto-created' }));
+    // New installs get an isolated default profile so the launcher's mods/
+    // saves/config never pollute the user's global .minecraft folder.
+    cleaned.push(sanitize({ id: 'default', name: 'Default', notes: 'Auto-created', isolated: true }));
+  } else {
+    // Migration: if the 'default' profile was created before isolation was the
+    // standard and has never been played, silently flip it to isolated so it
+    // stops sharing the global .minecraft. Once played we leave it alone —
+    // the user may have saves there they want to keep.
+    const def = cleaned.find(p => p.id === 'default');
+    if (def && !def.isolated && !def.lastPlayedAt) {
+      def.isolated = true;
+    }
   }
   return { profiles: cleaned };
 }
@@ -228,6 +239,13 @@ function sanitize(p) {
     /** Locked profiles can't be edited or deleted from the UI without first
      *  unlocking. Prevents fat-finger nukes of a finely tuned setup. */
     locked:             typeof p.locked === 'boolean' ? p.locked : false,
+    /** Override the Minecraft version for this profile. null = use the
+     *  launcher's built-in target version (TARGET_MC_VERSION). Setting this
+     *  to e.g. "1.20.4" lets the user launch any installed vanilla version;
+     *  the Fox Client jar is skipped automatically if it was built for a
+     *  different version. */
+    mcVersion:          typeof p.mcVersion === 'string' && /^\d+\.\d+/.test(p.mcVersion)
+                          ? p.mcVersion.slice(0, 16) : null,
     /** Template id used at creation. Informational — never read by the
      *  launcher; lets the UI show "Created from: Ranked PvP" etc. */
     templateId:         typeof p.templateId === 'string' ? p.templateId.slice(0, 32) : null,

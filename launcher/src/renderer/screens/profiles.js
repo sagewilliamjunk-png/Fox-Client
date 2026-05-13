@@ -19,6 +19,8 @@
 
 let selectedId = null;
 let mods = [];
+let resourcePacksList = [];
+let shaderPacksList = [];
 let profilesCache = [];
 let activeId = '';
 let templatesCache = [];
@@ -39,17 +41,21 @@ function profileColor(profile) {
 }
 
 export async function renderProfiles(mount) {
-  const [doc, s, modsList, addonCatalog, templatesList, authStatus] = await Promise.all([
+  const [doc, s, modsList, addonCatalog, templatesList, authStatus, rpList, spList] = await Promise.all([
     window.fox.listProfiles(),
     window.fox.getSettings(),
     window.fox.listMods().catch(() => []),
     window.fox.addonCatalog().catch(() => []),
     window.fox.profileTemplates().catch(() => []),
     window.fox.authStatus().catch(() => ({})),
+    window.fox.listResourcePacks().catch(() => []),
+    window.fox.listShaderPacks().catch(() => []),
   ]);
   profilesCache = doc.profiles;
   activeId = s.selectedProfile || '';
   mods = modsList;
+  resourcePacksList = rpList;
+  shaderPacksList = spList;
   templatesCache = templatesList;
   signedInUser = authStatus && authStatus.signedIn
     ? { username: authStatus.username, uuid: authStatus.uuid, guest: !!authStatus.guest }
@@ -148,6 +154,12 @@ function rerenderList() {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.id;
+      // Guard: don't try to launch a second instance while one is already running.
+      const alreadyRunning = await window.fox.isRunning().catch(() => false);
+      if (alreadyRunning) {
+        alert('A game is already running. Close it before launching another profile.');
+        return;
+      }
       btn.disabled = true;
       btn.textContent = '…';
       try {
@@ -534,6 +546,32 @@ function renderLoadoutTab(profile) {
       <div class="section-sub">Disable individual gray-zone modules. The mod skips registering them entirely on launch — they don't tick, render, or show up in the in-game ClickGUI.</div>
       ${renderAddonList(renderProfiles._addons || [], disabledAddons, profile.locked)}
     </div>
+
+    <div class="section">
+      <div class="section-title">Resource Packs (<span id="ed-rp-count">${resourcePacksList.length}</span>)</div>
+      <div class="section-sub">Files in <code>resourcepacks/</code>. Minecraft manages the active pack stack in-game via Options → Resource Packs.</div>
+      <div id="ed-rp-list">
+        ${renderPackList(resourcePacksList)}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-rp-add" ${profile.locked ? 'disabled' : ''}>+ Add resource pack…</button>
+        <button class="btn" id="btn-rp-folder">Open folder</button>
+        <button class="btn" id="btn-rp-refresh">Refresh</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Shader Packs (<span id="ed-sp-count">${shaderPacksList.length}</span>)</div>
+      <div class="section-sub">Files in <code>shaderpacks/</code>. Requires Iris Shaders mod. Select the active shader in-game via Options → Video Settings → Shader Packs.</div>
+      <div id="ed-sp-list">
+        ${renderPackList(shaderPacksList)}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-sp-add" ${profile.locked ? 'disabled' : ''}>+ Add shader pack…</button>
+        <button class="btn" id="btn-sp-folder">Open folder</button>
+        <button class="btn" id="btn-sp-refresh">Refresh</button>
+      </div>
+    </div>
   `;
 }
 
@@ -607,6 +645,57 @@ function wireLoadoutTab(profile) {
     $('ed-mod-count').textContent = mods.length;
     $('ed-mod-list').innerHTML = renderModList(mods, disabledSet, profile);
     wireLoadoutTab(profile);
+  }
+
+  // ---- resource packs ----
+
+  async function refreshResourcePacks() {
+    resourcePacksList = await window.fox.listResourcePacks().catch(() => []);
+    $('ed-rp-count').textContent = resourcePacksList.length;
+    $('ed-rp-list').innerHTML = renderPackList(resourcePacksList);
+    wirePackDeleteButtons('ed-rp-list', window.fox.deleteResourcePack, refreshResourcePacks);
+  }
+
+  $('btn-rp-folder') && $('btn-rp-folder').addEventListener('click', () => window.fox.openResourcePacksFolder());
+  $('btn-rp-refresh') && $('btn-rp-refresh').addEventListener('click', refreshResourcePacks);
+  $('btn-rp-add') && $('btn-rp-add').addEventListener('click', async () => {
+    const r = await window.fox.addResourcePacks();
+    if (r && !r.cancelled) await refreshResourcePacks();
+  });
+  wirePackDeleteButtons('ed-rp-list', window.fox.deleteResourcePack, refreshResourcePacks);
+
+  // ---- shader packs ----
+
+  async function refreshShaderPacks() {
+    shaderPacksList = await window.fox.listShaderPacks().catch(() => []);
+    $('ed-sp-count').textContent = shaderPacksList.length;
+    $('ed-sp-list').innerHTML = renderPackList(shaderPacksList);
+    wirePackDeleteButtons('ed-sp-list', window.fox.deleteShaderPack, refreshShaderPacks);
+  }
+
+  $('btn-sp-folder') && $('btn-sp-folder').addEventListener('click', () => window.fox.openShadersFolder());
+  $('btn-sp-refresh') && $('btn-sp-refresh').addEventListener('click', refreshShaderPacks);
+  $('btn-sp-add') && $('btn-sp-add').addEventListener('click', async () => {
+    const r = await window.fox.addShaderPacks();
+    if (r && !r.cancelled) await refreshShaderPacks();
+  });
+  wirePackDeleteButtons('ed-sp-list', window.fox.deleteShaderPack, refreshShaderPacks);
+}
+
+/** Attach click handlers to every .pack-delete button inside containerElId. */
+function wirePackDeleteButtons(containerElId, deleteFn, refreshFn) {
+  const container = document.getElementById(containerElId);
+  if (!container) return;
+  for (const btn of container.querySelectorAll('.pack-delete')) {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const name = btn.dataset.pack;
+      if (!name) return;
+      if (!confirm(`Permanently delete ${name}?`)) return;
+      const r = await deleteFn(name);
+      if (r && !r.ok) { alert('Delete failed: ' + (r.error || 'unknown')); return; }
+      await refreshFn();
+    });
   }
 }
 
@@ -934,6 +1023,21 @@ function renderModList(mods, disabledSet, profile) {
     `;
   }
   return out;
+}
+
+/** Shared pack-list renderer for resource packs and shader packs.
+ *  No enable/disable toggle — Minecraft manages that in-game. */
+function renderPackList(packs) {
+  if (!packs.length) {
+    return `<div class="mod-empty muted" style="font-size:12px;padding:8px 0;">No packs installed yet. Click <strong>+ Add…</strong> below.</div>`;
+  }
+  return packs.map(p => `
+    <div class="mod-row" style="justify-content:space-between;">
+      <div class="mod-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.name)}</div>
+      <div class="mod-size">${formatBytes(p.sizeBytes)}</div>
+      <button class="mod-delete pack-delete" data-pack="${escapeHtml(p.name)}" title="Delete this pack from disk" aria-label="Delete">×</button>
+    </div>
+  `).join('');
 }
 
 function formatBytes(b) {

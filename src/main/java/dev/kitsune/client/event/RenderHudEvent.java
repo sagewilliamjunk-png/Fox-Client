@@ -1,6 +1,6 @@
 package dev.kitsune.client.event;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Fired when a module-owned HUD layer wants to render. In Phase 2 this is
@@ -9,9 +9,9 @@ import net.minecraft.client.gui.GuiGraphics;
  * this event lands in Phase 4 alongside the first HUD module.
  */
 public final class RenderHudEvent {
-    public final GuiGraphics graphics;
+    public final GuiGraphicsExtractor graphics;
 
-    public RenderHudEvent(GuiGraphics graphics) {
+    public RenderHudEvent(GuiGraphicsExtractor graphics) {
         this.graphics = graphics;
     }
 }

@@ -2,7 +2,7 @@ package dev.kitsune.client.screen;
 
 import dev.kitsune.client.module.Module;
 import dev.kitsune.client.util.KeybindManager;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -68,16 +68,16 @@ public class KeybindConflictScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics gfx, int mouseX, int mouseY, float delta) {
-        super.render(gfx, mouseX, mouseY, delta);
-        gfx.drawCenteredString(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
+    public void extractRenderState(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(gfx, mouseX, mouseY, delta);
+        gfx.centeredText(this.font, this.title, this.width / 2, 14, FoxTheme.FOX_ORANGE);
         Map<Integer, List<String>> conflicts = KeybindManager.getConflicts();
         if (conflicts.isEmpty()) {
-            gfx.drawCenteredString(this.font,
+            gfx.centeredText(this.font,
                     Component.literal("\u00a7aNo keybind conflicts detected."),
                     this.width / 2, this.height / 2 - 10, 0xFFFFFFFF);
         } else {
-            gfx.drawCenteredString(this.font,
+            gfx.centeredText(this.font,
                     Component.literal("\u00a7c" + conflicts.size() + " conflict"
                             + (conflicts.size() == 1 ? "" : "s") + " found"),
                     this.width / 2, 30, 0xFFFFFFFF);

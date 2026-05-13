@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.kitsune.client.gui.chrome.FoxChrome;
 import dev.kitsune.client.screen.FoxTheme;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSelectionList;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * intends; only the framing chrome around them is re-skinned.
  *
  * <p>The selection chrome swap uses MixinExtras {@link WrapOperation} on the
- * two {@code GuiGraphics.fill} calls rather than a HEAD-cancellable inject,
+ * two {@code GuiGraphicsExtractor.fill} calls rather than a HEAD-cancellable inject,
  * because the target's {@code E entry} parameter resolves to the inner
  * {@code Entry} class which is {@code protected} at Yarn source level —
  * referencing it from a mixin in another package fails to compile. Wrapping
@@ -39,8 +39,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(AbstractSelectionList.class)
 public abstract class AbstractSelectionListMixin {
 
-    @Inject(method = "renderListBackground", at = @At("HEAD"), cancellable = true)
-    private void kitsune$paintFoxListBackground(GuiGraphics gfx, CallbackInfo ci) {
+    @Inject(method = "extractListBackground", at = @At("HEAD"), cancellable = true)
+    private void kitsune$paintFoxListBackground(GuiGraphicsExtractor gfx, CallbackInfo ci) {
         AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
         int x = self.getX();
         int y = self.getY();
@@ -60,12 +60,12 @@ public abstract class AbstractSelectionListMixin {
      * target method (first of two).
      */
     @WrapOperation(
-            method = "renderSelection",
+            method = "extractSelection",
             at = @At(value = "INVOKE",
-                     target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V",
+                     target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V",
                      ordinal = 0)
     )
-    private void kitsune$replaceOuterSelect(GuiGraphics gfx,
+    private void kitsune$replaceOuterSelect(GuiGraphicsExtractor gfx,
                                              int x0, int y0, int x1, int y1, int color,
                                              Operation<Void> original) {
         int accent = FoxTheme.FOX_ORANGE;
@@ -81,12 +81,12 @@ public abstract class AbstractSelectionListMixin {
      * same palette as the rest of the UI instead of pure black.
      */
     @WrapOperation(
-            method = "renderSelection",
+            method = "extractSelection",
             at = @At(value = "INVOKE",
-                     target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V",
+                     target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V",
                      ordinal = 1)
     )
-    private void kitsune$replaceInnerSelect(GuiGraphics gfx,
+    private void kitsune$replaceInnerSelect(GuiGraphicsExtractor gfx,
                                              int x0, int y0, int x1, int y1, int color,
                                              Operation<Void> original) {
         gfx.fill(x0, y0, x1, y1, FoxChrome.BG_ACTIVE);

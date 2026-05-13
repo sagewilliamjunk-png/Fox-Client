@@ -40,7 +40,10 @@
           <div class="user-meta">
             <div class="user-name" id="user-name">Not signed in</div>
             <div class="user-profile muted" id="user-profile-line"></div>
-            <button class="link" id="sign-out">Sign out</button>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button class="link" id="sign-out">Sign out</button>
+              <button class="link" id="btn-change-skin" style="display:none;">Change skin</button>
+            </div>
           </div>
         </div>
       </div>
@@ -51,6 +54,42 @@
 
   <!-- Transient toast notifications (auth expiry, update results, etc.) -->
   <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- Account switcher dropdown (shown when user clicks the user card) -->
+  <div id="account-switcher" class="account-switcher hidden" role="listbox" aria-label="Switch account">
+    <div class="account-switcher-header">Accounts</div>
+    <div id="account-list" class="account-list"></div>
+    <div class="account-switcher-footer">
+      <button class="btn btn-primary btn-sm" id="btn-add-account">+ Add account…</button>
+    </div>
+  </div>
+
+  <!-- Skin manager panel (shown over the sidebar when "Change skin" is clicked) -->
+  <div id="skin-panel" class="skin-panel hidden" role="dialog" aria-modal="true" aria-label="Change skin">
+    <div class="skin-panel-inner">
+      <div class="skin-panel-title">Change Skin</div>
+      <div id="skin-preview-wrap" class="skin-preview-wrap">
+        <img id="skin-preview-img" class="skin-preview-img hidden" alt="Current skin" />
+        <div id="skin-preview-fallback" class="skin-preview-fallback muted">Loading…</div>
+      </div>
+      <div class="skin-panel-sub" id="skin-variant-label">Model: <strong id="skin-variant-text">Classic</strong></div>
+      <div class="skin-variant-picker">
+        <label class="radio-label">
+          <input type="radio" name="skin-variant" value="classic" id="skin-var-classic" checked />
+          Classic (Steve)
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="skin-variant" value="slim" id="skin-var-slim" />
+          Slim (Alex)
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-skin-upload">Choose PNG &amp; upload…</button>
+        <button class="btn" id="btn-skin-close">Cancel</button>
+      </div>
+      <div id="skin-status" class="status muted" style="margin-top:8px;font-size:12px;"></div>
+    </div>
+  </div>
 
   <!-- Login view -->
   <div id="login" class="login hidden">

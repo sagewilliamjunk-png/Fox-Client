@@ -1,6 +1,6 @@
 package dev.kitsune.client.hud;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * A draggable HUD overlay element. Widgets register with {@link HudManager}
@@ -26,7 +26,7 @@ public interface HudWidget {
      * Render at the given top-left {@code (x, y)} (already resolved from the
      * stored anchor + offset by {@link HudManager}).
      */
-    void renderWidget(GuiGraphics gfx, int x, int y);
+    void renderWidget(GuiGraphicsExtractor gfx, int x, int y);
 
     /** Whether this widget should currently be drawn (e.g. module enabled). */
     boolean isWidgetVisible();

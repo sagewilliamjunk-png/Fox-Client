@@ -1,14 +1,14 @@
 package dev.kitsune.client.screen;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /**
  * Pure-primitive Fox Client visual identity. Draws the wordmark, fox glyph,
- * and warm vignette using only {@link GuiGraphics#fill}/{@code drawString} —
+ * and warm vignette using only {@link GuiGraphicsExtractor#fill}/{@code drawString} —
  * no texture assets required, so the client looks distinctly Fox out of the
  * box without shipping PNGs.
  *
@@ -19,7 +19,7 @@ public final class FoxBranding {
     private FoxBranding() {}
 
     /** Heavy darkening + warm tint so the brand area pops on any panorama frame. */
-    public static void drawVignette(GuiGraphics gfx, int w, int h) {
+    public static void drawVignette(GuiGraphicsExtractor gfx, int w, int h) {
         // Solid dark wash over everything (panorama still shows through faintly)
         gfx.fill(0, 0, w, h, 0xB0000000);
         // Warm ember band along the top
@@ -36,7 +36,7 @@ public final class FoxBranding {
      * Uses FoxTheme.FOX_ORANGE glyphs with a 1px dark-bark drop-shadow so it
      * reads cleanly on both the dim panorama and the cream card behind it.
      */
-    public static void drawWordmark(GuiGraphics gfx, Font font, int cx, int y) {
+    public static void drawWordmark(GuiGraphicsExtractor gfx, Font font, int cx, int y) {
         // 3x scaled vanilla font, positioned so y is the top of the text
         float scale = 3.0f;
         Component title = Component.literal("FOX CLIENT");
@@ -45,8 +45,8 @@ public final class FoxBranding {
         gfx.pose().translate(cx, y);
         gfx.pose().scale(scale, scale);
         // Bark shadow (manual 1px offset — the vanilla drop shadow is too dark/blue on cream)
-        gfx.drawString(font, title, -tw / 2 + 1, 1, FoxTheme.BARK, false);
-        gfx.drawString(font, title, -tw / 2,     0, FoxTheme.FOX_ORANGE, false);
+        gfx.text(font, title, -tw / 2 + 1, 1, FoxTheme.BARK);
+        gfx.text(font, title, -tw / 2,     0, FoxTheme.FOX_ORANGE);
         gfx.pose().popMatrix();
     }
 
@@ -56,9 +56,9 @@ public final class FoxBranding {
 
     /**
      * Draws the Fox Client mascot at (x,y), upscaled so the whole sprite is
-     * {@code size} px wide. Uses nearest-neighbor via {@link GuiGraphics#blit}.
+     * {@code size} px wide. Uses nearest-neighbor via {@link GuiGraphicsExtractor#blit}.
      */
-    public static void drawFoxGlyph(GuiGraphics gfx, int x, int y, int size) {
+    public static void drawFoxGlyph(GuiGraphicsExtractor gfx, int x, int y, int size) {
         gfx.blit(
                 RenderPipelines.GUI_TEXTURED,
                 FOX_HEAD,

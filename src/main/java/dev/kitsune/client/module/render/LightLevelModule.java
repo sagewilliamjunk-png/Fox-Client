@@ -6,8 +6,8 @@ import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -35,7 +35,7 @@ import java.util.List;
  * a 2D grid back onto the 3D world. Numbers directly on the ground remove the
  * translation step — this is what the player actually asked for.
  *
- * <p>Hooks {@link WorldRenderEvents#AFTER_ENTITIES} so our text draws after
+ * <p>Hooks {@link LevelRenderEvents#AFTER_ENTITIES} so our text draws after
  * opaque geometry but before translucent passes, and uses
  * {@link Font.DisplayMode#SEE_THROUGH} so values stay visible even with a
  * block edge between the camera and the number.
@@ -93,7 +93,7 @@ public class LightLevelModule extends Module {
         // Fabric events don't support unregister — attach once, forever.
         // isEnabled() inside the handler is what actually turns rendering on/off.
         if (!listenerRegistered) {
-            WorldRenderEvents.AFTER_ENTITIES.register(this::onWorldRender);
+            LevelRenderEvents.AFTER_SOLID_FEATURES.register(this::onWorldRender);
             listenerRegistered = true;
         }
     }
@@ -110,7 +110,7 @@ public class LightLevelModule extends Module {
         cachedAtTick = Long.MIN_VALUE;
     }
 
-    private void onWorldRender(WorldRenderContext ctx) {
+    private void onWorldRender(LevelRenderContext ctx) {
         if (!isEnabled()) return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -121,8 +121,8 @@ public class LightLevelModule extends Module {
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.position();
 
-        PoseStack pose = ctx.matrices();
-        MultiBufferSource buffers = ctx.consumers();
+        PoseStack pose = ctx.poseStack();
+        MultiBufferSource buffers = ctx.bufferSource();
         if (buffers == null) return; // mid-frame edge case, fabric may pass null
 
         Font font = mc.font;

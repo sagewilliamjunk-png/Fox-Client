@@ -17,11 +17,17 @@ const addons = require('./addons');
 const fabricInstaller = require('./fabricInstaller');
 const profilesStore = require('./profiles');
 
-/** The single MC version Fox Client targets right now. Bump in lockstep with
- *  the mod's gradle.properties `minecraft_version`. The launcher refuses to
- *  launch any other MC version — this is intentional: the client is built
- *  against one set of mappings and one Fabric API. */
-const TARGET_MC_VERSION = '1.21.11';
+/** The MC version the Fox Client jar is built against. Bump in lockstep with
+ *  the mod's gradle.properties `minecraft_version`. When a profile targets a
+ *  different version the Fox Client jar is skipped and the game launches with
+ *  plain Fabric (or vanilla if Fabric isn't installed for that version). */
+const TARGET_MC_VERSION = '26.1.2';
+
+/** Return the MC version to use for a given profile.
+ *  Falls back to TARGET_MC_VERSION when the profile has no override. */
+function resolveTargetVersion(profile) {
+  return (profile && profile.mcVersion) ? profile.mcVersion : TARGET_MC_VERSION;
+}
 
 /**
  * Locate a freshly-built kitsune-client jar under the project's `build/libs`
@@ -137,6 +143,10 @@ async function launch(onExit) {
   //     gameDir resolution that follows.
   const activeProfile = profilesStore.find(s.selectedProfile) || null;
 
+  // Resolve the MC version for this launch — profile override or the built-in target.
+  const targetVersion = resolveTargetVersion(activeProfile);
+  const clientSupported = (targetVersion === TARGET_MC_VERSION);
+
   // 1c. Stamp the resolved Microsoft account onto the active profile, so
   //     next time the user activates this profile we can warn if the
   //     signed-in account differs. Skipped for guest auth (no real UUID).
@@ -170,32 +180,39 @@ async function launch(onExit) {
   // Vanilla MC for our target version must be present (Fabric inheritsFrom
   // it). We can't bootstrap vanilla — the asset / library / natives downloader
   // is huge and out of scope. Surface a clear error if missing.
-  const vanillaJsonPath = path.join(gameDir, 'versions', TARGET_MC_VERSION, `${TARGET_MC_VERSION}.json`);
+  const vanillaJsonPath = path.join(gameDir, 'versions', targetVersion, `${targetVersion}.json`);
   if (!fs.existsSync(vanillaJsonPath)) {
     throw new Error(
-      `Vanilla Minecraft ${TARGET_MC_VERSION} not installed. ` +
-      `Run the official Minecraft launcher once, play vanilla ${TARGET_MC_VERSION}, ` +
+      `Vanilla Minecraft ${targetVersion} not installed. ` +
+      `Run the official Minecraft launcher once, play vanilla ${targetVersion}, ` +
       `then return here. (Fox Launcher can install Fabric for you, but not vanilla MC itself.)`);
   }
 
-  // Fabric profile: install on demand if it's not already present. The
-  // installer is idempotent — repeated launches are a no-op once installed.
-  let versionId = mcVersion.findFabricProfile(gameDir, TARGET_MC_VERSION);
+  // Fabric profile: install on demand if it's not already present.
+  let versionId = mcVersion.findFabricProfile(gameDir, targetVersion);
   if (!versionId) {
-    _stage(`Installing Fabric for Minecraft ${TARGET_MC_VERSION}…`);
-    logs.push('info', `Fabric for ${TARGET_MC_VERSION} not installed — fetching automatically…`);
+    _stage(`Installing Fabric for Minecraft ${targetVersion}…`);
+    logs.push('info', `Fabric for ${targetVersion} not installed — fetching automatically…`);
     try {
-      const result = await fabricInstaller.install(gameDir, TARGET_MC_VERSION, {
+      const result = await fabricInstaller.install(gameDir, targetVersion, {
         onProgress: (msg) => logs.push('info', msg),
       });
       versionId = result.profileId;
       logs.push('info', `Fabric installed: ${versionId} (${result.downloaded} libs downloaded, ${result.skipped} cached).`);
     } catch (err) {
-      throw new Error(`Couldn't install Fabric for ${TARGET_MC_VERSION}: ${err.message}`);
+      // Fabric install failed — fall back to launching plain vanilla if possible.
+      const vanillaId = targetVersion;
+      const vanillaLibs = path.join(gameDir, 'versions', vanillaId, `${vanillaId}.jar`);
+      if (fs.existsSync(vanillaLibs)) {
+        logs.push('warn', `Fabric install failed (${err.message}). Falling back to vanilla ${targetVersion}.`);
+        versionId = vanillaId;
+      } else {
+        throw new Error(`Couldn't install Fabric for ${targetVersion}: ${err.message}`);
+      }
     }
   }
   logs.push('info', `Library root: ${gameDir}`);
-  logs.push('info', `Version: ${versionId} (pinned to MC ${TARGET_MC_VERSION})`);
+  logs.push('info', `Version: ${versionId} (MC ${targetVersion}${clientSupported ? ', client supported' : ', vanilla/Fabric only'})`);
 
   // 3b. Resolve the *user* game directory — where mods/, config/, saves/,
   //     and options.txt live for this profile. Three modes, in priority:
@@ -225,7 +242,7 @@ async function launch(onExit) {
   //     their own copy.
   try {
     _stage('Checking Fabric API…');
-    await fabricInstaller.installFabricApi(launchGameDir, TARGET_MC_VERSION, (msg) => {
+    await fabricInstaller.installFabricApi(launchGameDir, targetVersion, (msg) => {
       logs.push('info', msg);
       _stage(msg);
     });
@@ -233,37 +250,44 @@ async function launch(onExit) {
     logs.push('warn', `Fabric API install failed (will attempt launch anyway): ${err.message}`);
   }
 
-  // 4. Install client jar into the profile's mods folder. Three sources,
-  //    priority order: GitHub release → local update cache → dev build.
+  // 4. Install client jar — only if this profile targets the version the
+  //    Fox Client jar was built against. Any other version launches with
+  //    plain Fabric (or vanilla) so the user doesn't get a crash from a
+  //    jar built against different mappings.
   let installed = null;
-  try {
-    if (s.autoUpdate) {
-      _stage('Checking for client update…');
-      logs.push('info', 'Checking for Kitsune client update…');
-      const up = await updater.checkAndDownload({ onProgress: (msg) => logs.push('info', msg) });
-      if (up && up.path) installed = installModJar(launchGameDir, up.path);
-    }
-    if (!installed) {
+  if (clientSupported) {
+    try {
+      if (s.autoUpdate) {
+        _stage('Checking for client update…');
+        logs.push('info', 'Checking for Kitsune client update…');
+        const up = await updater.checkAndDownload({ onProgress: (msg) => logs.push('info', msg) });
+        if (up && up.path) installed = installModJar(launchGameDir, up.path);
+      }
+      if (!installed) {
+        const cached = updater.currentLocalJar();
+        if (cached) installed = installModJar(launchGameDir, cached);
+      }
+      if (!installed) {
+        const devJar = findLocalDevJar();
+        if (devJar) {
+          installed = installModJar(launchGameDir, devJar);
+          if (installed) logs.push('info', `Using locally-built dev jar: ${devJar}`);
+        }
+      }
+      if (installed) logs.push('info', `Installed client mod: ${installed}`);
+      else logs.push('warn', 'No Kitsune client jar available — launching Fabric without the Fox client.');
+    } catch (err) {
+      logs.push('warn', `Mod install failed: ${err.message}`);
       const cached = updater.currentLocalJar();
       if (cached) installed = installModJar(launchGameDir, cached);
-    }
-    if (!installed) {
-      const devJar = findLocalDevJar();
-      if (devJar) {
-        installed = installModJar(launchGameDir, devJar);
-        if (installed) logs.push('info', `Using locally-built dev jar: ${devJar}`);
+      else {
+        const devJar = findLocalDevJar();
+        if (devJar) installed = installModJar(launchGameDir, devJar);
       }
     }
-    if (installed) logs.push('info', `Installed client mod: ${installed}`);
-    else logs.push('warn', 'No Kitsune client jar available — launching Fabric without the Fox client.');
-  } catch (err) {
-    logs.push('warn', `Mod install failed: ${err.message}`);
-    const cached = updater.currentLocalJar();
-    if (cached) installed = installModJar(launchGameDir, cached);
-    else {
-      const devJar = findLocalDevJar();
-      if (devJar) installed = installModJar(launchGameDir, devJar);
-    }
+  } else {
+    logs.push('info', `Skipping Fox Client jar — not built for MC ${targetVersion} (built for ${TARGET_MC_VERSION}). Launching Fabric only.`);
+    _stage(`Launching Fabric ${targetVersion} (Fox Client not compatible)…`);
   }
 
   // 4b. Apply per-profile mod toggles inside the user-data dir.
@@ -410,20 +434,28 @@ function clientReadiness() {
   const s = settings.load();
   const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
   const gameDirExists = fs.existsSync(gameDir);
+
+  // Use the active profile's version override if set.
+  const activeProfile = profilesStore.find(s.selectedProfile) || null;
+  const targetVersion  = resolveTargetVersion(activeProfile);
+  const clientSupported = (targetVersion === TARGET_MC_VERSION);
+
   const vanillaJsonPath = gameDirExists
-    ? path.join(gameDir, 'versions', TARGET_MC_VERSION, `${TARGET_MC_VERSION}.json`)
+    ? path.join(gameDir, 'versions', targetVersion, `${targetVersion}.json`)
     : null;
   const vanillaInstalled = !!vanillaJsonPath && fs.existsSync(vanillaJsonPath);
-  const fabricProfile = gameDirExists ? mcVersion.findFabricProfile(gameDir, TARGET_MC_VERSION) : null;
+  const fabricProfile = gameDirExists ? mcVersion.findFabricProfile(gameDir, targetVersion) : null;
   const cachedJar = updater.currentLocalJar();
   const devJar = findLocalDevJar();
   return {
-    targetMcVersion: TARGET_MC_VERSION,
+    targetMcVersion:      TARGET_MC_VERSION,    // version the Fox Client jar targets
+    selectedMcVersion:    targetVersion,         // version this profile will actually launch
+    clientSupported,                             // false → launching Fabric/vanilla only
     gameDir,
     gameDirExists,
-    vanillaInstalled,                           // user must install via official launcher
-    fabricProfile,                              // null if not installed
-    fabricAutoInstallable: vanillaInstalled,    // true → next PLAY auto-fetches Fabric
+    vanillaInstalled,                            // user must install via official launcher
+    fabricProfile,                               // null if not installed for selectedMcVersion
+    fabricAutoInstallable: vanillaInstalled,     // true → next PLAY auto-fetches Fabric
     hasModJar: !!(cachedJar || devJar),
     modJarSource: cachedJar ? 'release' : (devJar ? 'dev-build' : null),
   };

@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Estimated server tick rate based on the rate at which the world's game-time
@@ -90,7 +90,7 @@ public class ServerTpsHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -110,7 +110,7 @@ public class ServerTpsHudModule extends Module implements HudWidget {
         } else {
             s = showLabel.get() ? String.format("TPS %.1f", tps) : String.format("%.1f", tps);
         }
-        gfx.drawString(font, s, x + 2, y + 3, color, false);
+        gfx.text(font, s, x + 2, y + 3, color);
     }
 
     private static int tpsColor(double tps) {

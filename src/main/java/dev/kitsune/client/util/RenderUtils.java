@@ -1,13 +1,13 @@
 package dev.kitsune.client.util;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Safe rendering utilities for Fox Client. Wraps render calls in null checks
  * and try/catch so one bad module can't crash the entire client.
  *
- * <p>Use {@link #safeRender(GuiGraphics, RenderAction)} in HUD modules to protect
+ * <p>Use {@link #safeRender(GuiGraphicsExtractor, RenderAction)} in HUD modules to protect
  * against null player, null world, dimension switches, loading screens, etc.
  */
 public final class RenderUtils {
@@ -15,14 +15,14 @@ public final class RenderUtils {
 
     @FunctionalInterface
     public interface RenderAction {
-        void render(GuiGraphics gfx, Minecraft mc);
+        void render(GuiGraphicsExtractor gfx, Minecraft mc);
     }
 
     /**
      * Safely execute a render action. If the player or world is null, or
      * the action throws, it's silently caught. Never crashes the game.
      */
-    public static void safeRender(GuiGraphics gfx, RenderAction action) {
+    public static void safeRender(GuiGraphicsExtractor gfx, RenderAction action) {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.player == null || mc.level == null) return;
@@ -38,7 +38,7 @@ public final class RenderUtils {
      * Safely execute a render action that only needs the screen dimensions
      * (works even without a player/world — e.g., on title screen).
      */
-    public static void safeRenderAlways(GuiGraphics gfx, RenderAction action) {
+    public static void safeRenderAlways(GuiGraphicsExtractor gfx, RenderAction action) {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null) return;
@@ -51,7 +51,7 @@ public final class RenderUtils {
     /**
      * Draw a horizontal color bar (like a progress/durability bar).
      */
-    public static void drawBar(GuiGraphics gfx, int x, int y, int width, int height,
+    public static void drawBar(GuiGraphicsExtractor gfx, int x, int y, int width, int height,
                                 float progress, int fillColor, int bgColor) {
         gfx.fill(x, y, x + width, y + height, bgColor);
         int fillW = (int) (width * Math.max(0, Math.min(1, progress)));

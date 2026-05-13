@@ -1,10 +1,10 @@
 package dev.kitsune.client.gui.clickgui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Fox-den palette + primitive draw helpers for the Kitsune ClickGUI. Pure
- * {@link GuiGraphics#fill} calls — no texture assets, so the GUI works without
+ * {@link GuiGraphicsExtractor#fill} calls — no texture assets, so the GUI works without
  * a resource pack reload.
  *
  * <p>Palette colors come directly from the user's spec.
@@ -23,7 +23,7 @@ public final class KitsuneTheme {
     private KitsuneTheme() {}
 
     /** Wooden burrow-card panel: cream fill, bark border, highlight corners. */
-    public static void drawWoodenPanel(GuiGraphics gfx, int x, int y, int w, int h) {
+    public static void drawWoodenPanel(GuiGraphicsExtractor gfx, int x, int y, int w, int h) {
         // drop shadow
         gfx.fill(x + 2, y + 2, x + w + 2, y + h + 2, SHADOW);
         // bark outer border
@@ -38,7 +38,7 @@ public final class KitsuneTheme {
     }
 
     /** Fox-ear tab: triangle-topped header rectangle for category titles. */
-    public static void drawFoxEarTab(GuiGraphics gfx, int x, int y, int w, int h, boolean selected) {
+    public static void drawFoxEarTab(GuiGraphicsExtractor gfx, int x, int y, int w, int h, boolean selected) {
         int fill = selected ? ORANGE : BARK_SOFT;
         // body
         gfx.fill(x, y + 3, x + w, y + h, fill);
@@ -56,7 +56,7 @@ public final class KitsuneTheme {
     }
 
     /** Paw-print bullet: 4 small dots arranged as a paw. 5x5 footprint. */
-    public static void drawPawBullet(GuiGraphics gfx, int x, int y, int color) {
+    public static void drawPawBullet(GuiGraphicsExtractor gfx, int x, int y, int color) {
         // main pad
         gfx.fill(x + 1, y + 2, x + 4, y + 5, color);
         // three toes
@@ -66,12 +66,12 @@ public final class KitsuneTheme {
     }
 
     /** Thin 1px underline in orange — used for category headers. */
-    public static void drawOrangeRule(GuiGraphics gfx, int x, int y, int w) {
+    public static void drawOrangeRule(GuiGraphicsExtractor gfx, int x, int y, int w) {
         gfx.fill(x, y, x + w, y + 1, ORANGE);
     }
 
     /** Full-screen dim overlay behind the ClickGUI. */
-    public static void drawOverlay(GuiGraphics gfx, int w, int h) {
+    public static void drawOverlay(GuiGraphicsExtractor gfx, int w, int h) {
         gfx.fill(0, 0, w, h, OVERLAY);
     }
 }

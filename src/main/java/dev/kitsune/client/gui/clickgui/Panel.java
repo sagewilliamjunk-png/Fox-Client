@@ -17,7 +17,7 @@ import dev.kitsune.client.setting.StringSetting;
 import dev.kitsune.client.util.KeybindManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -207,7 +207,7 @@ public class Panel {
         return 1 - (1 - t) * (1 - t);
     }
 
-    public void render(GuiGraphics gfx, int mouseX, int mouseY) {
+    public void render(GuiGraphicsExtractor gfx, int mouseX, int mouseY) {
         recalcHeight();
         int w = getWidth();
         Font font = Minecraft.getInstance().font;
@@ -227,7 +227,7 @@ public class Panel {
 
         // Category title
         String title = category.icon() + " " + category.displayName();
-        gfx.drawString(font, title, x + 8, y + 4, KitsuneTheme.ORANGE, false);
+        gfx.text(font, title, x + 8, y + 4, KitsuneTheme.ORANGE);
 
         // Module count
         List<Module> mods = getFilteredModules();
@@ -235,7 +235,7 @@ public class Panel {
                 ? mods.size() + " favorites"
                 : mods.size() + " modules";
         int cw = font.width(countStr);
-        gfx.drawString(font, countStr, x + w - cw - 8, y + 4, 0xFF888888, false);
+        gfx.text(font, countStr, x + w - cw - 8, y + 4, 0xFF888888);
 
         int bodyTop = y + HEADER_HEIGHT + PADDING;
         int bodyBottom = y + height - PADDING;
@@ -243,12 +243,12 @@ public class Panel {
         if (mods.isEmpty()) {
             // Favorites panel shows a helpful hint rather than a generic message.
             if (category == Category.FAVORITES) {
-                gfx.drawString(font, "\u00a78No favorites yet.", x + 12, bodyTop + 4, 0xFF666666, false);
-                gfx.drawString(font, "\u00a78Middle-click any module to favorite it.",
-                        x + 12, bodyTop + 14, 0xFF555555, false);
+                gfx.text(font, "\u00a78No favorites yet.", x + 12, bodyTop + 4, 0xFF666666);
+                gfx.text(font, "\u00a78Middle-click any module to favorite it.",
+                        x + 12, bodyTop + 14, 0xFF555555);
             } else {
-                gfx.drawString(font, "\u00a78No modules in this category",
-                        x + 12, bodyTop + 4, 0xFF666666, false);
+                gfx.text(font, "\u00a78No modules in this category",
+                        x + 12, bodyTop + 4, 0xFF666666);
             }
             return;
         }
@@ -305,10 +305,10 @@ public class Panel {
             boolean fav = ModuleFavorites.isFavorite(m);
             int textX = x + 14;
             if (fav) {
-                gfx.drawString(font, "\u2605", textX, rowY + 4, 0xFFFFD27F, false);
+                gfx.text(font, "\u2605", textX, rowY + 4, 0xFFFFD27F);
                 textX += 10;
             }
-            gfx.drawString(font, m.name(), textX, rowY + 4, nameColor, false);
+            gfx.text(font, m.name(), textX, rowY + 4, nameColor);
 
             // Description (if space allows)
             if (w > 250) {
@@ -319,7 +319,7 @@ public class Panel {
                     if (font.width(desc) > maxDescW) {
                         desc = font.plainSubstrByWidth(desc, maxDescW - font.width("...")) + "...";
                     }
-                    gfx.drawString(font, desc, descX, rowY + 4, 0xFF666666, false);
+                    gfx.text(font, desc, descX, rowY + 4, 0xFF666666);
                 }
             }
 
@@ -327,7 +327,7 @@ public class Panel {
             boolean isExpanded = m.name().equals(expandedModule);
             if (!m.settings().isEmpty()) {
                 String arrow = isExpanded ? "\u25bc" : "\u25b6";
-                gfx.drawString(font, arrow, x + w - 14, rowY + 4, 0xFF888888, false);
+                gfx.text(font, arrow, x + w - 14, rowY + 4, 0xFF888888);
             }
 
             rowY += ROW_HEIGHT;
@@ -358,7 +358,7 @@ public class Panel {
      * wrap so long descriptions that got "..."-truncated in the row are fully
      * readable on hover.
      */
-    public void renderTooltip(GuiGraphics gfx, int mouseX, int mouseY) {
+    public void renderTooltip(GuiGraphicsExtractor gfx, int mouseX, int mouseY) {
         long dwell = System.currentTimeMillis() - hoverStartMs;
         if (dwell < 400) return;
 
@@ -396,7 +396,7 @@ public class Panel {
         gfx.fill(tx - 1, ty - 1, tx + tw + 1, ty + th + 1, 0xFF3A2410);
         gfx.fill(tx, ty, tx + tw, ty + th, 0xF0181210);
         for (int i = 0; i < lines.size(); i++) {
-            gfx.drawString(font, lines.get(i), tx + 3, ty + 2 + i * 10, 0xFFEEEEEE, false);
+            gfx.text(font, lines.get(i), tx + 3, ty + 2 + i * 10, 0xFFEEEEEE);
         }
     }
 
@@ -441,7 +441,7 @@ public class Panel {
         return s.name();
     }
 
-    private void renderSetting(GuiGraphics gfx, Font font, Setting<?> s,
+    private void renderSetting(GuiGraphicsExtractor gfx, Font font, Setting<?> s,
                                int rowY, int panelW, int mouseX, int mouseY,
                                int bodyTop, int bodyBottom) {
         int left = x + 14;
@@ -471,13 +471,13 @@ public class Panel {
         if (s instanceof BooleanSetting bs) {
             boolean val = bs.get();
             String label = s.name() + ": " + (val ? "\u00a7aON" : "\u00a7cOFF");
-            gfx.drawString(font, label, left + 2, rowY + 3, 0xFFDDDDDD, false);
+            gfx.text(font, label, left + 2, rowY + 3, 0xFFDDDDDD);
 
         } else if (s instanceof SliderSetting ss) {
             String valStr = formatSliderValue(ss);
-            gfx.drawString(font, s.name(), left + 2, rowY + 1, 0xFFDDDDDD, false);
+            gfx.text(font, s.name(), left + 2, rowY + 1, 0xFFDDDDDD);
             int vw = font.width(valStr);
-            gfx.drawString(font, valStr, right - vw - 2, rowY + 1, KitsuneTheme.ORANGE, false);
+            gfx.text(font, valStr, right - vw - 2, rowY + 1, KitsuneTheme.ORANGE);
 
             // Bar
             int barX = left + 2;
@@ -493,11 +493,11 @@ public class Panel {
 
         } else if (s instanceof ModeSetting ms) {
             String label = s.name() + ": \u00a7f" + ms.get();
-            gfx.drawString(font, label, left + 2, rowY + 3, 0xFFDDDDDD, false);
-            gfx.drawString(font, "\u25b6", right - 10, rowY + 3, KitsuneTheme.ORANGE, false);
+            gfx.text(font, label, left + 2, rowY + 3, 0xFFDDDDDD);
+            gfx.text(font, "\u25b6", right - 10, rowY + 3, KitsuneTheme.ORANGE);
 
         } else if (s instanceof ColorSetting cs) {
-            gfx.drawString(font, cs.name(), left + 2, rowY + 3, 0xFFDDDDDD, false);
+            gfx.text(font, cs.name(), left + 2, rowY + 3, 0xFFDDDDDD);
             int swX = right - 22;
             int swY = rowY + 2;
             int swW = 18;
@@ -518,11 +518,11 @@ public class Panel {
                 int key = ks.get();
                 keyName = key < 0 ? "\u00a78None" : "\u00a7a" + KeybindManager.getKeyName(key);
             }
-            gfx.drawString(font, s.name() + ": " + keyName, left + 2, rowY + 3, 0xFFDDDDDD, false);
+            gfx.text(font, s.name() + ": " + keyName, left + 2, rowY + 3, 0xFFDDDDDD);
 
         } else if (s instanceof StringSetting str) {
             // Label on the left
-            gfx.drawString(font, str.name(), left + 2, rowY + 1, 0xFFDDDDDD, false);
+            gfx.text(font, str.name(), left + 2, rowY + 1, 0xFFDDDDDD);
             // Edit field fills the right half
             int fieldX = left + Math.min(80, (right - left) / 2);
             int fieldY = rowY + SETTING_ROW_HEIGHT - BAR_HEIGHT - 6;
@@ -537,14 +537,14 @@ public class Panel {
             while (drawable.length() > 0 && font.width(drawable) > fieldW - 6) {
                 drawable = drawable.substring(1);
             }
-            gfx.drawString(font, drawable, fieldX + 3, fieldY + 1, 0xFFFFFFFF, false);
+            gfx.text(font, drawable, fieldX + 3, fieldY + 1, 0xFFFFFFFF);
             if (editing && (System.currentTimeMillis() / 500) % 2 == 0) {
                 int caretX = fieldX + 3 + font.width(drawable);
                 gfx.fill(caretX, fieldY + 1, caretX + 1, fieldY + 9, 0xFFFFFFFF);
             }
 
         } else {
-            gfx.drawString(font, s.name() + ": " + s.get(), left + 2, rowY + 3, 0xFF999999, false);
+            gfx.text(font, s.name() + ": " + s.get(), left + 2, rowY + 3, 0xFF999999);
         }
     }
 
@@ -699,7 +699,7 @@ public class Panel {
         if (colorPopup != null) colorPopup.mouseDragged(mouseX, mouseY);
     }
 
-    public void renderOverlay(GuiGraphics gfx) {
+    public void renderOverlay(GuiGraphicsExtractor gfx) {
         if (colorPopup != null) colorPopup.render(gfx);
     }
 

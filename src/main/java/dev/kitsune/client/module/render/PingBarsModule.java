@@ -3,7 +3,7 @@ package dev.kitsune.client.module.render;
 import dev.kitsune.client.module.Category;
 import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Renders coloured 4-bar signal icons in the player tab list, similar to the
@@ -52,12 +52,12 @@ public class PingBarsModule extends Module {
      * {@code rightX}. Bars increase in height left→right (2/4/6/8 px) and
      * are bottom-anchored at {@code y + 8}.
      *
-     * @param gfx     GuiGraphics to draw into
+     * @param gfx     GuiGraphicsExtractor to draw into
      * @param rightX  right edge of the drawing area
      * @param y       top-left Y of the 8-px-tall ping icon slot
      * @param ms      latency in milliseconds from {@code PlayerInfo#getLatency()}
      */
-    public void drawBars(GuiGraphics gfx, int rightX, int y, int ms) {
+    public void drawBars(GuiGraphicsExtractor gfx, int rightX, int y, int ms) {
         int litCount = litBars(ms);
         int litColor = litColor(litCount);
         int baseY    = y + 8; // bottom baseline of the 8-px icon slot

@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import dev.kitsune.client.gui.chrome.FoxChrome;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,11 +24,11 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class EditBoxRenderMixin {
 
     @WrapOperation(
-            method = "renderWidget",
+            method = "extractWidgetRenderState",
             at = @At(value = "INVOKE",
-                     target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V")
+                     target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V")
     )
-    private void kitsune$replaceBorderSprite(GuiGraphics gfx,
+    private void kitsune$replaceBorderSprite(GuiGraphicsExtractor gfx,
                                               RenderPipeline pipeline,
                                               Identifier sprite,
                                               int x, int y, int w, int h,

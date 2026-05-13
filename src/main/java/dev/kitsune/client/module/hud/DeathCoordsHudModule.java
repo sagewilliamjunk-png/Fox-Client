@@ -9,7 +9,7 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -75,7 +75,7 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
     }
 
     @Override
-    public void renderWidget(GuiGraphics gfx, int x, int y) {
+    public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
@@ -87,11 +87,11 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
 
         int rowY = y + 2;
         if (!haveDeath) {
-            gfx.drawString(font, "§8no death recorded", x + 2, rowY, 0xFFAAAAAA, false);
+            gfx.text(font, "§8no death recorded", x + 2, rowY, 0xFFAAAAAA);
             return;
         }
-        gfx.drawString(font, String.format("☠ %d, %d, %d", dx, dy, dz),
-                x + 2, rowY, 0xFFFFE8C8, false);
+        gfx.text(font, String.format("☠ %d, %d, %d", dx, dy, dz),
+                x + 2, rowY, 0xFFFFE8C8);
         rowY += 10;
 
         if (showDistance.get() && mc.player != null) {
@@ -103,13 +103,13 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
                     && deathDimension != null
                     && deathDimension.equals(mc.level.dimension()))
                     ? "" : " §8(other dim)";
-            gfx.drawString(font, String.format("→ %.0f m%s", dist, dimMatch),
-                    x + 2, rowY, 0xFFCCCCCC, false);
+            gfx.text(font, String.format("→ %.0f m%s", dist, dimMatch),
+                    x + 2, rowY, 0xFFCCCCCC);
             rowY += 10;
         }
 
         if (showDimension.get() && deathDimension != null) {
-            gfx.drawString(font, "in " + dimShort(deathDimension), x + 2, rowY, 0xFF888888, false);
+            gfx.text(font, "in " + dimShort(deathDimension), x + 2, rowY, 0xFF888888);
         }
     }
 
