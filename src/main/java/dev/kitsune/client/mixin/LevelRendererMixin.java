@@ -21,7 +21,7 @@ public class LevelRendererMixin {
                     + "Lcom/mojang/blaze3d/vertex/PoseStack;"
                     + "Lcom/mojang/blaze3d/vertex/VertexConsumer;"
                     + "DDD"
-                    + "Lnet/minecraft/client/renderer/state/BlockOutlineRenderState;"
+                    + "Lnet/minecraft/client/renderer/state/level/BlockOutlineRenderState;"
                     + "IF)V";
 
     // Color int argument (index 6 in the method signature)
