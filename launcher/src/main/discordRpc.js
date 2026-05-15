@@ -289,6 +289,15 @@ class DiscordRpc {
       if (a.smallImageKey) out.assets.small_image = trim(a.smallImageKey, 256);
       if (a.smallImageText) out.assets.small_text = trim(a.smallImageText, 128);
     }
+    // Buttons — up to 2, each { label (max 32), url }. Visible to anyone
+    // viewing the presence in Discord; clicking opens the URL in a browser.
+    if (Array.isArray(a.buttons) && a.buttons.length) {
+      const btns = a.buttons
+        .slice(0, 2)
+        .map(b => ({ label: String(b.label || '').slice(0, 32), url: String(b.url || '') }))
+        .filter(b => b.label && b.url);
+      if (btns.length) out.buttons = btns;
+    }
     // Drop empties — Discord rejects activities where required fields are
     // present but blank.
     if (!out.details) delete out.details;

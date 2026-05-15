@@ -22,6 +22,8 @@ const recommendedMods = require('./recommendedMods');
 const profiles = require('./profiles');
 const resourcepacks = require('./resourcepacks');
 const skins = require('./skins');
+const javaDownloader = require('./javaDownloader');
+const mcInstaller = require('./mcInstaller');
 
 // Subscribers fired after every successful settings:patch. Lets other main-
 // process modules (e.g. index.js's auto-update timer) react to user changes
@@ -172,6 +174,62 @@ function register(getWindow) {
     return probed;
   });
 
+  // ---- java install ----
+  // Triggered by the renderer when Java is missing and the user clicks
+  // "Download Java" instead of waiting for the auto-download on launch.
+  ipcMain.handle('java:install', async () => {
+    const w = getWindow();
+    const send = (payload) => {
+      if (w && !w.isDestroyed()) w.webContents.send('java:install:progress', payload);
+    };
+    try {
+      const jrePath = await javaDownloader.ensureJre(({ stage, message, percent }) => {
+        send({ stage, message, percent });
+      });
+      javaDetect.invalidateCache();
+      const probed = await javaDetect.probe(jrePath);
+      return { ok: true, javaPath: jrePath, probed };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // ---- mc install ----
+  // On-demand download of a vanilla MC version. Also called automatically
+  // by launcher.js during game:launch when the version is missing.
+  ipcMain.handle('mc:isInstalled', (_e, versionId) => {
+    try {
+      const s = settings.load();
+      const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+      return mcInstaller.isInstalled(gameDir, versionId);
+    } catch (_) { return false; }
+  });
+
+  ipcMain.handle('mc:listAvailable', async (_e, includeSnapshots) => {
+    try {
+      return await mcInstaller.listAvailable({ includeSnapshots: !!includeSnapshots });
+    } catch (err) {
+      return { error: err.message, versions: [] };
+    }
+  });
+
+  ipcMain.handle('mc:install', async (_e, versionId) => {
+    const w = getWindow();
+    const send = (payload) => {
+      if (w && !w.isDestroyed()) w.webContents.send('mc:install:progress', payload);
+    };
+    try {
+      const s = settings.load();
+      const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+      const result = await mcInstaller.installVersion(gameDir, versionId, {
+        onProgress: ({ stage, message, percent }) => send({ stage, message, percent }),
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // ---- game directory ----
   ipcMain.handle('gamedir:browse', async () => {
     const w = getWindow();
@@ -313,6 +371,8 @@ function register(getWindow) {
       //    the in-flight launch. The renderer will handle UI refresh from
       //    the launch result + navigation instead.
       settings.patch({ selectedProfile: id });
+      const _launchProfile = profiles.find(id);
+      const _launchProfileName = (_launchProfile && _launchProfile.name) || '';
       // 2. Reuse the regular launch path. Errors propagate as a non-OK
       //    result so the renderer can surface them.
       const info = await launcher.launch(({ code, startedAt, gameDir }) => {
@@ -330,7 +390,7 @@ function register(getWindow) {
           }
         }
       });
-      try { presence.setPlaying(info.versionId, info.startedAt); } catch (_) {}
+      try { presence.setPlaying(info.versionId, info.startedAt, _launchProfileName); } catch (_) {}
       const w3 = getWindow();
       if (w3 && !w3.isDestroyed()) w3.webContents.send('game:started', { pid: info.pid });
       return { ok: true, ...info };
@@ -498,6 +558,8 @@ function register(getWindow) {
   ipcMain.handle('game:launch', async () => {
     try {
       const sNow = settings.load();
+      const _activeProfile = profiles.find(sNow.selectedProfile);
+      const _activeProfileName = (_activeProfile && _activeProfile.name) || '';
       try { presence.setLaunching(sNow.selectedVersion || ''); } catch (_) {}
 
       const info = await launcher.launch(({ code, startedAt, gameDir }) => {
@@ -522,7 +584,7 @@ function register(getWindow) {
         }
       });
       // Spawn succeeded → flip to "playing" with accurate elapsed-since.
-      try { presence.setPlaying(info.versionId, info.startedAt); } catch (_) {}
+      try { presence.setPlaying(info.versionId, info.startedAt, _activeProfileName); } catch (_) {}
       // Notify the renderer immediately so the sidebar running-dot appears
       // without waiting for a Home screen re-render.
       { const w = getWindow(); if (w && !w.isDestroyed()) w.webContents.send('game:started', { pid: info.pid }); }
@@ -571,6 +633,96 @@ function register(getWindow) {
     }
   });
   ipcMain.handle('updater:summary', () => updater.summary());
+
+  // ---- screenshots ----
+
+  /** Resolve the screenshots directory for a given profile (or the active one). */
+  function resolveScreenshotDir(profileId) {
+    const s = settings.load();
+    const id = profileId || s.selectedProfile;
+    const profile = id ? profiles.find(id) : null;
+    let gameDir;
+    if (profile && profile.isolated) {
+      gameDir = paths.instanceDir(id);
+    } else if (profile && profile.gameDirOverride && profile.gameDirOverride.trim()) {
+      gameDir = profile.gameDirOverride.trim();
+    } else {
+      gameDir = (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft();
+    }
+    return path.join(gameDir, 'screenshots');
+  }
+
+  /** List screenshots for a profile. Returns sorted newest-first. */
+  ipcMain.handle('screenshots:list', (_e, profileId) => {
+    const { pathToFileURL } = require('url');
+    const ssDir = resolveScreenshotDir(profileId || null);
+    let entries;
+    try {
+      entries = fs.readdirSync(ssDir);
+    } catch (_) {
+      return { dir: ssDir, screenshots: [], exists: false };
+    }
+    const screenshots = entries
+      .filter(f => /\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(f))
+      .map(f => {
+        const fullPath = path.join(ssDir, f);
+        try {
+          const stat = fs.statSync(fullPath);
+          return {
+            name: f,
+            path: fullPath,
+            fileUrl: pathToFileURL(fullPath).href,
+            size: stat.size,
+            mtimeMs: stat.mtimeMs,
+          };
+        } catch (_) { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    return { dir: ssDir, screenshots, exists: true };
+  });
+
+  /** Delete a screenshot. Validates the path is inside a known screenshots dir. */
+  ipcMain.handle('screenshots:delete', (_e, filePath) => {
+    if (typeof filePath !== 'string') return { ok: false, error: 'Invalid path' };
+    if (!/\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(path.basename(filePath))) {
+      return { ok: false, error: 'Not an image file' };
+    }
+    const resolved = path.resolve(filePath);
+    // Build the set of allowed screenshot directories from every known profile.
+    const s = settings.load();
+    const globalGameDir = (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft();
+    const allowedDirs = [ path.resolve(path.join(globalGameDir, 'screenshots')) ];
+    try {
+      const doc = profiles.load();
+      for (const p of doc.profiles) {
+        if (p.isolated) allowedDirs.push(path.resolve(path.join(paths.instanceDir(p.id), 'screenshots')));
+        if (p.gameDirOverride && p.gameDirOverride.trim()) {
+          allowedDirs.push(path.resolve(path.join(p.gameDirOverride.trim(), 'screenshots')));
+        }
+      }
+    } catch (_) {}
+    const allowed = allowedDirs.some(d => resolved.startsWith(d + path.sep));
+    if (!allowed) return { ok: false, error: 'Path outside allowed directories' };
+    try {
+      fs.unlinkSync(resolved);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  /** Open the OS file manager with the screenshot file selected/highlighted. */
+  ipcMain.handle('screenshots:reveal', (_e, filePath) => {
+    if (typeof filePath === 'string') shell.showItemInFolder(filePath);
+  });
+
+  /** Open the screenshots folder for a given profile in the OS file manager. */
+  ipcMain.handle('screenshots:openFolder', (_e, profileId) => {
+    const ssDir = resolveScreenshotDir(profileId || null);
+    try { fs.mkdirSync(ssDir, { recursive: true }); } catch (_) {}
+    shell.openPath(ssDir);
+  });
 
   // ---- shell helpers ----
   ipcMain.handle('shell:openExternal', (_e, url) => {

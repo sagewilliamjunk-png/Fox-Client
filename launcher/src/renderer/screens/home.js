@@ -15,7 +15,9 @@ export async function renderHome(mount) {
   for (const off of activeUnsubs) { try { off(); } catch (_) {} }
   activeUnsubs = [];
 
-  const [s, summary, status, lastLaunch, readiness, profilesDoc, running, versionsData] = await Promise.all([
+  // `running` is `let` so the game-exit handler can clear it and allow
+  // patchJava() to re-enable the PLAY button without a full re-render.
+  let [s, summary, status, lastLaunch, readiness, profilesDoc, running] = await Promise.all([
     window.fox.getSettings(),
     window.fox.updateSummary().catch(() => ({})),
     window.fox.authStatus().catch(() => ({})),
@@ -23,13 +25,7 @@ export async function renderHome(mount) {
     window.fox.clientReadiness().catch(() => null),
     window.fox.listProfiles().catch(() => ({ profiles: [] })),
     window.fox.isRunning().catch(() => false),
-    window.fox.listVersions().catch(() => ({ versions: [] })),
   ]);
-
-  // Vanilla-only version list for the picker (exclude loader profiles).
-  const vanillaVersions = (versionsData.versions || []).filter(id =>
-    !/^(fabric-loader|forge-|quilt-|neoforge-)/i.test(id)
-  ).reverse(); // newest first (listVersions returns sorted ascending)
   const profiles = profilesDoc.profiles || [];
   const activeProfileId = s.selectedProfile || (profiles[0] && profiles[0].id) || '';
   const activeProfile = profiles.find(p => p.id === activeProfileId);
@@ -43,21 +39,11 @@ export async function renderHome(mount) {
   const usingDevJar = !installed && readiness?.modJarSource === 'dev-build';
 
   // Early failures — determinable without Java (no child-process spawn needed).
-  // Java and downstream checks (auth, RAM) are deferred to patchJava() below.
+  // Vanilla MC and Java are downloaded automatically on first launch (same as
+  // Modrinth App / Lunar Client), so those are no longer blocking errors here.
+  // Auth and RAM issues are surfaced by patchJava() after detection resolves.
   const earlyFailures = [];
-  if (!readiness || !readiness.gameDirExists) {
-    earlyFailures.push({
-      title: 'Minecraft not installed',
-      detail: 'Run the official Minecraft launcher once and play a version, then return here.',
-      action: { label: 'Get Minecraft', url: 'https://www.minecraft.net/download' },
-    });
-  } else if (!readiness.vanillaInstalled) {
-    earlyFailures.push({
-      title: `Minecraft ${readiness.targetMcVersion} not downloaded`,
-      detail: `Open the official Minecraft launcher and play vanilla ${readiness.targetMcVersion} once. Fox Launcher will install Fabric for you afterwards.`,
-      action: { label: 'Get Minecraft', url: 'https://www.minecraft.net/download' },
-    });
-  }
+  // (vanilla missing & java missing are handled by the launcher automatically)
 
   // ready starts false; patchJava() sets it once Java detection resolves.
   let ready = false;
@@ -113,22 +99,7 @@ export async function renderHome(mount) {
 
       <div class="home-version-row" style="margin-top:6px;">
         <label class="muted">Version</label>
-        ${vanillaVersions.length > 1 ? `
-        <div class="fox-dropdown" id="home-version-dropdown">
-          <button type="button" class="fox-dropdown-trigger" id="home-version-trigger" aria-haspopup="listbox" aria-expanded="false">
-            <span class="fox-dropdown-value">${escapeHtml(readiness?.selectedMcVersion || readiness?.targetMcVersion || '1.21.x')}</span>
-            <span class="fox-dropdown-caret" aria-hidden="true">▾</span>
-          </button>
-          <div class="fox-dropdown-menu" role="listbox" hidden>
-            ${vanillaVersions.map(v => {
-              const isSel = v === (readiness?.selectedMcVersion || readiness?.targetMcVersion);
-              const isClient = v === readiness?.targetMcVersion;
-              return `<button type="button" role="option" class="fox-dropdown-item ${isSel ? 'is-selected' : ''}" data-value="${escapeHtml(v)}">
-                ${escapeHtml(v)}${isClient ? ' <span class="badge badge-ok" style="font-size:9px;padding:1px 4px;">CLIENT</span>' : ''}${isSel ? ' <span class="fox-dropdown-check">✓</span>' : ''}
-              </button>`;
-            }).join('')}
-          </div>
-        </div>` : `<span class="home-version-static">${escapeHtml(readiness?.selectedMcVersion || readiness?.targetMcVersion || '1.21.x')}</span>`}
+        <span class="home-version-static">${escapeHtml(readiness?.selectedMcVersion || readiness?.targetMcVersion || '—')}</span>
         <span id="version-compat-badge">
           ${readiness?.modJarSource === 'dev-build' && readiness?.clientSupported
             ? '<span class="badge badge-warn" style="font-size:10px;">DEV JAR</span>'
@@ -151,12 +122,17 @@ export async function renderHome(mount) {
 
     <div id="failure-cards">${earlyFailures.map(renderFailureCard).join('')}</div>
 
-    ${(readiness && readiness.vanillaInstalled && !readiness.fabricProfile && !earlyFailures.length)
+    ${(readiness && !readiness.vanillaInstalled && !earlyFailures.length)
       ? `<div class="notice" style="margin-top:0;margin-bottom:14px;">
-           <strong>Fabric will be installed automatically on first launch.</strong>
-           <div style="margin-top:4px;">First PLAY click will fetch the Fabric loader profile and ~10 MB of libraries from fabricmc.net. Takes about 10 seconds.</div>
+           <strong>Minecraft ${escapeHtml(readiness.selectedMcVersion || readiness.targetMcVersion)} will download automatically.</strong>
+           <div style="margin-top:4px;">First PLAY click downloads vanilla MC (~400 MB), Fabric, and all assets from Mojang directly. No official launcher needed.</div>
          </div>`
-      : ''}
+      : (readiness && readiness.vanillaInstalled && !readiness.fabricProfile && !earlyFailures.length)
+        ? `<div class="notice" style="margin-top:0;margin-bottom:14px;">
+             <strong>Fabric will be installed automatically on first launch.</strong>
+             <div style="margin-top:4px;">First PLAY click fetches the Fabric loader and ~10 MB of libraries from fabricmc.net.</div>
+           </div>`
+        : ''}
 
     <div class="home-grid">
       <div>
@@ -214,19 +190,44 @@ export async function renderHome(mount) {
 
   function wireLaunch() {
     wireProfileDropdown();
-    wireVersionDropdown();
 
     const btn = document.getElementById('btn-launch');
     const stat = document.getElementById('play-status');
     if (!btn) return;
 
-    // Listen for structured launch-stage events from the main process
+    // Launch-stage progress messages.
     if (window.fox.onLaunchStage) {
       const offStage = window.fox.onLaunchStage(({ message }) => {
         setStage(stat, message, true);
       });
       activeUnsubs.push(offStage);
     }
+
+    // Game-exit listener lives at screen scope, not inside the click handler.
+    // This means it fires correctly even when:
+    //   • the game was already running when the home screen loaded, OR
+    //   • the user navigated away and back during a launch attempt.
+    // `running` is mutable so patchJava() re-evaluates without the stale value.
+    const offExit = window.fox.onGameExit(({ code }) => {
+      running = false;
+      btn.disabled = false;
+      btn.textContent = '▶ PLAY';
+      setStage(stat, code === 0 ? 'Game exited cleanly.' : `Game exited (code ${code}).`, false);
+      if (!ready) {
+        // ready was blocked because game was running at render time — re-run
+        // the readiness check now that running = false.
+        patchJava();
+      } else {
+        btn.classList.add('ready');
+      }
+    });
+    activeUnsubs.push(offExit);
+
+    // Crash modal (separate from exit — both events fire on a crash).
+    const offCrash = window.fox.onGameCrash((info) => {
+      import('./play.js').then(m => m.showCrashModal && m.showCrashModal(info));
+    });
+    activeUnsubs.push(offCrash);
 
     btn.addEventListener('click', async () => {
       if (!ready) return;
@@ -235,18 +236,6 @@ export async function renderHome(mount) {
       btn.textContent = 'Starting…';
       setStage(stat, 'Preparing launch…', true);
 
-      const offCrash = window.fox.onGameCrash((info) => {
-        import('./play.js').then(m => m.showCrashModal && m.showCrashModal(info));
-      });
-      const offExit = window.fox.onGameExit(({ code }) => {
-        btn.disabled = false;
-        btn.textContent = '▶ PLAY';
-        if (ready) btn.classList.add('ready');
-        setStage(stat, code === 0 ? 'Game exited cleanly.' : `Game exited (code ${code}).`, false);
-        offExit();
-      });
-      activeUnsubs.push(offCrash, offExit);
-
       try {
         const r = await window.fox.launchGame();
         if (!r.ok) {
@@ -254,7 +243,6 @@ export async function renderHome(mount) {
           btn.textContent = '▶ PLAY';
           if (ready) btn.classList.add('ready');
           stat.innerHTML = `<span style="color:var(--danger);font-size:12px;">${escapeHtml(r.error)}</span>`;
-          offExit();
           return;
         }
         btn.textContent = '● Running';
@@ -264,7 +252,6 @@ export async function renderHome(mount) {
         btn.textContent = '▶ PLAY';
         if (ready) btn.classList.add('ready');
         stat.innerHTML = `<span style="color:var(--danger);font-size:12px;">${escapeHtml(err.message)}</span>`;
-        offExit();
       }
     });
   }
@@ -340,41 +327,6 @@ export async function renderHome(mount) {
     });
   }
 
-  function wireVersionDropdown() {
-    const root = document.getElementById('home-version-dropdown');
-    if (!root) return;
-    const trigger = root.querySelector('.fox-dropdown-trigger');
-    const menu    = root.querySelector('.fox-dropdown-menu');
-    if (!trigger || !menu) return;
-
-    const open  = () => { menu.hidden = false; trigger.setAttribute('aria-expanded', 'true');  root.classList.add('is-open'); };
-    const close = () => { menu.hidden = true;  trigger.setAttribute('aria-expanded', 'false'); root.classList.remove('is-open'); };
-    trigger.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden ? open() : close(); });
-
-    for (const item of menu.querySelectorAll('.fox-dropdown-item')) {
-      item.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const ver = item.dataset.value;
-        close();
-        // null means "use the launcher's built-in target version"
-        const override = (ver === readiness?.targetMcVersion) ? null : ver;
-        try {
-          await window.fox.patchProfile(activeProfileId, { mcVersion: override });
-          renderHome(mount);
-        } catch (_) {}
-      });
-    }
-
-    const onDocClick = (e) => { if (!root.contains(e.target)) close(); };
-    const onKey = (e) => { if (e.key === 'Escape') close(); };
-    document.addEventListener('click', onDocClick);
-    document.addEventListener('keydown', onKey);
-    activeUnsubs.push(() => {
-      document.removeEventListener('click', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    });
-  }
-
   function wireQuickActions() {
     const dirBtn = document.getElementById('btn-open-gamedir');
     if (dirBtn) dirBtn.addEventListener('click', async () => {
@@ -398,6 +350,41 @@ export async function renderHome(mount) {
         else window.fox.openExternal(url);
       });
     }
+  }
+
+  function wireJavaDownloadCard() {
+    const btn      = document.getElementById('btn-java-download');
+    const progress = document.getElementById('java-dl-progress');
+    const bar      = document.getElementById('java-dl-bar');
+    const fill     = document.getElementById('java-dl-fill');
+    if (!btn) return;
+
+    // Subscribe to main-process progress events.
+    const offProgress = window.fox.onJavaInstallProgress(({ message, percent }) => {
+      if (progress) progress.textContent = message || '';
+      if (fill) fill.style.width = `${percent || 0}%`;
+    });
+    activeUnsubs.push(offProgress);
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Downloading…';
+      if (bar) bar.style.display = 'block';
+      if (progress) progress.textContent = 'Starting…';
+
+      const result = await window.fox.installJava().catch(err => ({ ok: false, error: err.message }));
+
+      if (!document.body.contains(mount)) return;
+
+      if (result.ok) {
+        // Java is now available — re-run patchJava to clear the card and enable PLAY.
+        patchJava();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+        if (progress) progress.textContent = `Failed: ${result.error}`;
+      }
+    });
   }
 
   // Performance pack runs automatically in the background on first launch
@@ -445,16 +432,11 @@ export async function renderHome(mount) {
         : '<span class="badge badge-error">missing</span>';
     }
 
-    // Only update failure cards + button when no early failure is already shown
-    // (if Minecraft isn't installed, Java status doesn't matter yet).
     if (!earlyFailures.length) {
       const lateFailures = [];
       if (!java.ok) {
-        lateFailures.push({
-          title: java.reason && java.reason.includes('Java ') ? java.reason : 'Java 21+ not found',
-          detail: 'Install Adoptium Temurin 21 (or any JDK 21+), then re-open the launcher.',
-          action: { label: 'Get Java 21', url: 'https://adoptium.net/temurin/releases/?version=21' },
-        });
+        // Java missing — offer auto-download instead of a link to adoptium.net.
+        lateFailures.push({ _javaDownload: true });
       } else if (!status.signedIn) {
         lateFailures.push({
           title: 'Not signed in',
@@ -470,8 +452,11 @@ export async function renderHome(mount) {
 
       const cards = document.getElementById('failure-cards');
       if (cards) {
-        cards.innerHTML = lateFailures.map(renderFailureCard).join('');
-        if (lateFailures.length) wireFailureLinks();
+        cards.innerHTML = lateFailures.map(f => f._javaDownload ? renderJavaDownloadCard() : renderFailureCard(f)).join('');
+        if (lateFailures.length) {
+          wireFailureLinks();
+          wireJavaDownloadCard();
+        }
       }
 
       ready = !lateFailures.length && !running;
@@ -505,6 +490,22 @@ export async function renderHome(mount) {
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function renderJavaDownloadCard() {
+  return `
+    <div class="notice warn" style="margin-top:0;margin-bottom:14px;" id="java-dl-card">
+      <strong>Java 21 not found</strong>
+      <div style="margin-top:4px;">Fox Launcher can download a JRE automatically (~200 MB) — no system install needed.</div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
+        <button class="btn btn-primary" id="btn-java-download">Download Java 21</button>
+        <span id="java-dl-progress" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="java-dl-bar" style="display:none;margin-top:8px;height:4px;background:var(--border);border-radius:2px;">
+        <div id="java-dl-fill" style="height:100%;width:0%;background:var(--fox-orange);border-radius:2px;transition:width 0.2s;"></div>
+      </div>
+    </div>
+  `;
 }
 
 function renderFailureCard(f) {

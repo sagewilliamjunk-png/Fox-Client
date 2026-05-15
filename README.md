@@ -1,11 +1,10 @@
-# Kitsune Client
+# Fox Client
 
-A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 1.21.11**.
+A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 1.21.x**.
 
-> **Status:** v1.0.0 — Stable
+> **Status:** v1.1.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
 
-Kitsune Client (internally still referred to as "Fox Client" in some older
-source files) is built around three hard rules:
+Fox Client is built around three hard rules:
 
 1. **Server-safe by design.** No kill-aura, xray, fly, reach, tracers, or
    packet manipulation — ever. See [SAFETY.md](SAFETY.md) for the full audit
@@ -40,20 +39,28 @@ Plus a full **HUD editor** (drag-and-drop with vanilla-proxy widgets for
 hotbar / health / food / air / xp) and a 4-profile system for one-key
 swapping between PvP, Survival, Vanilla, and Custom layouts.
 
-## Build
+## Install (recommended)
+
+**Use Fox Launcher** — it handles Java, Minecraft, Fabric, and mod installation automatically:
+
+1. Download **[Fox Launcher Setup](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)** from the latest release
+2. Run the installer and sign in with your Microsoft account
+3. Click Play — everything else is automatic
+
+## Manual install
+
+1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.16.x or newer for Minecraft 1.21.x.
+2. Drop `kitsune-client-1.1.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
+3. Launch.
+
+## Build from source
 
 ```bash
-./gradlew build          # produces build/libs/kitsune-client-1.0.0.jar
+./gradlew build          # produces build/libs/kitsune-client-1.1.0.jar
 ./gradlew runClient      # launches a dev client
 ```
 
 Requires **JDK 21**.
-
-## Install
-
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.18.6 or newer for Minecraft 1.21.11.
-2. Drop `kitsune-client-1.0.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
-3. Launch.
 
 Recommended companion mods (not bundled — drop them in yourself):
 
@@ -99,12 +106,7 @@ starting point, not a guarantee — read [SAFETY.md](SAFETY.md).**
 
 ## Screenshots
 
-Place your screenshots in `docs/screenshots/`:
-
-- `title.png` — Fox-themed title screen with starry sky + mascot
-- `clickgui.png` — Tabbed ClickGUI with search + profiles
-- `hud-editor.png` — Drag-and-drop HUD layout editor
-- `hud-overlay.png` — In-game overlay (coords, potion timers, paper doll)
+*Screenshots coming soon.*
 
 ## Project layout
 

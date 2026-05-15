@@ -17,6 +17,18 @@ let lastEnabled = null;
 const LARGE_ASSET = 'fox_large';   // upload key in the Discord app portal
 const SMALL_ASSET = 'fox_small';   // optional secondary key
 
+const DOWNLOAD_URL = 'https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest';
+const DOWNLOAD_BTN = { label: 'Get Fox Client', url: DOWNLOAD_URL };
+
+/** Strip the Fabric loader prefix from a versionId so Discord shows a clean
+ *  MC version. "fabric-loader-0.16.5-1.21.1" → "1.21.1".
+ *  Falls back to the raw string if no MC version pattern is found. */
+function _cleanVersion(versionId) {
+  if (!versionId) return '';
+  const m = String(versionId).match(/(\d+\.\d+(?:\.\d+)?)$/);
+  return m ? m[1] : versionId;
+}
+
 function _ensureRpc() {
   const s = settings.load();
   // Settings change handling — if the user toggled off, dispose; if the
@@ -60,7 +72,10 @@ function setIdle() {
     state: 'Picking a profile',
     startTimestamp: appBootedAt,
     largeImageKey: LARGE_ASSET,
-    largeImageText: 'Fox Launcher',
+    largeImageText: 'Fox Client',
+    smallImageKey: SMALL_ASSET,
+    smallImageText: 'Idle',
+    buttons: [DOWNLOAD_BTN],
   });
 }
 
@@ -68,28 +83,33 @@ function setIdle() {
 function setLaunching(versionId) {
   const r = _ensureRpc();
   if (!r) return;
+  const mc = _cleanVersion(versionId);
   r.setActivity({
-    details: 'Launching Minecraft',
-    state: versionId ? `Version ${versionId}` : undefined,
+    details: 'Starting up…',
+    state: mc ? `MC ${mc}` : undefined,
     startTimestamp: Date.now(),
     largeImageKey: LARGE_ASSET,
-    largeImageText: 'Fox Launcher',
+    largeImageText: 'Fox Client',
     smallImageKey: SMALL_ASSET,
     smallImageText: 'Loading…',
+    buttons: [DOWNLOAD_BTN],
   });
 }
 
 /** Game spawned successfully. `startedAt` should be the launch start so the
- *  Discord "elapsed" timer is accurate. */
-function setPlaying(versionId, startedAt) {
+ *  Discord "elapsed" timer is accurate. `profileName` is optional — shown in
+ *  the details line when provided so friends can see which profile is active. */
+function setPlaying(versionId, startedAt, profileName) {
   const r = _ensureRpc();
   if (!r) return;
+  const mc = _cleanVersion(versionId);
   r.setActivity({
-    details: 'Playing Minecraft',
-    state: versionId ? `Version ${versionId}` : undefined,
+    details: profileName ? `Playing · ${profileName}` : 'Playing Minecraft',
+    state: mc ? `MC ${mc}` : undefined,
     startTimestamp: startedAt || Date.now(),
     largeImageKey: LARGE_ASSET,
     largeImageText: 'Fox Client',
+    buttons: [DOWNLOAD_BTN],
   });
 }
 

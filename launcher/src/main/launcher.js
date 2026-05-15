@@ -15,7 +15,11 @@ const updater = require('./updater');
 const logs = require('./logs');
 const addons = require('./addons');
 const fabricInstaller = require('./fabricInstaller');
+const recommendedMods = require('./recommendedMods');
 const profilesStore = require('./profiles');
+const javaDownloader = require('./javaDownloader');
+const mcInstaller = require('./mcInstaller');
+const notifications = require('./notifications');
 
 /** The MC version the Fox Client jar is built against. Bump in lockstep with
  *  the mod's gradle.properties `minecraft_version`. When a profile targets a
@@ -99,6 +103,41 @@ function mergeResolution(global, profile) {
 }
 
 /**
+ * Remove mods whose filenames embed a Minecraft version that doesn't match
+ * `targetVersion`. Only removes jars that have an obvious version tag
+ * (e.g. `+1.21.11`, `mc1.21.11`, `-1.21.11`) — jars without a version tag
+ * are left alone so manually-placed mods survive a version switch.
+ *
+ * Returns the list of removed filenames so the caller can log them.
+ */
+function purgeIncompatibleMods(modsDir, targetVersion) {
+  if (!fs.existsSync(modsDir)) return [];
+  // Use major.minor for comparison so "1.21" matches "1.21.11" target.
+  const targetBase = targetVersion.split('.').slice(0, 2).join('.');
+  const removed = [];
+  for (const f of fs.readdirSync(modsDir)) {
+    // Handle both active jars and profile-disabled jars (.jar.disabled).
+    if (!/\.jar(\.disabled)?$/i.test(f)) continue;
+    if (/^kitsune-client/i.test(f)) continue; // handled separately
+    // Detect the embedded MC version using the naming patterns common on Modrinth:
+    //   +1.21.11        ImmediatelyFast, FerriteCore  (+<version>, no mc prefix)
+    //   +mc1.21.1       Sodium                        (+mc<version>)
+    //   +mc-1.21.1      MemoryLeakFix                 (+mc-<version>)
+    //   -mc1.21.11      Lithium, EntityCulling         (-mc<version>)
+    // Prefer the '+' side of the filename (build metadata = MC version in semver),
+    // then fall back to an explicit '-mc' prefix.
+    const m = f.match(/\+m?c?[-_]?(\d+\.\d+)/) ||
+              f.match(/[-_]mc(\d+\.\d+)/i);
+    if (!m) continue; // no recognisable version tag — leave it
+    const jarBase = m[1];
+    if (jarBase !== targetBase) {
+      try { fs.unlinkSync(path.join(modsDir, f)); removed.push(f); } catch (_) {}
+    }
+  }
+  return removed;
+}
+
+/**
  * Install (copy) the Kitsune client jar into <gameDir>/mods/, replacing any
  * older kitsune-client-*.jar. The jar is stored at
  * ~/.foxlauncher/versions/<id>/kitsune-client.jar after a successful update
@@ -163,29 +202,52 @@ async function launch(onExit) {
     }
   }
 
-  // 2. Java
+  // 2. Java — detect first; if none found, auto-download a JRE from Adoptium
+  //    (same approach as Modrinth App / Prism Launcher).
   _stage('Detecting Java…');
-  const j = await java.detect(s.javaPath);
-  if (!j.ok) throw new Error(j.reason || `Java ${java.REQUIRED_MAJOR}+ is required.`);
+  let j = await java.detect(s.javaPath);
+  if (!j.ok) {
+    _stage('Downloading Java 21 JRE…');
+    logs.push('info', 'No suitable Java found — downloading JRE from Adoptium…');
+    try {
+      const jrePath = await javaDownloader.ensureJre(({ message, percent }) => {
+        _stage(message);
+        logs.push('info', `[java] ${message}`);
+      });
+      java.invalidateCache();
+      j = await java.detect(jrePath);
+    } catch (jreErr) {
+      throw new Error(
+        `Java ${java.REQUIRED_MAJOR}+ is required and the automatic download failed: ${jreErr.message}. ` +
+        `Please install Java manually from adoptium.net.`
+      );
+    }
+    if (!j.ok) throw new Error(j.reason || `Java ${java.REQUIRED_MAJOR}+ is required.`);
+  }
   logs.push('info', `Using Java ${j.versionString} at ${j.path}`);
 
-  // 3. Library root (gameDir) — where vanilla MC, Fabric loader libs, and
-  //    assets live. Always the global .minecraft (user installed it via the
-  //    official launcher); shared across all Fox Launcher profiles so we
-  //    don't duplicate gigabytes of asset/library data per identity.
+  // 3. Library root — where vanilla MC, Fabric loader libs, and assets live.
+  //    If the vanilla version isn't present we download it automatically from
+  //    Mojang's CDN, the same way Modrinth App and Prism Launcher do.
   const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
-  if (!fs.existsSync(gameDir)) {
-    throw new Error(`Game directory not found: ${gameDir}. Install Minecraft with the official launcher first.`);
-  }
-  // Vanilla MC for our target version must be present (Fabric inheritsFrom
-  // it). We can't bootstrap vanilla — the asset / library / natives downloader
-  // is huge and out of scope. Surface a clear error if missing.
-  const vanillaJsonPath = path.join(gameDir, 'versions', targetVersion, `${targetVersion}.json`);
-  if (!fs.existsSync(vanillaJsonPath)) {
-    throw new Error(
-      `Vanilla Minecraft ${targetVersion} not installed. ` +
-      `Run the official Minecraft launcher once, play vanilla ${targetVersion}, ` +
-      `then return here. (Fox Launcher can install Fabric for you, but not vanilla MC itself.)`);
+  fs.mkdirSync(gameDir, { recursive: true });
+
+  if (!mcInstaller.isInstalled(gameDir, targetVersion)) {
+    _stage(`Downloading Minecraft ${targetVersion}…`);
+    logs.push('info', `Minecraft ${targetVersion} not found — downloading from Mojang…`);
+    try {
+      const result = await mcInstaller.installVersion(gameDir, targetVersion, {
+        onProgress: ({ message, percent }) => {
+          _stage(message);
+          logs.push('info', `[mc] ${message}`);
+        },
+      });
+      logs.push('info',
+        `Minecraft ${targetVersion} installed: ${result.downloaded} files downloaded, ${result.skipped} cached.`
+      );
+    } catch (mcErr) {
+      throw new Error(`Failed to download Minecraft ${targetVersion}: ${mcErr.message}`);
+    }
   }
 
   // Fabric profile: install on demand if it's not already present.
@@ -240,6 +302,27 @@ async function launch(onExit) {
   //     itself). installFabricApi() is idempotent — skips if already there.
   //     Goes in launchGameDir, not gameDir, so isolated profiles each have
   //     their own copy.
+  // Purge any mods built for a different MC version before installing the
+  // correct Fabric API. This handles the case where the user switches the
+  // version picker — stale jars (Sodium, Lithium, etc.) would otherwise
+  // cause an "Incompatible mods found!" crash on launch.
+  const purged = purgeIncompatibleMods(path.join(launchGameDir, 'mods'), targetVersion);
+  if (purged.length) {
+    logs.push('info', `Removed ${purged.length} mod(s) incompatible with MC ${targetVersion}: ${purged.join(', ')}`);
+    _stage(`Reinstalling mods for MC ${targetVersion}…`);
+    try {
+      await recommendedMods.installAll(launchGameDir, targetVersion, {
+        essentialOnly: true,
+        onProgress: (msg) => {
+          logs.push('info', `[mods] ${msg}`);
+          _stage(msg);
+        },
+      });
+    } catch (err) {
+      logs.push('warn', `Mod reinstall failed (will launch anyway): ${err.message}`);
+    }
+  }
+
   try {
     _stage('Checking Fabric API…');
     await fabricInstaller.installFabricApi(launchGameDir, targetVersion, (msg) => {
@@ -385,6 +468,8 @@ async function launch(onExit) {
   _patchProfile(current.profileId, { lastPlayedAt: startedAt, lastVersion: versionId });
 
   _stage(`Game started · PID ${child.pid}`);
+  notifications.gameStarted(versionId);
+
   child.stdout.on('data', (d) => logs.push('stdout', d.toString()));
   child.stderr.on('data', (d) => logs.push('stderr', d.toString()));
   child.on('error', (err) => {
@@ -395,6 +480,18 @@ async function launch(onExit) {
     logs.endFile();
     if (lastLaunch) lastLaunch.exitCode = code;
     current = null;
+    const crashed = code !== 0 && signal == null;
+    if (crashed) {
+      notifications.gameCrashed(() => {
+        try {
+          const { BrowserWindow } = require('electron');
+          const win = BrowserWindow.getAllWindows()[0];
+          if (win) { win.show(); win.focus(); }
+        } catch (_) {}
+      });
+    } else if (code === 0) {
+      notifications.gameExited();
+    }
     if (onExit) onExit({ code, signal, startedAt, gameDir });
     if (_exitHook) try { _exitHook({ code, signal }); } catch (_) {}
   });
@@ -453,9 +550,10 @@ function clientReadiness() {
     clientSupported,                             // false → launching Fabric/vanilla only
     gameDir,
     gameDirExists,
-    vanillaInstalled,                            // user must install via official launcher
+    vanillaInstalled,                            // if false, will auto-download on launch
+    vanillaAutoInstallable: true,                // always true — mcInstaller handles it
     fabricProfile,                               // null if not installed for selectedMcVersion
-    fabricAutoInstallable: vanillaInstalled,     // true → next PLAY auto-fetches Fabric
+    fabricAutoInstallable: true,                 // always true — fabricInstaller handles it
     hasModJar: !!(cachedJar || devJar),
     modJarSource: cachedJar ? 'release' : (devJar ? 'dev-build' : null),
   };

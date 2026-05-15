@@ -36,6 +36,7 @@ const launcher = require('./launcher');
 const updater = require('./updater');
 const presence = require('./presence');
 const recommendedMods = require('./recommendedMods');
+const notifications = require('./notifications');
 
 let mainWindow = null;
 let autoUpdateTimer = null;
@@ -281,7 +282,9 @@ app.whenReady().then(() => {
       autoUpdater.autoDownload    = true;   // download in background
       autoUpdater.autoInstallOnAppQuit = true; // install when user quits
 
-      autoUpdater.on('update-downloaded', () => {
+      autoUpdater.on('update-downloaded', (info) => {
+        // OS notification so the user knows even if the launcher is minimised.
+        notifications.updateAvailable(info && info.version ? `v${info.version}` : null);
         // Notify the renderer so it can show a "Restart to update" banner.
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('launcher:update-ready');

@@ -14,12 +14,12 @@ const DEFAULTS = {
   maxRam: 4,
   gameDir: '',
   resolution: { width: 1280, height: 720, fullscreen: false },
-  selectedVersion: '',
   selectedProfile: 'default',
   keepLauncherOpen: true,
   autoUpdate: true,
-  githubRepo: 'Kitsune/Fox-Client',
+  githubRepo: 'sagewilliamjunk-png/Fox-Client',
   theme: 'fox',
+  // NOTE: selectedVersion was removed — version selection lives in profile.mcVersion now.
   /** URL to a JSON document for the Home news feed. Empty = no fetch.
    *  See main/news.js for the expected shape. */
   newsUrl: '',
@@ -93,7 +93,6 @@ function validate(raw) {
       height:     clamp(Math.floor(r.height ?? DEFAULTS.resolution.height), BOUNDS.height.min, BOUNDS.height.max),
       fullscreen: asBool(r.fullscreen, DEFAULTS.resolution.fullscreen),
     },
-    selectedVersion:  asString(merged.selectedVersion, ''),
     selectedProfile:  asString(merged.selectedProfile, 'default'),
     keepLauncherOpen: asBool(merged.keepLauncherOpen, DEFAULTS.keepLauncherOpen),
     autoUpdate:       asBool(merged.autoUpdate, DEFAULTS.autoUpdate),

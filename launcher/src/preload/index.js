@@ -35,6 +35,14 @@ contextBridge.exposeInMainWorld('fox', {
   detectJava:    () => invoke('java:detect'),
   detectAllJava: () => invoke('java:detectAll'),
   browseJava:    () => invoke('java:browse'),
+  installJava:   () => invoke('java:install'),
+  onJavaInstallProgress: (fn) => on('java:install:progress', fn),
+
+  // Minecraft installer (vanilla bootstrap — no official launcher required)
+  mcIsInstalled:    (versionId) => invoke('mc:isInstalled', versionId),
+  mcListAvailable:  (snapshots) => invoke('mc:listAvailable', snapshots || false),
+  mcInstall:        (versionId) => invoke('mc:install', versionId),
+  onMcInstallProgress: (fn) => on('mc:install:progress', fn),
 
   // Game dir
   browseGameDir:  () => invoke('gamedir:browse'),
@@ -142,6 +150,12 @@ contextBridge.exposeInMainWorld('fox', {
   resetSettings: () => invoke('settings:reset'),
   saveLogs:      () => invoke('logs:save'),
   about:         () => invoke('app:about'),
+
+  // Screenshots gallery
+  listScreenshots:       (profileId) => invoke('screenshots:list',       profileId || null),
+  deleteScreenshot:      (filePath)  => invoke('screenshots:delete',     filePath),
+  revealScreenshot:      (filePath)  => invoke('screenshots:reveal',     filePath),
+  openScreenshotsFolder: (profileId) => invoke('screenshots:openFolder', profileId || null),
 
   // Launcher self-update (electron-updater)
   onLauncherUpdateReady: (fn) => on('launcher:update-ready', fn),

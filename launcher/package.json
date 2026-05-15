@@ -11,12 +11,20 @@
     "dev": "electron . --dev",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "release": "node scripts/release.js"
+    "release": "node scripts/release.js",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"]
   },
   "devDependencies": {
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0",
-    "png-to-ico": "^3.0.1"
+    "jest": "^30.4.2",
+    "png-to-ico": "^3.0.1",
+    "vitest": "^4.1.6"
   },
   "build": {
     "appId": "dev.kitsune.foxlauncher",

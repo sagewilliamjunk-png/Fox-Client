@@ -13,6 +13,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const javaDownloader = require('./javaDownloader');
+
 const REQUIRED_MAJOR = 21;
 
 function javaExeName() {
@@ -64,7 +66,10 @@ function probe(javaPath) {
 
     let child;
     try {
-      child = spawn(javaPath, ['-version'], { windowsHide: true });
+      // stdin: 'ignore' avoids inheriting Electron's main-process stdin, which
+      // can cause hangs with certain JDK distributions on Windows when the
+      // parent's stdin is a non-interactive pipe.
+      child = spawn(javaPath, ['-version'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (_) {
       return done(null);
     }
@@ -121,6 +126,10 @@ async function detect(configuredPath) {
 async function _detectImpl(configuredPath) {
   const candidates = [];
   if (configuredPath && configuredPath.trim()) candidates.push(configuredPath.trim());
+  // Bundled JRE (downloaded by javaDownloader.js) gets top priority after
+  // the user-configured path so it works even on machines with no system Java.
+  const bundled = javaDownloader.cachedJrePath();
+  if (bundled) candidates.push(bundled);
   candidates.push(...commonCandidates());
 
   // Probe in parallel so a single slow/hanging candidate (e.g. the Windows

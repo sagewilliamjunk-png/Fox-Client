@@ -21,6 +21,10 @@ const paths = {
    *  servers.dat, AND auth.json. This is what makes "two different people"
    *  cleanly separable. Linked profiles ignore this entirely. */
   instances: path.join(ROOT, 'instances'),
+  /** Bundled JRE root — ~/.foxlauncher/java/.
+   *  javaDownloader.js extracts Adoptium JREs here so users don't need
+   *  a system Java installation. */
+  java: path.join(ROOT, 'java'),
 
   /** Resolve the per-profile instance directory. The directory is NOT
    *  created here — call ensureInstance() to materialize it. */
@@ -64,7 +68,7 @@ const paths = {
 
   /** Create all launcher subdirectories if they don't exist. Idempotent. */
   ensureAll() {
-    for (const p of [ROOT, paths.versions, paths.logs, paths.cache, paths.instances]) {
+    for (const p of [ROOT, paths.versions, paths.logs, paths.cache, paths.instances, paths.java]) {
       try { fs.mkdirSync(p, { recursive: true }); } catch (_) {}
     }
   },
