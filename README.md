@@ -1,10 +1,10 @@
-# Kitsune Client
+# Fox Client
 
 A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 1.21.11**.
 
 > **Status:** v1.0.0 — Stable
 
-Kitsune Client (internally still referred to as "Fox Client" in some older
+Fox Client (internally still referred to as "Fox Client" in some older
 source files) is built around three hard rules:
 
 1. **Server-safe by design.** No kill-aura, xray, fly, reach, tracers, or
@@ -56,11 +56,6 @@ Requires **JDK 21**.
 3. Launch.
 
 Recommended companion mods (not bundled — drop them in yourself):
-
-- **Sodium** + **Iris Shaders** — GPU rendering + shaders
-- **Lithium** + **FerriteCore** — server-tick & memory optimisation
-- **Simple Voice Chat** — proximity voice (server-side mod required)
-- **Jade** — block info HUD
 
 ## Key bindings
 
