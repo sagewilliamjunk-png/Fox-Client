@@ -64,11 +64,6 @@ Requires **JDK 21**.
 
 Recommended companion mods (not bundled — drop them in yourself):
 
-- **Sodium** + **Iris Shaders** — GPU rendering + shaders
-- **Lithium** + **FerriteCore** — server-tick & memory optimisation
-- **Simple Voice Chat** — proximity voice (server-side mod required)
-- **Jade** — block info HUD
-
 ## Key bindings
 
 | Key | Action |
