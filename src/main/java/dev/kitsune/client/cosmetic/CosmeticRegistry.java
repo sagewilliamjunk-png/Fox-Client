@@ -59,6 +59,9 @@ public final class CosmeticRegistry {
     /** Cached "is owner of any cape" lookup so the per-frame mixin is O(1). */
     private static final Set<UUID> ANY_OWNER = ConcurrentHashMap.newKeySet();
 
+    /** Capes granted to ALL players via the special "*" owner key. */
+    private static final Set<String> GLOBAL_CAPES = ConcurrentHashMap.newKeySet();
+
     private static volatile boolean loaded = false;
 
     private CosmeticRegistry() {}
@@ -72,6 +75,7 @@ public final class CosmeticRegistry {
         CAPES.clear();
         OWNERSHIP.clear();
         ANY_OWNER.clear();
+        GLOBAL_CAPES.clear();
         loaded = true;
 
         if (rm == null) return;
@@ -109,10 +113,8 @@ public final class CosmeticRegistry {
             if (root.has("owners") && root.get("owners").isJsonObject()) {
                 JsonObject owners = root.getAsJsonObject("owners");
                 for (var e : owners.entrySet()) {
-                    UUID uuid = parseUuid(e.getKey());
-                    if (uuid == null) continue;
-                    Set<String> capeSet = new HashSet<>();
                     JsonElement v = e.getValue();
+                    Set<String> capeSet = new HashSet<>();
                     if (v.isJsonArray()) {
                         for (JsonElement item : v.getAsJsonArray()) {
                             if (!item.isJsonPrimitive()) continue;
@@ -120,10 +122,18 @@ public final class CosmeticRegistry {
                             if (CAPES.containsKey(capeId)) capeSet.add(capeId);
                         }
                     }
-                    if (!capeSet.isEmpty()) {
-                        OWNERSHIP.put(uuid, capeSet);
-                        ANY_OWNER.add(uuid);
+                    if (capeSet.isEmpty()) continue;
+
+                    // Special wildcard key "*" — grant these capes to every player.
+                    if ("*".equals(e.getKey())) {
+                        GLOBAL_CAPES.addAll(capeSet);
+                        continue;
                     }
+
+                    UUID uuid = parseUuid(e.getKey());
+                    if (uuid == null) continue;
+                    OWNERSHIP.put(uuid, capeSet);
+                    ANY_OWNER.add(uuid);
                 }
             }
             KitsuneClient.LOGGER.info("[Fox] cosmetics: {} cape(s), {} owner(s)",
@@ -154,13 +164,20 @@ public final class CosmeticRegistry {
 
     /** Quick yes/no — used inside the per-frame cape mixin. O(1) lookup. */
     public static boolean isOwner(UUID uuid) {
-        return uuid != null && ANY_OWNER.contains(uuid);
+        if (uuid == null) return false;
+        return !GLOBAL_CAPES.isEmpty() || ANY_OWNER.contains(uuid);
     }
 
-    /** Cape ids owned by the given uuid; empty set if none. */
+    /** Cape ids owned by the given uuid; includes globally-granted capes. */
     public static Set<String> capesOwnedBy(UUID uuid) {
         if (uuid == null) return Collections.emptySet();
-        return OWNERSHIP.getOrDefault(uuid, Collections.emptySet());
+        Set<String> perUser = OWNERSHIP.getOrDefault(uuid, Collections.emptySet());
+        if (GLOBAL_CAPES.isEmpty()) return perUser;
+        if (perUser.isEmpty()) return Collections.unmodifiableSet(GLOBAL_CAPES);
+        // Merge global + per-user capes
+        Set<String> merged = new HashSet<>(GLOBAL_CAPES);
+        merged.addAll(perUser);
+        return Collections.unmodifiableSet(merged);
     }
 
     /** Whether reload() has run at least once (so callers can avoid redundant

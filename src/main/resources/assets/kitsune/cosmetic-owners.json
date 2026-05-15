@@ -6,6 +6,6 @@
   },
 
   "owners": {
-    "YOUR-MINECRAFT-UUID-HERE": ["fox"]
+    "*": ["fox"]
   }
 }
