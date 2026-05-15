@@ -1,8 +1,11 @@
 Drop your cape PNGs here.
 
-Format: standard Minecraft 1.8+ cape sheet — 64x32 RGBA PNG. Front face is
-the left half (0,0) to (32,32); back face is the right half. The Mojang
-"OptiFine cape" guide is the easiest reference if you've never made one.
+Format: standard Minecraft cape sheet — RGBA PNG, 2:1 width:height ratio.
+Recommended resolution: 256x128 (4× vanilla, noticeably sharper). Vanilla
+minimum is 64x32 — any power-of-two multiple of that ratio works fine since
+the renderer uses normalised UV coords, not hardcoded pixel offsets.
+Front face is the left half; back face is the right half. The OptiFine cape
+guide is the easiest reference if you've never made one.
 
 For each PNG:
   1. Save it here as <id>.png   (id = lowercase letters / digits / _ / -)
