@@ -2,10 +2,12 @@
   "_doc": "Fox Client cosmetics manifest. To add a cape: drop a 256x128 PNG (2:1 landscape) into assets/kitsune/textures/cape/<id>.png and register under 'capes'. To grant ownership: list cape ids under 'owners' keyed by the player's Minecraft UUID (with or without dashes).",
 
   "capes": {
-    "fox": { "displayName": "Fox Cape" }
+    "fox":    { "displayName": "Fox Cape" },
+    "devfox": { "displayName": "Dev Fox Cape" }
   },
 
   "owners": {
-    "*": ["fox"]
+    "*":                                     ["fox"],
+    "0d4a5c92-aafd-4e58-90bb-7ece86205bd6": ["devfox"]
   }
 }
