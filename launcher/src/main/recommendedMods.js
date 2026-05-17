@@ -38,8 +38,8 @@ const RECOMMENDED = [
     description: 'Optimizes immediate-mode rendering (GUI, particles).' },
   { slug: 'entityculling',   displayName: 'EntityCulling',    essential: true,
     description: 'Skips rendering entities you can\'t actually see.' },
-  { slug: 'iris',            displayName: 'Iris Shaders',     essential: false,
-    description: 'Shader-pack support — needs Sodium.' },
+  { slug: 'iris',            displayName: 'Iris Shaders',     essential: true,
+    description: 'Shader-pack support — comes with Sodium.' },
 ];
 
 // ---- HTTP helpers (same shape as fabricInstaller) ----
