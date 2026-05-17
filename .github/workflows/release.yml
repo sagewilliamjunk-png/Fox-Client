@@ -70,3 +70,20 @@ jobs:
           if (-not $jar) { Write-Error "No mod JAR found in build/libs"; exit 1 }
           Write-Host "Uploading $($jar.Name)"
           gh release upload "${{ github.ref_name }}" "$($jar.FullName)" --clobber
+
+      # ── 5. Delete old releases ─────────────────────────────────────────────
+      # Only the latest release matters — new users always get the newest, and
+      # existing users auto-update. Old releases just create confusion.
+      - name: Delete old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $current = "${{ github.ref_name }}"
+          $old = gh release list --limit 100 --json tagName |
+                   ConvertFrom-Json |
+                   Where-Object { $_.tagName -ne $current }
+          foreach ($r in $old) {
+            Write-Host "Removing old release $($r.tagName)"
+            gh release delete $r.tagName --yes --cleanup-tag
+          }
