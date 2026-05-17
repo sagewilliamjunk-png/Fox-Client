@@ -15,7 +15,7 @@ import dev.kitsune.client.module.ModuleManager;
 public class LowFireModule extends Module {
 
     public LowFireModule() {
-        super("Low Fire", "Hides the fire screen overlay when burning.", Category.RENDER);
+        super("Low Fire", "Shrinks the fire overlay to a thin strip at the bottom so it doesn't block your view.", Category.RENDER);
     }
 
     /** Called by the mixin — avoids a {@link ModuleManager#getModule} lookup each frame. */
