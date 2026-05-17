@@ -533,10 +533,12 @@ function renderLoadoutTab(profile) {
         <button class="btn btn-primary" id="btn-mods-add" ${profile.locked ? 'disabled' : ''}>+ Add mod…</button>
         <button class="btn" id="btn-mods-folder">Open mods folder</button>
         <button class="btn" id="btn-mods-refresh">Refresh list</button>
+        <button class="btn" id="btn-mods-rec-pack" title="Downloads Sodium, Lithium, Iris, EMF, ETF, AppleSkin and more from Modrinth">⬇ Recommended pack</button>
         <div style="flex:1"></div>
         <button class="btn" id="btn-mods-all-on" ${profile.locked ? 'disabled' : ''}>Enable all</button>
         <button class="btn" id="btn-mods-all-off" ${profile.locked ? 'disabled' : ''}>Disable all (vanilla-safe)</button>
       </div>
+      <div id="rec-pack-progress" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted)"></div>
     </div>
 
     <div class="section">
@@ -620,6 +622,54 @@ function wireLoadoutTab(profile) {
   });
   $('btn-mods-refresh').addEventListener('click', refreshMods);
   $('btn-mods-folder').addEventListener('click', () => window.fox.openModsFolder());
+
+  $('btn-mods-rec-pack') && $('btn-mods-rec-pack').addEventListener('click', async () => {
+    const btn      = $('btn-mods-rec-pack');
+    const progress = $('rec-pack-progress');
+    btn.disabled = true;
+    btn.textContent = '⬇ Installing…';
+    progress.style.display = '';
+    progress.textContent   = 'Starting…';
+
+    const unsub = window.fox.onRecommendedProgress((data) => {
+      progress.textContent = data.message || '';
+    });
+
+    let results;
+    try {
+      results = await window.fox.recommendedInstall({ essentialOnly: false });
+    } catch (e) {
+      progress.textContent = 'Error: ' + (e.message || e);
+      btn.disabled = false;
+      btn.textContent = '⬇ Recommended pack';
+      if (typeof unsub === 'function') unsub();
+      return;
+    }
+    if (typeof unsub === 'function') unsub();
+
+    if (!results || !results.ok) {
+      progress.textContent = 'Failed: ' + (results && results.error ? results.error : 'unknown error');
+      btn.disabled = false;
+      btn.textContent = '⬇ Recommended pack';
+      return;
+    }
+
+    const installed = (results.results || []).filter(r => r.status === 'installed').map(r => r.displayName || r.slug);
+    const skipped   = (results.results || []).filter(r => r.status === 'skipped').length;
+    const errors    = (results.results || []).filter(r => r.status === 'error');
+
+    if (installed.length) {
+      progress.textContent = `Installed: ${installed.join(', ')}` + (errors.length ? ` · ${errors.length} failed` : '');
+    } else if (errors.length) {
+      progress.textContent = `${errors.length} mod(s) failed to download.`;
+    } else {
+      progress.textContent = `All ${skipped} mods already present — nothing to do.`;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '⬇ Recommended pack';
+    await refreshMods();
+  });
   $('btn-mods-add') && $('btn-mods-add').addEventListener('click', async () => {
     const r = await window.fox.addMods();
     if (r.cancelled) return;
