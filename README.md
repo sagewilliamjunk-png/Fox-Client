@@ -2,6 +2,9 @@
 
 A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 26.1.2**.
 
+This was coded largely with claude, and I don't wish to decieve people into thinking I coded it myself.
+I don't plan on making money from this, I just wanted to make something for myself and some friends
+
 > **Status:** v1.1.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
 
 Fox Client is built around three hard rules:
