@@ -40,6 +40,8 @@ const RECOMMENDED = [
     description: 'Skips rendering entities you can\'t actually see.' },
   { slug: 'iris',            displayName: 'Iris Shaders',     essential: true,
     description: 'Shader-pack support — comes with Sodium.' },
+  { slug: 'axiom',                 displayName: 'Axiom',       essential: false,
+    description: 'In-game world editor — selections, brushes, blueprints, and undo history for creative building.' },
   { slug: 'appleskin',             displayName: 'AppleSkin',   essential: false,
     description: 'Shows saturation/exhaustion on the hunger bar and food preview when holding food.' },
   { slug: 'entity-model-features', displayName: 'EMF',        essential: false,
