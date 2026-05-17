@@ -74,10 +74,30 @@ function _stage(msg) {
   if (_stageEmitter) try { _stageEmitter(msg); } catch (_) {}
 }
 
+// Taskbar progress emitter — injected by index.js so we can push download
+// progress into the Windows taskbar without a circular dependency.
+// Call with a 0–100 percent value; call with -1 to clear the bar.
+let _progressEmitter = null;
+function setProgressEmitter(fn) { _progressEmitter = fn; }
+function _progress(pct) {
+  if (_progressEmitter) try { _progressEmitter(pct); } catch (_) {}
+}
+
+// Taskbar overlay-icon emitter — injected by index.js.
+// Call with 'crashed' to show the red dot; null to clear it.
+let _overlayEmitter = null;
+function setOverlayEmitter(fn) { _overlayEmitter = fn; }
+function _overlay(state) {
+  if (_overlayEmitter) try { _overlayEmitter(state); } catch (_) {}
+}
+
 // Game-exit hook — injected by index.js so the tray can react when the
 // game process exits, without creating a circular dependency.
 let _exitHook = null;
 function setExitHook(fn) { _exitHook = fn; }
+
+/** The user-data game directory of the currently running game, or null. */
+function currentGameDir() { return current ? current.gameDir : null; }
 
 /** Snapshot of the most recent launch — survives `current = null` after exit
  *  so the renderer can still ask "did the game crash?" after the fact. */
@@ -212,6 +232,7 @@ async function launch(onExit) {
     try {
       const jrePath = await javaDownloader.ensureJre(({ message, percent }) => {
         _stage(message);
+        if (percent != null) _progress(percent);
         logs.push('info', `[java] ${message}`);
       });
       java.invalidateCache();
@@ -239,6 +260,7 @@ async function launch(onExit) {
       const result = await mcInstaller.installVersion(gameDir, targetVersion, {
         onProgress: ({ message, percent }) => {
           _stage(message);
+          if (percent != null) _progress(percent);
           logs.push('info', `[mc] ${message}`);
         },
       });
@@ -439,6 +461,7 @@ async function launch(onExit) {
   });
 
   _stage('Starting Minecraft…');
+  _progress(-1); // clear taskbar progress bar — game is launching
   logs.push('info', `Spawning: ${cmd.command} (${cmd.args.length} args)`);
 
   // 6. Spawn
@@ -468,6 +491,7 @@ async function launch(onExit) {
   _patchProfile(current.profileId, { lastPlayedAt: startedAt, lastVersion: versionId });
 
   _stage(`Game started · PID ${child.pid}`);
+  _overlay(null); // clear any leftover crash badge from a previous session
   notifications.gameStarted(versionId);
 
   child.stdout.on('data', (d) => logs.push('stdout', d.toString()));
@@ -482,6 +506,7 @@ async function launch(onExit) {
     current = null;
     const crashed = code !== 0 && signal == null;
     if (crashed) {
+      _overlay('crashed'); // red dot on taskbar icon until user opens the launcher
       notifications.gameCrashed(() => {
         try {
           const { BrowserWindow } = require('electron');
@@ -496,7 +521,7 @@ async function launch(onExit) {
     if (_exitHook) try { _exitHook({ code, signal }); } catch (_) {}
   });
 
-  return { versionId, pid: child.pid, startedAt };
+  return { versionId, pid: child.pid, startedAt, gameDir: launchGameDir };
 }
 
 function stop() {
@@ -559,4 +584,4 @@ function clientReadiness() {
   };
 }
 
-module.exports = { launch, stop, stopAndWait, isRunning, lastLaunchInfo, clientReadiness, setStageEmitter, setExitHook, TARGET_MC_VERSION };
+module.exports = { launch, stop, stopAndWait, isRunning, lastLaunchInfo, clientReadiness, setStageEmitter, setExitHook, setProgressEmitter, setOverlayEmitter, TARGET_MC_VERSION };

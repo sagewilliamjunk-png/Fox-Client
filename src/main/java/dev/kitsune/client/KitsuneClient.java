@@ -1,5 +1,6 @@
 package dev.kitsune.client;
 
+import dev.kitsune.client.bridge.GameStateBridge;
 import dev.kitsune.client.command.KitsuneCommand;
 import dev.kitsune.client.config.ConfigManager;
 import dev.kitsune.client.cosmetic.CosmeticRegistry;
@@ -120,10 +121,14 @@ public class KitsuneClient implements ClientModInitializer {
                 FOX_CATEGORY
         ));
 
-        // 4. Tick hook
+        // 4. Game-state bridge — writes config/kitsune/game-state.json every ~3 s
+        //    so the Fox Launcher can show the current server / dimension in Discord.
+        GameStateBridge.register();
+
+        // 5. Tick hook
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 
-        // 5. Initial feature sync is deferred to the first tick — see `initialSyncDone`.
+        // 6. Initial feature sync is deferred to the first tick — see `initialSyncDone`.
         //    Calling syncEnabledStates() here would crash because Minecraft.options
         //    is still null mid-construction.
 

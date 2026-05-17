@@ -390,7 +390,7 @@ function register(getWindow) {
           }
         }
       });
-      try { presence.setPlaying(info.versionId, info.startedAt, _launchProfileName); } catch (_) {}
+      try { presence.setPlaying(info.versionId, info.startedAt, _launchProfileName, info.gameDir); } catch (_) {}
       const w3 = getWindow();
       if (w3 && !w3.isDestroyed()) w3.webContents.send('game:started', { pid: info.pid });
       return { ok: true, ...info };
@@ -584,7 +584,7 @@ function register(getWindow) {
         }
       });
       // Spawn succeeded → flip to "playing" with accurate elapsed-since.
-      try { presence.setPlaying(info.versionId, info.startedAt, _activeProfileName); } catch (_) {}
+      try { presence.setPlaying(info.versionId, info.startedAt, _activeProfileName, info.gameDir); } catch (_) {}
       // Notify the renderer immediately so the sidebar running-dot appears
       // without waiting for a Home screen re-render.
       { const w = getWindow(); if (w && !w.isDestroyed()) w.webContents.send('game:started', { pid: info.pid }); }

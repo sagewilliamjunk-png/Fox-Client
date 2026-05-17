@@ -274,6 +274,37 @@ app.whenReady().then(() => {
   createWindow();
   presence.init();
 
+  // ---- Taskbar progress bar (Windows/Linux) --------------------------------
+  // launcher.js calls _progress(0–100) during downloads and _progress(-1) to
+  // clear. We just forward those into Electron's native taskbar progress API.
+  launcher.setProgressEmitter((pct) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.setProgressBar(pct < 0 ? -1 : pct / 100);
+  });
+
+  // ---- Taskbar overlay icon — red dot on crash ----------------------------
+  // crash-dot.png is a small 16×16 red circle. Shown until the user opens
+  // the launcher window (at which point the overlay is cleared automatically
+  // because the window becomes focused / the user has seen the state).
+  const CRASH_DOT = path.join(__dirname, '..', 'renderer', 'assets', 'crash-dot.png');
+  let crashDotIcon = null;
+  try { crashDotIcon = nativeImage.createFromPath(CRASH_DOT); } catch (_) {}
+
+  launcher.setOverlayEmitter((state) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (state === 'crashed' && crashDotIcon && !crashDotIcon.isEmpty()) {
+      mainWindow.setOverlayIcon(crashDotIcon, 'Game crashed');
+    } else {
+      mainWindow.setOverlayIcon(null, '');
+    }
+  });
+
+  // Clear the overlay whenever the user focuses the launcher window so they
+  // aren't left with a permanent red dot after they've seen the crash screen.
+  mainWindow.on('focus', () => {
+    if (!mainWindow.isDestroyed()) mainWindow.setOverlayIcon(null, '');
+  });
+
   // ---- Launcher self-update (electron-updater + GitHub Releases) ----
   // Only active in a packaged build — dev mode skips this entirely.
   if (app.isPackaged) {
