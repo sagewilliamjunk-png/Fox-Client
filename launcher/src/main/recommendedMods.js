@@ -42,6 +42,8 @@ const RECOMMENDED = [
     description: 'Shader-pack support — comes with Sodium.' },
   { slug: 'axiom',                 displayName: 'Axiom',       essential: false,
     description: 'In-game world editor — selections, brushes, blueprints, and undo history for creative building.' },
+  { slug: 'jade',                  displayName: 'Jade',        essential: false,
+    description: 'Shows block and entity info (name, data, mod source) when looking at them.' },
   { slug: 'chat-heads',            displayName: 'Chat Heads',  essential: false,
     description: 'Shows player head icons next to their chat messages.' },
   { slug: 'appleskin',             displayName: 'AppleSkin',   essential: false,
