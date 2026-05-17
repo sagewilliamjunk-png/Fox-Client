@@ -40,6 +40,8 @@ const RECOMMENDED = [
     description: 'Skips rendering entities you can\'t actually see.' },
   { slug: 'iris',            displayName: 'Iris Shaders',     essential: true,
     description: 'Shader-pack support — comes with Sodium.' },
+  { slug: 'appleskin',             displayName: 'AppleSkin',   essential: false,
+    description: 'Shows saturation/exhaustion on the hunger bar and food preview when holding food.' },
   { slug: 'entity-model-features', displayName: 'EMF',        essential: false,
     description: 'OptiFine-style custom entity models for resource packs.' },
   { slug: 'entitytexturefeatures', displayName: 'ETF',        essential: false,
