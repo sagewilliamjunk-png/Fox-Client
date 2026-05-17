@@ -6,6 +6,7 @@ import dev.kitsune.client.addon.AddonFlags;
 import dev.kitsune.client.core.ModJarSwapper;
 import dev.kitsune.client.features.FeatureRegistry;
 import dev.kitsune.client.hud.NotificationManager;
+import dev.kitsune.client.module.ModuleManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -89,15 +90,26 @@ public class ServerRuleStore {
                 FeatureRegistry.setServerOverride(fid, false);
             }
 
-            // Addon/grayzone flags cannot be changed at runtime (they're read at
-            // mod init). Warn the player if any banned addons are currently active
-            // so they know to disable them in their profile before rejoining.
-            for (String aid : r.addonIds) {
-                if (!AddonFlags.isAddonEnabled(aid)) continue; // already off — silent
-                NotificationManager.show(
-                        r.name + ": " + AddonCatalog.displayName(aid)
-                        + " is enabled — disable it in your profile settings",
-                        NotificationManager.Type.WARNING);
+            // Grayzone addon modules: suppress their effects at runtime for this
+            // server session. The user's enabled preference is preserved — the
+            // module still appears "on" in the ClickGUI but won't tick or render
+            // its effects until the player disconnects.
+            if (!r.addonIds.isEmpty()) {
+                ModuleManager.setAddonServerOverrides(r.addonIds, true);
+
+                // Build a single concise toast listing what was suspended.
+                StringBuilder suspended = new StringBuilder();
+                for (String aid : r.addonIds) {
+                    if (!AddonFlags.isAddonEnabled(aid)) continue; // module wasn't loaded
+                    if (suspended.length() > 0) suspended.append(", ");
+                    suspended.append(AddonCatalog.displayName(aid));
+                }
+                if (suspended.length() > 0) {
+                    NotificationManager.show(
+                            r.name + ": suspended for this session — "
+                            + suspended,
+                            NotificationManager.Type.INFO);
+                }
             }
         }
     }
@@ -105,6 +117,7 @@ public class ServerRuleStore {
     /** Clear all runtime feature overrides. Called on disconnect. */
     public static void clearFeatureOverrides() {
         FeatureRegistry.clearServerOverrides();
+        ModuleManager.clearAllServerOverrides();
     }
 
     public static void load() {

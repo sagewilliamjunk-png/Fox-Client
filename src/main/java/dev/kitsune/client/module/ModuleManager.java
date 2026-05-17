@@ -57,7 +57,10 @@ import dev.kitsune.client.module.render.SmoothScrollModule;
 import dev.kitsune.client.module.render.WeatherTimeModule;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Central registry for all {@link Module}s. Registers native modules and
@@ -65,6 +68,19 @@ import java.util.List;
  */
 public final class ModuleManager {
     private static final List<Module> MODULES = new ArrayList<>();
+
+    /**
+     * Maps addon/grayzone flag IDs (see {@link AddonCatalog}) to the concrete
+     * module class they correspond to. Used by {@link #setAddonServerOverrides}
+     * to look up the live instance without a name-string search.
+     */
+    private static final Map<String, Class<? extends Module>> ADDON_MODULE_TYPES = new HashMap<>();
+    static {
+        ADDON_MODULE_TYPES.put(AddonCatalog.GRAYZONE_ANTI_AFK,  AntiAfkModule.class);
+        ADDON_MODULE_TYPES.put(AddonCatalog.GRAYZONE_FREE_LOOK,  FreeLookModule.class);
+        ADDON_MODULE_TYPES.put(AddonCatalog.GRAYZONE_REACH_HUD,  ReachDisplayModule.class);
+        ADDON_MODULE_TYPES.put(AddonCatalog.GRAYZONE_HITBOXES,   HitboxModule.class);
+    }
 
     private ModuleManager() {}
 
@@ -261,13 +277,43 @@ public final class ModuleManager {
     /** Called once per client tick by the {@code TickEvent} subscriber. */
     public static void tickAll() {
         for (Module m : MODULES) {
-            if (m.isEnabled()) {
+            if (m.isEffectivelyEnabled()) {
                 try {
                     m.onTick();
                 } catch (Throwable t) {
                     System.err.println("[Fox] Module " + m.name() + " tick threw: " + t);
                 }
             }
+        }
+    }
+
+    /**
+     * Apply or clear a server-side override for every module associated with
+     * the given addon IDs. Pass {@code true} to suppress effects on connect;
+     * {@code false} to restore them on disconnect. Unknown or unregistered
+     * addon IDs (the module may have been disabled by its addon flag) are
+     * silently skipped.
+     *
+     * @param addonIds the addon flag IDs to act on (see {@link AddonCatalog})
+     * @param suppressed {@code true} to suppress effects, {@code false} to restore
+     */
+    public static void setAddonServerOverrides(Collection<String> addonIds, boolean suppressed) {
+        for (String id : addonIds) {
+            Class<? extends Module> type = ADDON_MODULE_TYPES.get(id);
+            if (type == null) continue; // unknown addon — ignore
+            Module m = getModule(type);
+            if (m == null) continue;    // module was not registered (addon disabled at boot)
+            m.setServerOverride(suppressed);
+        }
+    }
+
+    /**
+     * Clear all server overrides across every registered module.
+     * Called when the player disconnects from a server.
+     */
+    public static void clearAllServerOverrides() {
+        for (Module m : MODULES) {
+            if (m.isServerOverridden()) m.setServerOverride(false);
         }
     }
 }

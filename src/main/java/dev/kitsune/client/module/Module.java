@@ -21,6 +21,7 @@ public abstract class Module {
     private final List<Setting<?>> settings = new ArrayList<>();
 
     private boolean enabled;
+    private boolean serverOverridden; // true = effects suppressed for this server session
     private int keyBind; // GLFW key code, -1 = unbound
 
     protected Module(String name, String description, Category category) {
@@ -70,6 +71,38 @@ public abstract class Module {
      */
     protected final void setEnabledStateSilently(boolean value) {
         this.enabled = value;
+    }
+
+    // ---- server override ----
+
+    /**
+     * Whether the module's effects are currently suppressed by a server rule.
+     * The user's enabled preference is preserved — override is cleared on disconnect.
+     */
+    public boolean isServerOverridden() { return serverOverridden; }
+
+    /**
+     * True only when the module is both user-enabled AND not server-suppressed.
+     * {@link ModuleManager#tickAll()} uses this instead of {@link #isEnabled()}.
+     */
+    public boolean isEffectivelyEnabled() { return enabled && !serverOverridden; }
+
+    /**
+     * Suppress or restore this module's effects for the current server session.
+     * If the module is currently enabled and we are suppressing it, {@link #onDisable()}
+     * is called so it can clean up any world-state (camera, hitbox flags, etc.).
+     * Conversely, when suppression lifts on a still-enabled module, {@link #onEnable()}
+     * fires again so the module can re-initialise. The user-visible enabled toggle
+     * is never changed — the ClickGUI still shows the module as "on".
+     */
+    public void setServerOverride(boolean suppressed) {
+        if (this.serverOverridden == suppressed) return;
+        this.serverOverridden = suppressed;
+        if (!enabled) return; // module is off anyway — nothing to do
+        try {
+            if (suppressed) onDisable();
+            else            onEnable();
+        } catch (Throwable ignored) {}
     }
 
     // ---- keybind ----
