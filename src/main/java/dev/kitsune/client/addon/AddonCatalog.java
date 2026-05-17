@@ -26,4 +26,19 @@ public final class AddonCatalog {
     /** Decoupled camera (Lunar/Optifine FreeLook). Universally banned on
      *  competitive PvP — keep off when joining those servers. */
     public static final String GRAYZONE_FREE_LOOK    = "grayzone.free_look";
+
+    // ---- Display names -------------------------------------------------------
+
+    private static final java.util.Map<String, String> DISPLAY_NAMES = new java.util.HashMap<>();
+    static {
+        DISPLAY_NAMES.put(GRAYZONE_ANTI_AFK,  "Anti-AFK");
+        DISPLAY_NAMES.put(GRAYZONE_HITBOXES,  "Hitboxes");
+        DISPLAY_NAMES.put(GRAYZONE_REACH_HUD, "Reach Display");
+        DISPLAY_NAMES.put(GRAYZONE_FREE_LOOK, "Free Look");
+    }
+
+    /** Human-readable name for an addon ID, or the raw ID if unknown. */
+    public static String displayName(String id) {
+        return DISPLAY_NAMES.getOrDefault(id, id);
+    }
 }

@@ -1,8 +1,11 @@
 package dev.kitsune.client.server;
 
 import dev.kitsune.client.KitsuneClient;
+import dev.kitsune.client.addon.AddonCatalog;
+import dev.kitsune.client.addon.AddonFlags;
 import dev.kitsune.client.core.ModJarSwapper;
 import dev.kitsune.client.features.FeatureRegistry;
+import dev.kitsune.client.hud.NotificationManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -80,8 +83,21 @@ public class ServerRuleStore {
     public static void applyFeatureOverridesFor(String serverAddress) {
         for (ServerRule r : matchesFor(serverAddress)) {
             if (r.action != ServerRule.Action.DISABLE) continue;
+
+            // Legacy FoxFeature runtime overrides.
             for (String fid : r.featureIds) {
                 FeatureRegistry.setServerOverride(fid, false);
+            }
+
+            // Addon/grayzone flags cannot be changed at runtime (they're read at
+            // mod init). Warn the player if any banned addons are currently active
+            // so they know to disable them in their profile before rejoining.
+            for (String aid : r.addonIds) {
+                if (!AddonFlags.isAddonEnabled(aid)) continue; // already off — silent
+                NotificationManager.show(
+                        r.name + ": " + AddonCatalog.displayName(aid)
+                        + " is enabled — disable it in your profile settings",
+                        NotificationManager.Type.WARNING);
             }
         }
     }
@@ -146,6 +162,56 @@ public class ServerRuleStore {
         mineplex.note = "Mineplex bans most overlay/HUD mods on minigames.";
         Collections.addAll(mineplex.modIds, "freecam", "minimap", "xaeros_minimap");
         out.add(mineplex);
+
+        // FlowPvP — competitive PvP server with a published banned-mods list.
+        // Third-party mod JARs are moved out automatically; Fox Client's own
+        // grayzone modules (Anti-AFK, Free Look, Reach, Hitboxes) cannot be
+        // disabled at runtime and will show a warning toast if still active.
+        ServerRule flowPvp = new ServerRule("FlowPvP", "*flowpvp.gg", ServerRule.Action.DISABLE);
+        flowPvp.note = "FlowPvP bans movement automation, minimaps, freecam, schematic mods, "
+                + "reach/hitbox display, and input-modifying mods. "
+                + "Disable Anti-AFK, Free Look, Reach Display, and Hitboxes in your profile "
+                + "settings before joining to avoid a warning.";
+        Collections.addAll(flowPvp.modIds,
+                // Freecam / camera detach
+                "freecam",
+                // Minimaps (all known variants)
+                "xaeros_minimap", "minimap-fabric", "voxelmap", "voxelmap-updated",
+                // X-Ray
+                "xray",
+                // Schematic / builder tools
+                "litematica", "tweakaroo",
+                // Inventory management (auto-sort / auto-refill touches inventory packets)
+                "inventoryprofilesnext", "itemscroller", "mousetweaks",
+                // Version-spoof / packet manipulation
+                "viafabricplus",
+                // VR — can bypass normal input constraints
+                "vivecraft",
+                // Controller input (can register as macro input)
+                "midnightcontrols",
+                // Camera decoupling (same category as Free Look)
+                "shoulder-surfing-reloaded",
+                // Anti-cheat bypass / sync manipulation
+                "syncac",
+                // Bedrock-edition feature backports (some affect hitboxes / movement)
+                "bedrockify",
+                // No-input-lag / tick-rate patches
+                "debugify",
+                // ESP / loot radar equivalents
+                "lootbeams",
+                // Crystal / combat automation
+                "clickcrystals",
+                // Block placement accuracy mods
+                "accurateblockplacement"
+        );
+        // Fox Client grayzone addons that FlowPvP bans — warns on connect if active.
+        Collections.addAll(flowPvp.addonIds,
+                AddonCatalog.GRAYZONE_ANTI_AFK,
+                AddonCatalog.GRAYZONE_FREE_LOOK,
+                AddonCatalog.GRAYZONE_REACH_HUD,
+                AddonCatalog.GRAYZONE_HITBOXES
+        );
+        out.add(flowPvp);
 
         // 2b2t — anarchy, but they have an official ban list (no x-ray, no fly, etc.)
         // Fox Client never ships those features in the first place, so no rule needed.

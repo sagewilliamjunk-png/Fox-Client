@@ -28,12 +28,15 @@ public class ServerRule {
     public String hostPattern;           // glob, e.g. "*.hypixel.net"
     public List<String> modIds;          // Fabric mod IDs to disable (jar move + restart)
     public List<String> featureIds;      // Fox feature IDs to override-off at runtime
+    public List<String> addonIds;        // Fox addon/grayzone IDs — cannot disable at runtime,
+                                         // but the rule warns on connect if any are still active
     public Action action;
     public String note;                  // optional explanation shown to user
 
     public ServerRule() {
         this.modIds = new ArrayList<>();
         this.featureIds = new ArrayList<>();
+        this.addonIds = new ArrayList<>();
         this.action = Action.DISABLE;
     }
 
@@ -83,6 +86,9 @@ public class ServerRule {
         JsonArray fs = new JsonArray();
         for (String s : featureIds) fs.add(s);
         o.add("featureIds", fs);
+        JsonArray as = new JsonArray();
+        for (String s : addonIds) as.add(s);
+        o.add("addonIds", as);
         return o;
     }
 
@@ -97,6 +103,7 @@ public class ServerRule {
         if (o.has("note")) r.note = o.get("note").getAsString();
         if (o.has("modIds")) for (JsonElement el : o.getAsJsonArray("modIds")) r.modIds.add(el.getAsString());
         if (o.has("featureIds")) for (JsonElement el : o.getAsJsonArray("featureIds")) r.featureIds.add(el.getAsString());
+        if (o.has("addonIds")) for (JsonElement el : o.getAsJsonArray("addonIds")) r.addonIds.add(el.getAsString());
         return r;
     }
 }
