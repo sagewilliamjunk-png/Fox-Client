@@ -46,6 +46,8 @@ import dev.kitsune.client.module.movement.FreeLookModule;
 import dev.kitsune.client.module.movement.ToggleSprintModule;
 import dev.kitsune.client.module.render.BlockOverlayModule;
 import dev.kitsune.client.module.render.FullBrightnessModule;
+import dev.kitsune.client.module.render.LowFireModule;
+import dev.kitsune.client.module.render.LowShieldModule;
 import dev.kitsune.client.module.render.ChunkBordersModule;
 import dev.kitsune.client.module.render.DynamicCrosshairModule;
 import dev.kitsune.client.module.render.HitColorFlashModule;
@@ -111,6 +113,8 @@ public final class ModuleManager {
         register(new SessionStatsModule());
         register(new LightLevelModule());
         register(new FullBrightnessModule());
+        register(new LowFireModule());
+        register(new LowShieldModule());
         register(new WeatherTimeModule());
         register(new QuickCommandsModule());
         register(new ChatLoggerModule());

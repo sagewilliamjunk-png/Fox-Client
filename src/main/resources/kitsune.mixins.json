@@ -24,7 +24,9 @@
         "MenuBackgroundMixin",
         "PlayerAttackMixin",
         "PlayerTabOverlayPingMixin",
-        "AvatarRendererCapeMixin"
+        "AvatarRendererCapeMixin",
+        "ScreenEffectRendererMixin",
+        "ItemInHandRendererMixin"
     ],
     "injectors": {
         "defaultRequire": 1
