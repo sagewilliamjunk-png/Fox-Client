@@ -24,7 +24,7 @@ If applicable, paste the relevant section from the launcher's log viewer (Settin
 **Environment**
 - OS: [e.g. Windows 11 22H2]
 - Fox Launcher version: [e.g. 1.1.0 — shown in Settings → About]
-- Minecraft version: [e.g. 1.21.1]
+- Minecraft version: [e.g. 26.1.2]
 - Java source: [Auto-downloaded by launcher / Custom path / System Java]
 
 **Additional context**

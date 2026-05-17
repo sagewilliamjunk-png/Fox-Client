@@ -1,6 +1,6 @@
 # Fox Client
 
-A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 1.21.x**.
+A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 26.1.2**.
 
 > **Status:** v1.1.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
 
@@ -49,7 +49,7 @@ swapping between PvP, Survival, Vanilla, and Custom layouts.
 
 ## Manual install
 
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.16.x or newer for Minecraft 1.21.x.
+1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.x or newer for Minecraft 26.1.2.
 2. Drop `kitsune-client-1.1.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
 3. Launch.
 
