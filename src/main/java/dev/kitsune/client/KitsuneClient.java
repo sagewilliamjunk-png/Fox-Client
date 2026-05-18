@@ -17,6 +17,9 @@ import dev.kitsune.client.features.qol.FullBrightFeature;
 import dev.kitsune.client.features.qol.MapTooltipFeature;
 import dev.kitsune.client.features.qol.ShulkerTooltipFeature;
 import dev.kitsune.client.features.qol.ZoomFeature;
+import dev.kitsune.client.tooltip.ClientShulkerPreviewTooltip;
+import dev.kitsune.client.tooltip.ShulkerPreviewTooltip;
+import net.fabricmc.fabric.api.client.rendering.v1.TooltipComponentCallback;
 import dev.kitsune.client.features.optimization.AdaptiveFpsLimitFeature;
 import dev.kitsune.client.screen.FoxMainMenuScreen;
 import dev.kitsune.client.server.ServerRuleStore;
@@ -120,6 +123,14 @@ public class KitsuneClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_END,
                 FOX_CATEGORY
         ));
+
+        // 3b. Register visual tooltip component for shulker box grid preview.
+        //     Must be done at init (not per-feature enable) — the callback is
+        //     global and just returns null for any TooltipComponent it doesn't own.
+        TooltipComponentCallback.EVENT.register(data -> {
+            if (data instanceof ShulkerPreviewTooltip sp) return new ClientShulkerPreviewTooltip(sp);
+            return null;
+        });
 
         // 4. Game-state bridge — writes config/kitsune/game-state.json every ~3 s
         //    so the Fox Launcher can show the current server / dimension in Discord.

@@ -26,7 +26,8 @@
         "PlayerTabOverlayPingMixin",
         "AvatarRendererCapeMixin",
         "ScreenEffectRendererMixin",
-        "ItemInHandRendererMixin"
+        "ItemInHandRendererMixin",
+        "ItemTooltipImageMixin"
     ],
     "injectors": {
         "defaultRequire": 1

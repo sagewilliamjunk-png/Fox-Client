@@ -44,8 +44,6 @@ const RECOMMENDED = [
     description: 'In-game world editor — selections, brushes, blueprints, and undo history for creative building.' },
   { slug: 'modmenu',               displayName: 'Mod Menu',    essential: false,
     description: 'Adds a mods list to the main/pause menu — browse installed mods and open their config screens.' },
-  { slug: 'map-tooltip',           displayName: 'Map Tooltip', essential: false,
-    description: 'Shows a miniature map preview in the tooltip when hovering over filled maps.' },
   { slug: 'jade',                  displayName: 'Jade',        essential: false,
     description: 'Shows block and entity info (name, data, mod source) when looking at them.' },
   { slug: 'chat-heads',            displayName: 'Chat Heads',  essential: false,
