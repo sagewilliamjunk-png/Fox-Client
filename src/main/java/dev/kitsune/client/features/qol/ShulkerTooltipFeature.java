@@ -62,22 +62,16 @@ public class ShulkerTooltipFeature implements FoxFeature {
         List<ItemStack> nonEmpty = contents.nonEmptyItemCopyStream().collect(Collectors.toList());
         if (nonEmpty.isEmpty()) return;
 
-        // Alt held → visual grid is showing; suppress the text list to avoid clutter
-        if (Screen.hasAltDown()) return;
+        // Alt+Shift → visual grid is showing; suppress text entirely
+        if (Screen.hasAltDown() && Screen.hasShiftDown()) return;
 
         if (Screen.hasShiftDown()) {
-            // Full list
-            for (ItemStack inner : nonEmpty) {
-                lines.add(Component.literal(inner.getCount() + "× ")
-                        .withStyle(ChatFormatting.GRAY)
-                        .append(inner.getHoverName().copy().withStyle(s -> s.withColor(0xFFA060))));
-            }
-        } else {
-            // Compact summary
+            // Compact count summary + hint for grid
             lines.add(Component.literal("Contains " + nonEmpty.size() + " stack" + (nonEmpty.size() == 1 ? "" : "s"))
                     .withStyle(ChatFormatting.GRAY));
-            lines.add(Component.literal("Shift: list  ·  Alt: grid view")
+            lines.add(Component.literal("Alt+Shift: view full contents")
                     .withStyle(ChatFormatting.DARK_GRAY));
         }
+        // No modifier → no extra lines (vanilla tooltip only)
     }
 }

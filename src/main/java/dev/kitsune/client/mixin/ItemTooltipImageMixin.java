@@ -39,8 +39,8 @@ public class ItemTooltipImageMixin {
             if (cir.getReturnValue().isPresent()) return;
             // Feature must be enabled
             if (!FeatureRegistry.isEnabled(ShulkerTooltipFeature.ID)) return;
-            // Visual grid only on Alt (with or without Shift)
-            if (!Screen.hasAltDown()) return;
+            // Visual grid only on Alt+Shift
+            if (!Screen.hasAltDown() || !Screen.hasShiftDown()) return;
             // Must be a shulker box BlockItem
             if (!((Object) this instanceof BlockItem bi)) return;
             if (!(bi.getBlock() instanceof ShulkerBoxBlock)) return;
