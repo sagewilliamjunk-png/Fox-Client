@@ -54,6 +54,8 @@ const RECOMMENDED = [
     description: 'OptiFine-style custom entity models for resource packs.' },
   { slug: 'entitytexturefeatures', displayName: 'ETF',        essential: false,
     description: 'OptiFine-style random/emissive entity textures for resource packs.' },
+  { slug: 'simple-voice-chat',     displayName: 'Simple Voice Chat', essential: false,
+    description: 'Proximity voice chat — hear nearby players in-game (requires server-side mod).' },
 ];
 
 // ---- HTTP helpers (same shape as fabricInstaller) ----
