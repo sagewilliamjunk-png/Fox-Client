@@ -1,20 +1,22 @@
 ﻿// Fox Launcher renderer — minimal single-page app with hash-based routing.
 // No framework: each screen is a module that renders HTML into #main.
 
-import { renderHome }     from './screens/home.js';
-import { renderSettings } from './screens/settings.js';
-import { renderProfiles } from './screens/profiles.js';
-import { renderLogs }     from './screens/logs.js';
+import { renderHome }        from './screens/home.js';
+import { renderSettings }    from './screens/settings.js';
+import { renderProfiles }    from './screens/profiles.js';
+import { renderLogs }        from './screens/logs.js';
+import { renderScreenshots } from './screens/screenshots.js';
 
 const ROUTES = {
-  home:     renderHome,
+  home:        renderHome,
   // Old #play / #versions hashes redirect to Home (single-version client,
   // version picking lives in code, not in the UI).
-  play:     renderHome,
-  versions: renderHome,
-  settings: renderSettings,
-  profiles: renderProfiles,
-  logs:     renderLogs,
+  play:        renderHome,
+  versions:    renderHome,
+  settings:    renderSettings,
+  profiles:    renderProfiles,
+  logs:        renderLogs,
+  screenshots: renderScreenshots,
 };
 
 const el = (id) => document.getElementById(id);
