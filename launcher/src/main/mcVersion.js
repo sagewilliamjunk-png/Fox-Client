@@ -341,7 +341,7 @@ function buildLaunchCommand(opts) {
     user_properties: '{}',
     natives_directory: natives,
     launcher_name: 'FoxLauncher',
-    launcher_version: '0.1.0',
+    launcher_version: (() => { try { return require('../../package.json').version || '0.0.0'; } catch (_) { return '0.0.0'; } })(),
     classpath,
     resolution_width:  resW != null ? String(resW) : '854',
     resolution_height: resH != null ? String(resH) : '480',

@@ -46,7 +46,7 @@ async function boot() {
   const app    = el('app');
   const login  = el('login');
 
-  el('brand-version').textContent = 'v0.1.0';
+  window.fox.about().then(a => { el('brand-version').textContent = 'v' + a.version; }).catch(() => {});
 
   // Apply saved theme before any render so the user never sees a flash of
   // the default dark palette when they have fox-light selected.

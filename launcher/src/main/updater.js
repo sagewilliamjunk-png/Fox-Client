@@ -15,7 +15,9 @@ const crypto = require('crypto');
 const paths = require('./paths');
 const settings = require('./settings');
 
-const USER_AGENT = 'FoxLauncher/0.1.0';
+let _launcherVersion = '0.0.0';
+try { _launcherVersion = require('../../package.json').version || _launcherVersion; } catch (_) {}
+const USER_AGENT = `FoxLauncher/${_launcherVersion}`;
 const MAX_RETRIES = 3;
 
 function httpRequestFollow(urlStr, opts = {}) {
