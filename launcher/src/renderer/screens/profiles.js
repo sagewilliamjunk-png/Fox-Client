@@ -27,6 +27,30 @@ let templatesCache = [];
 let editorTab = 'identity';
 let signedInUser = null; // { username, uuid } from auth status
 
+// Survives tab switches — keyed by _profileId so stale draft is ignored on profile change.
+let editorDraft = {};
+
+/** Read whatever form fields are currently in the DOM and stash them in editorDraft. */
+function flushCurrentTabToDraft() {
+  const get = (id) => document.getElementById(id);
+  // Identity
+  if (get('ed-name'))    editorDraft.name    = get('ed-name').value;
+  if (get('ed-notes'))   editorDraft.notes   = get('ed-notes').value;
+  if (get('ed-locked'))  editorDraft.locked  = get('ed-locked').checked;
+  // Performance
+  if (get('ed-ramMin'))  editorDraft.ramMin  = get('ed-ramMin').value;
+  if (get('ed-ramMax'))  editorDraft.ramMax  = get('ed-ramMax').value;
+  if (get('ed-jvm'))     editorDraft.jvmArgs = get('ed-jvm').value;
+  // Display
+  if (get('ed-srvHost')) editorDraft.serverHost = get('ed-srvHost').value;
+  if (get('ed-srvPort')) editorDraft.serverPort = get('ed-srvPort').value;
+  if (get('ed-resW'))    editorDraft.resW    = get('ed-resW').value;
+  if (get('ed-resH'))    editorDraft.resH    = get('ed-resH').value;
+  if (get('ed-resFs'))   editorDraft.resFs   = get('ed-resFs').checked;
+  // Advanced
+  if (get('ed-gdir'))    editorDraft.gameDirOverride = get('ed-gdir').value;
+}
+
 // Same 8-color palette as the sidebar avatar dots so a profile keeps a
 // stable visual identity across the whole UI.
 const PROFILE_COLORS = [
@@ -273,6 +297,12 @@ function rerenderEditor() {
     return;
   }
 
+  // Clear the draft whenever we switch to a different profile so stale values
+  // from a previous profile don't bleed into the new one.
+  if (editorDraft._profileId !== profile.id) {
+    editorDraft = { _profileId: profile.id };
+  }
+
   const isActive = profile.id === activeId;
   const color = profileColor(profile);
 
@@ -311,9 +341,10 @@ function rerenderEditor() {
     </div>
   `;
 
-  // Tab switching
+  // Tab switching — flush current tab's fields to draft before re-rendering
   for (const t of host.querySelectorAll('.tab-btn')) {
     t.addEventListener('click', () => {
+      flushCurrentTabToDraft();
       editorTab = t.dataset.tab;
       rerenderEditor();
     });
@@ -878,13 +909,22 @@ function wireAdvancedTab(profile) {
 
 async function saveCurrentEditor(profile) {
   if (profile.locked) return;
+
+  // Flush whatever tab is currently visible so its values are in the draft too.
+  flushCurrentTabToDraft();
+
   const $ = (id) => document.getElementById(id);
+  const d = editorDraft._profileId === profile.id ? editorDraft : {};
   const updated = { ...profile };
 
-  // Identity tab fields (only present when on that tab)
-  if ($('ed-name')) updated.name = $('ed-name').value.trim() || profile.id;
-  if ($('ed-notes')) updated.notes = $('ed-notes').value;
-  if ($('ed-locked')) updated.locked = $('ed-locked').checked;
+  // Helper: prefer live DOM element, fall back to draft, fall back to profile value.
+  const field     = (id, dk, fallback) => { const el = $(id); return el ? el.value : (dk in d ? d[dk] : fallback); };
+  const fieldBool = (id, dk, fallback) => { const el = $(id); return el ? el.checked : (dk in d ? d[dk] : fallback); };
+
+  // Identity tab
+  updated.name   = (field('ed-name',   'name',   profile.name)   || '').trim() || profile.id;
+  updated.notes  = field('ed-notes',  'notes',  profile.notes  || '');
+  updated.locked = fieldBool('ed-locked', 'locked', profile.locked || false);
   if ('_pendingColor' in wireIdentityTab) {
     updated.color = wireIdentityTab._pendingColor || null;
     delete wireIdentityTab._pendingColor;
@@ -901,22 +941,25 @@ async function saveCurrentEditor(profile) {
   updated.keepKitsuneEnabled = profile.keepKitsuneEnabled !== false;
 
   // Performance tab
-  if ($('ed-ramMin')) updated.ramMin = $('ed-ramMin').value === '' ? null : Number($('ed-ramMin').value);
-  if ($('ed-ramMax')) updated.ramMax = $('ed-ramMax').value === '' ? null : Number($('ed-ramMax').value);
-  if ($('ed-jvm')) updated.jvmArgs = $('ed-jvm').value;
+  const ramMinStr = field('ed-ramMin', 'ramMin', profile.ramMin != null ? String(profile.ramMin) : '');
+  const ramMaxStr = field('ed-ramMax', 'ramMax', profile.ramMax != null ? String(profile.ramMax) : '');
+  updated.ramMin  = ramMinStr === '' ? null : Number(ramMinStr);
+  updated.ramMax  = ramMaxStr === '' ? null : Number(ramMaxStr);
+  updated.jvmArgs = field('ed-jvm', 'jvmArgs', profile.jvmArgs || '');
 
   // Display tab
-  if ($('ed-srvHost')) updated.serverHost = $('ed-srvHost').value.trim();
-  if ($('ed-srvPort')) updated.serverPort = $('ed-srvPort').value === '' ? null : Number($('ed-srvPort').value);
-  if ($('ed-resW') || $('ed-resH') || $('ed-resFs')) {
-    const resW  = $('ed-resW') && $('ed-resW').value !== '' ? Number($('ed-resW').value) : null;
-    const resH  = $('ed-resH') && $('ed-resH').value !== '' ? Number($('ed-resH').value) : null;
-    const resFs = $('ed-resFs') ? $('ed-resFs').checked : false;
-    updated.resolution = (resW != null || resH != null || resFs) ? { width: resW, height: resH, fullscreen: resFs } : null;
-  }
+  updated.serverHost = field('ed-srvHost', 'serverHost', profile.serverHost || '').trim();
+  const srvPortStr   = field('ed-srvPort', 'serverPort', profile.serverPort != null ? String(profile.serverPort) : '');
+  updated.serverPort = srvPortStr === '' ? null : Number(srvPortStr);
+  const resWStr  = field('ed-resW',  'resW',  profile.resolution?.width  != null ? String(profile.resolution.width)  : '');
+  const resHStr  = field('ed-resH',  'resH',  profile.resolution?.height != null ? String(profile.resolution.height) : '');
+  const resFs    = fieldBool('ed-resFs', 'resFs', profile.resolution?.fullscreen || false);
+  const resW     = resWStr !== '' ? Number(resWStr) : null;
+  const resH     = resHStr !== '' ? Number(resHStr) : null;
+  updated.resolution = (resW != null || resH != null || resFs) ? { width: resW, height: resH, fullscreen: resFs } : null;
 
   // Advanced
-  if ($('ed-gdir')) updated.gameDirOverride = $('ed-gdir').value.trim();
+  updated.gameDirOverride = field('ed-gdir', 'gameDirOverride', profile.gameDirOverride || '').trim();
 
   if (updated.ramMin && updated.ramMax && updated.ramMin > updated.ramMax) {
     showStatus('Min RAM cannot exceed max.', 'error');
