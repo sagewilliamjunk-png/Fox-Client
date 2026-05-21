@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { URL } = require('url');
+const crypto = require('crypto');
 
 const MODRINTH_BASE = 'https://api.modrinth.com/v2';
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -184,6 +185,20 @@ async function installOne(slug, gameDir, mcVersion, opts = {}) {
   let buf;
   try { buf = await fetchWithRetry(file.url); }
   catch (err) { return { slug, status: 'error', error: err.message }; }
+
+  // Verify integrity using the hash Modrinth provides (prefer sha512, fall back to sha1).
+  const hashes = file.hashes || {};
+  if (hashes.sha512) {
+    const actual = crypto.createHash('sha512').update(buf).digest('hex');
+    if (actual !== hashes.sha512) {
+      return { slug, status: 'error', error: `Hash mismatch for ${file.filename} (expected ${hashes.sha512.slice(0, 16)}…, got ${actual.slice(0, 16)}…)` };
+    }
+  } else if (hashes.sha1) {
+    const actual = crypto.createHash('sha1').update(buf).digest('hex');
+    if (actual !== hashes.sha1) {
+      return { slug, status: 'error', error: `Hash mismatch for ${file.filename}` };
+    }
+  }
 
   try { await writeAtomic(target, buf); }
   catch (err) { return { slug, status: 'error', error: err.message }; }
