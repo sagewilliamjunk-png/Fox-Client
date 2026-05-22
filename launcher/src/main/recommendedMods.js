@@ -278,4 +278,19 @@ function manifest() {
   return RECOMMENDED.map(m => ({ ...m }));
 }
 
-module.exports = { installOne, installAll, manifest, RECOMMENDED };
+/** Back-compat: tests and external code may still want a simple "is the
+ *  slug installed (any version)" check. Returns a boolean — the new
+ *  internal logic uses findInstalledJar which returns a path. */
+function isAlreadyInstalled(slug, modsDir) {
+  return findInstalledJar(slug, modsDir) !== null;
+}
+
+module.exports = {
+  installOne,
+  installAll,
+  manifest,
+  RECOMMENDED,
+  // helpers exposed for tests
+  isAlreadyInstalled,
+  findInstalledJar,
+};
