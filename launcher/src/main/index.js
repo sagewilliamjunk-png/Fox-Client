@@ -112,7 +112,7 @@ function destroyTray() {
  */
 async function autoInstallRecommended() {
   let s = settings.load();
-  if (s.recommendedModsInstalled) return;
+  if (s.recommendedModsInstalledFull) return;
 
   let readiness;
   try { readiness = launcher.clientReadiness(); }
@@ -128,7 +128,7 @@ async function autoInstallRecommended() {
   let results;
   try {
     results = await recommendedMods.installAll(readiness.gameDir, readiness.targetMcVersion, {
-      essentialOnly: true,
+      essentialOnly: false,
       onProgress: (msg, percent) => send('recommended:progress', { message: msg, percent }),
     });
   } catch (err) {
@@ -138,7 +138,7 @@ async function autoInstallRecommended() {
 
   // Mark done unconditionally — even if some mods errored individually,
   // we don't want to retry the entire pack on every launcher boot.
-  settings.patch({ recommendedModsInstalled: true });
+  settings.patch({ recommendedModsInstalledFull: true });
 
   const installed = results.filter(r => r.status === 'installed').length;
   const errored   = results.filter(r => r.status === 'error' || r.status === 'no-version').length;

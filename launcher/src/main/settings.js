@@ -42,6 +42,9 @@ const DEFAULTS = {
    *  boot completes; we don't try again unless the user explicitly resets
    *  settings or a future schema migration clears it. */
   recommendedModsInstalled: false,
+  /** v2 flag — set after the full pack (essentialOnly:false) has been installed.
+   *  Supersedes recommendedModsInstalled so existing users get the full pack. */
+  recommendedModsInstalledFull: false,
   /** Launch Fox Launcher automatically when the user logs into Windows / macOS.
    *  Implemented via Electron's app.setLoginItemSettings(). Defaults off so
    *  the launcher doesn't silently add itself to startup on fresh installs. */
@@ -105,7 +108,8 @@ function validate(raw) {
     // from before we bundled a public client ID auto-pick up the new default.
     msaClientId:       (asString(merged.msaClientId, '').trim() || DEFAULTS.msaClientId),
     lastGuestName:     asString(merged.lastGuestName, DEFAULTS.lastGuestName),
-    recommendedModsInstalled: asBool(merged.recommendedModsInstalled, DEFAULTS.recommendedModsInstalled),
+    recommendedModsInstalled:     asBool(merged.recommendedModsInstalled,     DEFAULTS.recommendedModsInstalled),
+    recommendedModsInstalledFull: asBool(merged.recommendedModsInstalledFull, DEFAULTS.recommendedModsInstalledFull),
     launchOnStartup:   asBool(merged.launchOnStartup, DEFAULTS.launchOnStartup),
   };
 }
