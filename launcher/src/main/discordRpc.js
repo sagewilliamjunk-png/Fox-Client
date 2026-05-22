@@ -152,6 +152,10 @@ class DiscordRpc {
     this.socket = sock;
     this.recvBuffer = Buffer.alloc(0);
     this.reconnectAttempts = 0;
+    // Discord clears the displayed presence when the pipe drops, so the
+    // dedup signature is stale — reset it so _flushNow() always re-sends
+    // after a reconnect rather than silently skipping the SET_ACTIVITY.
+    this.lastActivity = null;
 
     sock.on('data', (chunk) => this._onData(chunk));
     sock.on('error', (err) => {
