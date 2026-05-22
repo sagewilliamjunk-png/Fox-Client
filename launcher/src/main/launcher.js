@@ -569,6 +569,24 @@ function clientReadiness() {
   const fabricProfile = gameDirExists ? mcVersion.findFabricProfile(gameDir, targetVersion) : null;
   const cachedJar = updater.currentLocalJar();
   const devJar = findLocalDevJar();
+
+  // Also check whether the jar is already present in the mods folder from a
+  // previous launch — this is the common case when neither the updater cache
+  // nor build/libs is populated (e.g. first run after a clean install where
+  // the user manually placed the jar, or after the launcher copied it once).
+  const modsDir = gameDirExists ? path.join(gameDir, 'mods') : null;
+  let installedModsJar = null;
+  if (modsDir) {
+    try {
+      const entries = fs.readdirSync(modsDir);
+      const match = entries.find(f => /^kitsune-client.*\.jar$/i.test(f) && !/sources?\.jar$/i.test(f));
+      if (match) installedModsJar = path.join(modsDir, match);
+    } catch (_) {}
+  }
+
+  const hasModJar = !!(cachedJar || devJar || installedModsJar);
+  const modJarSource = cachedJar ? 'release' : devJar ? 'dev-build' : installedModsJar ? 'installed' : null;
+
   return {
     targetMcVersion:      TARGET_MC_VERSION,    // version the Fox Client jar targets
     selectedMcVersion:    targetVersion,         // version this profile will actually launch
@@ -579,8 +597,8 @@ function clientReadiness() {
     vanillaAutoInstallable: true,                // always true — mcInstaller handles it
     fabricProfile,                               // null if not installed for selectedMcVersion
     fabricAutoInstallable: true,                 // always true — fabricInstaller handles it
-    hasModJar: !!(cachedJar || devJar),
-    modJarSource: cachedJar ? 'release' : (devJar ? 'dev-build' : null),
+    hasModJar,
+    modJarSource,
   };
 }
 
