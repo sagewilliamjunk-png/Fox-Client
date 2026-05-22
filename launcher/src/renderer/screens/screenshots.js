@@ -97,15 +97,12 @@ export async function renderScreenshots(mount) {
   wireControls();
   await loadGallery();
 
-  // Unmount observer: tear down global listeners when navigate() replaces mount.
-  const observer = new MutationObserver(() => {
-    if (!document.body.contains(mount) || mount.childElementCount === 0) {
-      for (const off of activeUnsubs) { try { off(); } catch (_) {} }
-      activeUnsubs = [];
-      observer.disconnect();
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Tear down listeners when navigate() fires the unmount event.
+  const onUnmount = () => {
+    for (const off of activeUnsubs) { try { off(); } catch (_) {} }
+    activeUnsubs = [];
+  };
+  mount.addEventListener('fox:screen-unmount', onUnmount, { once: true });
 }
 
 // ── data loading ─────────────────────────────────────────────────────────────

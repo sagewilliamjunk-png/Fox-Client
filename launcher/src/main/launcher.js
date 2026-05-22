@@ -527,7 +527,11 @@ async function launch(onExit) {
     } else if (code === 0) {
       notifications.gameExited();
     }
-    if (onExit) onExit({ code, signal, startedAt, gameDir });
+    // Use the actual launchGameDir (which honours profile isolation +
+    // gameDirOverride) so the crash-report watcher in ipc.js looks under the
+    // right directory. Using the outer `gameDir` here meant isolated profiles
+    // never saw their crash modal.
+    if (onExit) onExit({ code, signal, startedAt, gameDir: launchGameDir });
     if (_exitHook) try { _exitHook({ code, signal }); } catch (_) {}
   });
 

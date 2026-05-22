@@ -153,7 +153,13 @@ async function autoInstallRecommended() {
  *  a one-shot `updater:result` event when done so the renderer can show a
  *  single toast per outcome. Never throws — every failure path is surfaced
  *  via the result event with `ok: false`. */
+let _updateInFlight = false;
 function runUpdateCheck() {
+  // Re-entry guard: if a previous check is still running (slow network, hung
+  // CDN), don't kick off another one — the 30-min interval timer would
+  // otherwise stack concurrent invocations on each fire.
+  if (_updateInFlight) return;
+  _updateInFlight = true;
   const send = (channel, payload) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(channel, payload);
@@ -173,6 +179,8 @@ function runUpdateCheck() {
     });
   }).catch((err) => {
     send('updater:result', { state: 'error', error: err.message || String(err) });
+  }).finally(() => {
+    _updateInFlight = false;
   });
 }
 

@@ -60,6 +60,10 @@ function httpJson(urlStr, opts = {}, body = null) {
       path:     u.pathname + u.search,
       port:     443,
       headers:  { Accept: 'application/json', ...(opts.headers || {}) },
+      // 20 s ceiling — a hung Microsoft endpoint should surface as an error,
+      // not leave the silent-signin promise unresolved forever (which would
+      // leave the splash up).
+      timeout:  20_000,
     }, (res) => {
       let data = '';
       res.on('data', (c) => (data += c));
@@ -71,6 +75,7 @@ function httpJson(urlStr, opts = {}, body = null) {
       });
     });
     req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error(`Request timed out: ${urlStr}`)));
     if (body) req.write(typeof body === 'string' ? body : JSON.stringify(body));
     req.end();
   });

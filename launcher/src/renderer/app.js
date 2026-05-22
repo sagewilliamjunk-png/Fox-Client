@@ -365,9 +365,15 @@ function initNav() {
 
   initSkinManager();
   initAccountSwitcher();
-  window.addEventListener('hashchange', () => {
-    navigate(window.location.hash.replace('#', '') || 'home');
-  });
+  // Guard against initNav being called twice (e.g. after a sign-out → re-login
+  // flow that doesn't fully reload the page). Stacked listeners cause every
+  // hash change to fire navigate() N times.
+  if (!initNav._hashChangeWired) {
+    initNav._hashChangeWired = true;
+    window.addEventListener('hashchange', () => {
+      navigate(window.location.hash.replace('#', '') || 'home');
+    });
+  }
 
   // Seed the running dot from the current process state, then keep it live.
   window.fox.isRunning().then(setRunningDot).catch(() => {});
@@ -648,6 +654,10 @@ function navigate(route) {
     btn.classList.toggle('active', btn.dataset.route === route);
   }
   const main = el('main');
+  // Fire a synchronous unmount event on the previous screen so it can tear
+  // down listeners, observers, intervals, etc. before we overwrite the DOM.
+  // Each screen listens once for 'fox:screen-unmount' on `main`.
+  try { main.dispatchEvent(new CustomEvent('fox:screen-unmount')); } catch (_) {}
   // Show a loading placeholder *immediately* — every screen does async data
   // fetches before its first paint, and that gap was rendering as empty
   // space next to the sidebar. The screen's own renderer overwrites this
@@ -674,8 +684,12 @@ export function showToast(message, kind = 'info', ttlMs = 5000) {
   t.className = `toast toast-${kind}`;
   t.textContent = message;
   host.appendChild(t);
-  setTimeout(() => { t.classList.add('toast-leaving'); }, ttlMs);
-  setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, ttlMs + 400);
+  // ttlMs <= 0 means "persistent" — don't auto-dismiss. Used for the
+  // update-ready toast which has its own action button and dismiss.
+  if (ttlMs > 0) {
+    setTimeout(() => { t.classList.add('toast-leaving'); }, ttlMs);
+    setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, ttlMs + 400);
+  }
 }
 
 window.fox.onSessionExpired(({ reason }) => {

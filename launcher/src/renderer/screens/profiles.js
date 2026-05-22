@@ -75,6 +75,8 @@ export async function renderProfiles(mount) {
     window.fox.listResourcePacks().catch(() => []),
     window.fox.listShaderPacks().catch(() => []),
   ]);
+  // User may have navigated away during the await chain.
+  if (!document.body.contains(mount)) return;
   profilesCache = doc.profiles;
   activeId = s.selectedProfile || '';
   mods = modsList;
@@ -301,6 +303,13 @@ function rerenderEditor() {
   // from a previous profile don't bleed into the new one.
   if (editorDraft._profileId !== profile.id) {
     editorDraft = { _profileId: profile.id };
+    // Drop loadout-tab and identity-tab function-stashed state too, otherwise
+    // a pending color or disabled-mod set from the previous profile would
+    // apply to this one on save.
+    delete wireLoadoutTab._profileId;
+    delete wireLoadoutTab._disabledSet;
+    delete wireLoadoutTab._disabledAddonsSet;
+    delete wireIdentityTab._pendingColor;
   }
 
   const isActive = profile.id === activeId;
@@ -611,11 +620,20 @@ function renderLoadoutTab(profile) {
 function wireLoadoutTab(profile) {
   const host = document.getElementById('profile-editor');
   if (!host) return;
-  const disabledSet = new Set(profile.disabledMods || []);
-  const disabledAddonsSet = new Set(profile.disabledAddons || []);
+  // Reuse the existing draft Set when wiring is re-run for the SAME profile
+  // (e.g. "Refresh list", "Enable all", "Disable all" all call wireLoadoutTab
+  // again). Rebuilding from profile.disabledMods every time wiped the user's
+  // unsaved toggle state. Only seed a fresh Set when we switch profiles.
+  const sameProfile = wireLoadoutTab._profileId === profile.id;
+  const disabledSet       = sameProfile && wireLoadoutTab._disabledSet
+    ? wireLoadoutTab._disabledSet
+    : new Set(profile.disabledMods || []);
+  const disabledAddonsSet = sameProfile && wireLoadoutTab._disabledAddonsSet
+    ? wireLoadoutTab._disabledAddonsSet
+    : new Set(profile.disabledAddons || []);
 
-  // Stash for save
-  wireLoadoutTab._disabledSet = disabledSet;
+  wireLoadoutTab._profileId         = profile.id;
+  wireLoadoutTab._disabledSet       = disabledSet;
   wireLoadoutTab._disabledAddonsSet = disabledAddonsSet;
 
   for (const cb of host.querySelectorAll('.mod-toggle')) {

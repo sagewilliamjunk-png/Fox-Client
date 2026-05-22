@@ -256,13 +256,8 @@ export async function renderSettings(mount) {
   };
   refreshDiscordBadge();
   const discordPollTimer = setInterval(refreshDiscordBadge, 4000);
-  const discordObserver = new MutationObserver(() => {
-    if (!document.body.contains(mount) || mount.childElementCount === 0) {
-      clearInterval(discordPollTimer);
-      discordObserver.disconnect();
-    }
-  });
-  discordObserver.observe(document.body, { childList: true, subtree: true });
+  // Stop polling when the user leaves the Settings screen.
+  mount.addEventListener('fox:screen-unmount', () => clearInterval(discordPollTimer), { once: true });
 
   // ---- advanced tab: about + reset ----
   (async () => {

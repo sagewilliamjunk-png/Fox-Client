@@ -30,6 +30,10 @@ function httpRequestFollow(urlStr, opts = {}) {
         hostname: u.hostname,
         path: u.pathname + u.search,
         headers: { 'User-Agent': USER_AGENT, ...(opts.headers || {}) },
+        // 30 s ceiling — a stalled GitHub CDN host shouldn't leave the
+        // setInterval-driven update poll hung forever. Without this, repeated
+        // hangs stacked concurrent invocations and leaked memory over time.
+        timeout: 30_000,
       }, (res) => {
         if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
           res.resume();
@@ -39,6 +43,7 @@ function httpRequestFollow(urlStr, opts = {}) {
         resolve(res);
       });
       req.on('error', reject);
+      req.on('timeout', () => req.destroy(new Error(`Request timed out: ${cur}`)));
       req.end();
     };
     doReq(urlStr, 0);

@@ -26,6 +26,9 @@ export async function renderHome(mount) {
     window.fox.listProfiles().catch(() => ({ profiles: [] })),
     window.fox.isRunning().catch(() => false),
   ]);
+  // The user may have navigated away during the await above (slow IPC chain).
+  // Writing to a detached mount produces invisible state + leaked subs.
+  if (!document.body.contains(mount)) return;
   const profiles = profilesDoc.profiles || [];
   const activeProfileId = s.selectedProfile || (profiles[0] && profiles[0].id) || '';
   const activeProfile = profiles.find(p => p.id === activeProfileId);
@@ -242,7 +245,7 @@ export async function renderHome(mount) {
           btn.disabled = false;
           btn.textContent = '▶ PLAY';
           if (ready) btn.classList.add('ready');
-          stat.innerHTML = `<span style="color:var(--danger);font-size:12px;">${escapeHtml(r.error)}</span>`;
+          stat.innerHTML = `<span style="color:var(--danger);font-size:12px;">${escapeHtml(r.error || 'unknown error')}</span>`;
           return;
         }
         btn.textContent = '● Running';
@@ -482,14 +485,15 @@ export async function renderHome(mount) {
   }
 
   // Lifecycle: drop subs when this screen unmounts.
-  const observer = new MutationObserver(() => {
-    if (!document.body.contains(mount) || mount.childElementCount === 0) {
-      for (const off of activeUnsubs) { try { off(); } catch (_) {} }
-      activeUnsubs = [];
-      observer.disconnect();
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Listen once for the navigate()-fired unmount event. Replaces the old
+  // MutationObserver which never actually fired because navigate() leaves
+  // the loading placeholder behind (childElementCount=1, not 0).
+  const onUnmount = () => {
+    for (const off of activeUnsubs) { try { off(); } catch (_) {} }
+    activeUnsubs = [];
+    mount.removeEventListener('fox:screen-unmount', onUnmount);
+  };
+  mount.addEventListener('fox:screen-unmount', onUnmount, { once: true });
 }
 
 function renderJavaDownloadCard() {
