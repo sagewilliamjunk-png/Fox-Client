@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Fox Client 1.1.0 — Shulker Tooltips, Low Fire, Low Shield",
+    "date": "2026-05-21",
+    "body": "Shulker boxes now show a compact stack count on Shift and a full 9×3 visual grid on Alt+Shift. Low Fire shifts the overlay to the bottom strip instead of removing it. Low Shield hides the shield raise animation on the offhand. GrimAC compatibility audit: all modules clean.",
+    "url": ""
+  },
+  {
+    "title": "Recommended Pack updated",
+    "date": "2026-05-21",
+    "body": "The launcher's recommended mod pack now includes Simple Voice Chat, EMF, ETF, AppleSkin, Chat Heads, Jade, Axiom, and Mod Menu. Hit \"Install full recommended pack\" in Profiles → Mods & Addons to grab them.",
+    "url": ""
+  },
+  {
+    "title": "Welcome to Fox Launcher",
+    "date": "2026-05-21",
+    "body": "Fox Launcher is live. Profiles, isolated instances, per-profile mod toggles, screenshot gallery, and one-click play. Sign in with your Microsoft account and hit PLAY to get started.",
+    "url": ""
+  }
+]

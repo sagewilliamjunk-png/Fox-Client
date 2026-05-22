@@ -22,7 +22,7 @@ const DEFAULTS = {
   // NOTE: selectedVersion was removed — version selection lives in profile.mcVersion now.
   /** URL to a JSON document for the Home news feed. Empty = no fetch.
    *  See main/news.js for the expected shape. */
-  newsUrl: '',
+  newsUrl: 'https://gist.githubusercontent.com/sagewilliamjunk-png/5246a5dd2d5b6072fe41b3ef3bb914f0/raw/fox-news.json',
   /** Discord rich-presence integration. Disabled until the user provides an
    *  Application ID at developers.discord.com. */
   discordRpcEnabled: true,
