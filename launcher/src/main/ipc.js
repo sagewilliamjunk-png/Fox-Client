@@ -865,8 +865,18 @@ function register(getWindow) {
     const pkgPath = path.join(__dirname, '..', '..', 'package.json');
     let version = '0.0.0';
     try { version = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || version; } catch (_) {}
+    // Also surface the mod version from gradle.properties so the About card can
+    // show whether the launcher and mod jar are on the same version.
+    let modVersion = version; // default: assume they match
+    try {
+      const propsPath = path.resolve(__dirname, '..', '..', '..', 'gradle.properties');
+      const props = fs.readFileSync(propsPath, 'utf8');
+      const m = props.match(/^\s*mod_version\s*=\s*(.+)$/m);
+      if (m) modVersion = m[1].trim();
+    } catch (_) {}
     return {
       version,
+      modVersion,
       electron: process.versions.electron,
       node:     process.versions.node,
       chrome:   process.versions.chrome,

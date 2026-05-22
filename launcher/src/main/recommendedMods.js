@@ -124,20 +124,59 @@ function pickVersion(versions, mcVersion) {
   return null;
 }
 
-/** True if a jar matching this slug already exists (enabled or disabled).
- *  We test against the file basename's lowercased prefix so "sodium-fabric-..."
- *  matches the "sodium" slug, etc. */
-function isAlreadyInstalled(slug, modsDir) {
+// ---- version-aware install manifest ----
+//
+// Stored at <gameDir>/config/fox-launcher/recommended-mods.json.
+// Shape: { slug → { mcVersion, filename } }
+//
+// On each install run we skip a mod only when BOTH:
+//   1. A jar with the slug prefix exists on disk, AND
+//   2. The manifest records it was installed for the CURRENT mcVersion.
+//
+// If the MC version changed (e.g. 26.1.1 → 26.1.2), the manifest entry
+// is stale → we delete the old jar and download the new one.
+
+function manifestPath(gameDir) {
+  return path.join(gameDir, 'config', 'fox-launcher', 'recommended-mods.json');
+}
+
+function readManifest(gameDir) {
+  try { return JSON.parse(fs.readFileSync(manifestPath(gameDir), 'utf8')); }
+  catch (_) { return {}; }
+}
+
+function writeManifest(gameDir, data) {
+  const p = manifestPath(gameDir);
+  try { fs.mkdirSync(path.dirname(p), { recursive: true }); } catch (_) {}
+  try { fs.writeFileSync(p + '.tmp', JSON.stringify(data, null, 2)); fs.renameSync(p + '.tmp', p); } catch (_) {}
+}
+
+/** Find any on-disk jar whose name starts with the slug (normalised).
+ *  Returns the full path, or null. */
+function findInstalledJar(slug, modsDir) {
   let entries;
-  try { entries = fs.readdirSync(modsDir); }
-  catch (_) { return false; }
+  try { entries = fs.readdirSync(modsDir); } catch (_) { return null; }
   const needle = slug.toLowerCase().replace(/-/g, '');
   for (const f of entries) {
     if (!/\.(jar|jar\.disabled)$/i.test(f)) continue;
-    const norm = f.toLowerCase().replace(/[-_.]/g, '');
-    if (norm.startsWith(needle)) return true;
+    if (f.toLowerCase().replace(/[-_.]/g, '').startsWith(needle)) return path.join(modsDir, f);
   }
-  return false;
+  return null;
+}
+
+/** Returns true only when the jar exists AND was recorded as installed for
+ *  the exact mcVersion we're targeting. */
+function isCurrentVersionInstalled(slug, modsDir, gameDir, mcVersion) {
+  const jarPath = findInstalledJar(slug, modsDir);
+  if (!jarPath) return false;
+  const m = readManifest(gameDir);
+  return m[slug] && m[slug].mcVersion === mcVersion;
+}
+
+/** Remove any on-disk jar matching this slug (old MC-version build). */
+function removeStaleJar(slug, modsDir) {
+  const jarPath = findInstalledJar(slug, modsDir);
+  if (jarPath) try { fs.unlinkSync(jarPath); } catch (_) {}
 }
 
 function writeAtomic(target, contents) {
@@ -161,9 +200,12 @@ async function installOne(slug, gameDir, mcVersion, opts = {}) {
   const modsDir = path.join(gameDir, 'mods');
   fs.mkdirSync(modsDir, { recursive: true });
 
-  if (isAlreadyInstalled(slug, modsDir)) {
+  if (isCurrentVersionInstalled(slug, modsDir, gameDir, mcVersion)) {
     return { slug, status: 'skipped' };
   }
+  // Jar exists but was built for a different MC version — remove it before
+  // downloading the correct one so we don't end up with two copies.
+  removeStaleJar(slug, modsDir);
 
   onProgress(`Looking up ${slug}…`);
   let versions;
@@ -202,6 +244,11 @@ async function installOne(slug, gameDir, mcVersion, opts = {}) {
 
   try { await writeAtomic(target, buf); }
   catch (err) { return { slug, status: 'error', error: err.message }; }
+
+  // Record what MC version this jar was built for so future runs can detect stale installs.
+  const mf = readManifest(gameDir);
+  mf[slug] = { mcVersion, filename: file.filename, installedAt: Date.now() };
+  writeManifest(gameDir, mf);
 
   return { slug, status: 'installed', file: file.filename };
 }
