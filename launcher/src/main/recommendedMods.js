@@ -278,4 +278,4 @@ function manifest() {
   return RECOMMENDED.map(m => ({ ...m }));
 }
 
-module.exports = { installOne, installAll, manifest, RECOMMENDED, isAlreadyInstalled };
+module.exports = { installOne, installAll, manifest, RECOMMENDED };

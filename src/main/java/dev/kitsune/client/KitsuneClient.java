@@ -13,7 +13,6 @@ import dev.kitsune.client.hud.HudEditorScreen;
 import dev.kitsune.client.hud.HudManager;
 import dev.kitsune.client.hud.VanillaHudProxies;
 import dev.kitsune.client.module.ModuleManager;
-import dev.kitsune.client.features.qol.FullBrightFeature;
 import dev.kitsune.client.features.qol.MapTooltipFeature;
 import dev.kitsune.client.features.qol.ShulkerTooltipFeature;
 import dev.kitsune.client.features.qol.ZoomFeature;
@@ -105,10 +104,12 @@ public class KitsuneClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_C,
                 FOX_CATEGORY
         ));
+        // Default UNBOUND — G collides with vanilla Open Social Interactions.
+        // Users rebind in Options → Controls if they want a quick toggle.
         fullBrightKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.full_bright",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_G,
+                InputConstants.UNKNOWN.getValue(),
                 FOX_CATEGORY
         ));
         clickGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -154,7 +155,9 @@ public class KitsuneClient implements ClientModInitializer {
         // were deleted in the module revamp — their functionality is either
         // covered by native modules in module/ or was never implemented.
         FeatureRegistry.register(new ZoomFeature());
-        FeatureRegistry.register(new FullBrightFeature());
+        // FullBrightFeature removed — superseded by FullBrightnessModule (module
+        // system). Registering both caused savedGamma to be clobbered when both
+        // owners enabled in sequence, locking gamma at 16.0 permanently.
         FeatureRegistry.register(new ShulkerTooltipFeature());
         FeatureRegistry.register(new MapTooltipFeature());
         // Optimization
@@ -166,6 +169,12 @@ public class KitsuneClient implements ClientModInitializer {
         // options is non-null and features can safely enable.
         if (!initialSyncDone && client.options != null) {
             FeatureRegistry.syncEnabledStates();
+            // Apply persisted native-module state now that mc.options is safe to
+            // touch. Done here (not in onInitializeClient) because modules like
+            // FullBrightness read mc.options.gamma() in their onEnable, which
+            // would NPE if loaded during construction.
+            try { ConfigManager.loadDeferred(); }
+            catch (Throwable t) { LOGGER.warn("[Fox] module config load failed: {}", t.toString()); }
             // Cosmetics manifest is bundled in the mod jar, so it's available
             // via the resource manager as soon as MC has finished constructing
             // the resource manager. Same defer point as the feature sync.
@@ -194,7 +203,9 @@ public class KitsuneClient implements ClientModInitializer {
         ProfileManager.tickAutoSave();
         // Quick toggles
         while (fullBrightKey.consumeClick()) {
-            FeatureRegistry.toggleForActiveProfile("full_bright");
+            // Toggle the native FullBrightnessModule via the module manager.
+            dev.kitsune.client.module.Module m = ModuleManager.getByName("Full Brightness");
+            if (m != null) m.toggle();
         }
         // Tick features
         FeatureRegistry.tickAll(client);

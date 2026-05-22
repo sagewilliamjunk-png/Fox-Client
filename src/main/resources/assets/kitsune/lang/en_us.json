@@ -46,5 +46,7 @@
   "key.kitsune.menu": "Open Fox Menu",
   "key.kitsune.zoom": "Zoom",
   "key.kitsune.full_bright": "Toggle Full Brightness",
+  "key.kitsune.clickgui": "Open ClickGUI",
+  "key.kitsune.hud_editor": "Open HUD Editor",
   "key.categories.kitsune": "Fox Client"
 }

@@ -224,8 +224,10 @@ function sanitize(p) {
     serverPort:         intOrNull(p.serverPort, 1, 65535),
     /** Override game directory for this profile. Worlds + configs stay
      *  separate from the user's global game dir. Empty = inherit.
-     *  IGNORED when {@code isolated} is true. */
-    gameDirOverride:    typeof p.gameDirOverride === 'string' ? p.gameDirOverride.slice(0, 1024).trim() : '',
+     *  IGNORED when {@code isolated} is true. Reject system paths (Windows,
+     *  Program Files, /etc, /usr) so an imported malicious profile can't
+     *  point launches at security-sensitive locations. */
+    gameDirOverride:    sanitizeGameDir(p.gameDirOverride),
     /** Isolation mode. When true, the launcher uses
      *  ~/.foxlauncher/instances/<id>/ as the gameDir AND the auth vault. This
      *  is the "totally separate identity" mode — different worlds, different
@@ -255,6 +257,31 @@ function sanitize(p) {
     lastPlayedAt:       typeof p.lastPlayedAt === 'number' ? p.lastPlayedAt : 0,
     lastVersion:        typeof p.lastVersion === 'string' ? p.lastVersion : '',
   };
+}
+
+/** Reject security-sensitive system directories so an imported profile cannot
+ *  point launches at e.g. C:\Windows\System32. Returns '' (use default) when
+ *  the input is missing or disallowed. */
+function sanitizeGameDir(raw) {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.slice(0, 1024).trim();
+  if (!trimmed) return '';
+  const path = require('path');
+  let resolved;
+  try { resolved = path.resolve(trimmed); }
+  catch (_) { return ''; }
+  const lower = resolved.toLowerCase();
+  const banned = [
+    'c:\\windows',
+    'c:\\program files',
+    'c:\\program files (x86)',
+    '/etc', '/usr', '/bin', '/sbin', '/lib', '/var',
+    '/system', '/private/etc', '/library/system',
+  ];
+  for (const b of banned) {
+    if (lower === b || lower.startsWith(b + path.sep) || lower.startsWith(b + '/')) return '';
+  }
+  return trimmed;
 }
 
 function sanitizeResolution(r) {
@@ -428,7 +455,7 @@ const TEMPLATES = {
       ramMin: 6, ramMax: 8,
       // Disable every gray-zone addon for tournament safety. Ids match
       // addons.js CATALOG.GRAYZONE_* constants — anything else is harmless.
-      disabledAddons: ['grayzone.reach_hud', 'grayzone.hitboxes', 'grayzone.anti_afk', 'grayzone.free_look'],
+      disabledAddons: ['grayzone.reach_display', 'grayzone.hitboxes', 'grayzone.anti_afk', 'grayzone.free_look'],
       keepKitsuneEnabled: true,
       resolution: { width: null, height: null, fullscreen: true },
       jvmArgs: '-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseStringDeduplication',
@@ -459,7 +486,7 @@ const TEMPLATES = {
     apply: () => ({
       isolated: false,
       keepKitsuneEnabled: false,
-      disabledAddons: ['grayzone.reach_hud', 'grayzone.hitboxes', 'grayzone.anti_afk', 'grayzone.free_look'],
+      disabledAddons: ['grayzone.reach_display', 'grayzone.hitboxes', 'grayzone.anti_afk', 'grayzone.free_look'],
     }),
   },
   blank: {

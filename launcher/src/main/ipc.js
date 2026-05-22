@@ -637,6 +637,33 @@ function register(getWindow) {
   // ---- screenshots ----
 
   /** Resolve the screenshots directory for a given profile (or the active one). */
+  /** True when `p` resolves to a location inside a known game/launcher dir.
+   *  Used by shell-open IPC handlers to refuse arbitrary paths from the renderer. */
+  function isInsideKnownGameLocation(p) {
+    let target;
+    try { target = path.resolve(p); }
+    catch (_) { return false; }
+    const s = settings.load();
+    const allowed = [
+      paths.root,
+      paths.defaultMinecraft(),
+      (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft(),
+    ];
+    try {
+      const doc = profiles.load();
+      for (const pr of (doc.profiles || [])) {
+        if (pr.isolated) allowed.push(paths.instanceDir(pr.id));
+        if (pr.gameDirOverride && pr.gameDirOverride.trim()) allowed.push(pr.gameDirOverride.trim());
+      }
+    } catch (_) {}
+    return allowed.some(a => {
+      try {
+        const root = path.resolve(a);
+        return target === root || target.startsWith(root + path.sep);
+      } catch (_) { return false; }
+    });
+  }
+
   function resolveScreenshotDir(profileId) {
     const s = settings.load();
     const id = profileId || s.selectedProfile;
@@ -712,9 +739,12 @@ function register(getWindow) {
     }
   });
 
-  /** Open the OS file manager with the screenshot file selected/highlighted. */
+  /** Open the OS file manager with the screenshot file selected/highlighted.
+   *  Restricted to paths inside known game directories (defense-in-depth
+   *  against a compromised renderer asking to reveal arbitrary OS paths). */
   ipcMain.handle('screenshots:reveal', (_e, filePath) => {
-    if (typeof filePath === 'string') shell.showItemInFolder(filePath);
+    if (typeof filePath !== 'string' || !isInsideKnownGameLocation(filePath)) return;
+    shell.showItemInFolder(filePath);
   });
 
   /** Open the screenshots folder for a given profile in the OS file manager. */
@@ -731,7 +761,13 @@ function register(getWindow) {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return;
     shell.openExternal(url);
   });
-  ipcMain.handle('shell:openPath', (_e, p) => shell.openPath(p));
+  /** Open a directory in the OS file manager.
+   *  Only paths inside known game/launcher locations are accepted — a renderer
+   *  XSS cannot use this to open C:\Windows\System32 etc. */
+  ipcMain.handle('shell:openPath', (_e, p) => {
+    if (typeof p !== 'string' || !isInsideKnownGameLocation(p)) return;
+    return shell.openPath(p);
+  });
 
   // ---- system probes (RAM ceiling for the Settings sliders, etc.) ----
   ipcMain.handle('system:ramInfo', () => {

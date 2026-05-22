@@ -40,6 +40,11 @@ public final class ConfigManager {
 
     private ConfigManager() {}
 
+    /** Initial directory/name setup. Safe to call during onInitializeClient —
+     *  does NOT touch any module state. The actual profile load is deferred to
+     *  {@link #loadDeferred()} on the first tick because {@code mc.options} is
+     *  still null mid-construction and modules like FullBrightness read it
+     *  during onEnable. */
     public static void init() {
         try {
             Files.createDirectories(profilesDir());
@@ -47,15 +52,19 @@ public final class ConfigManager {
             KitsuneClient.LOGGER.error("[Fox] failed to create profiles dir", e);
         }
         activeProfile = readActiveName();
+        KitsuneClient.LOGGER.info("[Fox] ConfigManager init (active profile: {})", activeProfile);
+    }
+
+    /** Apply the persisted module state. Call once after Minecraft has finished
+     *  constructing (mc.options != null) — i.e. from the first client tick. */
+    public static void loadDeferred() {
         Path p = profilePath(activeProfile);
         if (!Files.exists(p)) {
             // First run — snapshot current module state as "default"
             saveProfile(activeProfile);
         } else {
-            // Subsequent runs — restore saved module states from disk
             loadProfile(activeProfile);
         }
-        KitsuneClient.LOGGER.info("[Fox] ConfigManager init (active profile: {})", activeProfile);
     }
 
     public static void loadActiveProfile() {

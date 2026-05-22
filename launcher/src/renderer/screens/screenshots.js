@@ -207,8 +207,7 @@ function renderGallery() {
                      src="${esc(ss.fileUrl)}"
                      alt="${esc(ss.name)}"
                      loading="lazy"
-                     draggable="false"
-                     onerror="this.closest('.ss-card').classList.add('ss-card-broken')" />
+                     draggable="false" />
                 <div class="ss-card-overlay" aria-hidden="true">
                   <button class="ss-card-btn"
                           data-action="reveal" data-idx="${gIdx}"
@@ -228,6 +227,15 @@ function renderGallery() {
       </div>
     </div>
   `).join('');
+
+  // Wire per-image error handler (CSP forbids the inline onerror attribute,
+  // so we attach the listener here instead).
+  for (const img of gallery.querySelectorAll('img.ss-thumb')) {
+    img.addEventListener('error', () => {
+      const card = img.closest('.ss-card');
+      if (card) card.classList.add('ss-card-broken');
+    });
+  }
 
   // Wire card clicks and overlay buttons.
   for (const card of gallery.querySelectorAll('.ss-card')) {

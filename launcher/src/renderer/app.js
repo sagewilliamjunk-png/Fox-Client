@@ -64,7 +64,17 @@ async function boot() {
       'If this keeps happening, open DevTools (npm run dev) and check the Console tab for errors.'
     )), 15_000)
   );
-  const status = await Promise.race([authPromise, timeoutPromise]);
+  // Catch failures rather than letting them bubble out of boot() — a thrown
+  // error here would land in the top-level catch and wipe the entire DOM
+  // (splash, login, app, toasts) leaving a screen the user can't recover from.
+  // If auth fails or times out, treat it as "not signed in" and fall through
+  // to the login flow; the user can retry without restarting.
+  let status;
+  try { status = await Promise.race([authPromise, timeoutPromise]); }
+  catch (err) {
+    console.error('[Fox] auth boot failed:', err);
+    status = { signedIn: false, error: err && err.message };
+  }
   splash.classList.add('hidden');
 
   if (status && status.signedIn) {
