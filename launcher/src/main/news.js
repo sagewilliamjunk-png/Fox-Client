@@ -70,16 +70,20 @@ function fetchJson(urlStr) {
         return reject(new Error(`HTTP ${res.statusCode}`));
       }
       let bytes = 0;
+      let tooLarge = false;
       const chunks = [];
       res.on('data', (c) => {
         bytes += c.length;
         if (bytes > MAX_BYTES) {
-          req.destroy(new Error('news payload too large'));
+          tooLarge = true;
+          req.destroy();
+          reject(new Error('news payload too large'));
           return;
         }
         chunks.push(c);
       });
       res.on('end', () => {
+        if (tooLarge) return;
         try {
           const txt = Buffer.concat(chunks).toString('utf8');
           resolve(JSON.parse(txt));

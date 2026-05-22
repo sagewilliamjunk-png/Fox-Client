@@ -79,7 +79,7 @@ public final class GameStateBridge {
 
             // Current dimension key e.g. "minecraft:the_nether"
             if (client.level != null) {
-                String dim = client.level.dimension().location().toString();
+                String dim = client.level.dimension().identifier().toString();
                 obj.addProperty("dimension", dim);
             }
 

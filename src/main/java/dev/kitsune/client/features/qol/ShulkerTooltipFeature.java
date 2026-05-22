@@ -4,8 +4,10 @@ import dev.kitsune.client.features.FeatureRegistry;
 import dev.kitsune.client.features.FoxFeature;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
+import com.mojang.blaze3d.platform.InputConstants;
+import org.lwjgl.glfw.GLFW;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -63,9 +65,9 @@ public class ShulkerTooltipFeature implements FoxFeature {
         if (nonEmpty.isEmpty()) return;
 
         // Alt+Shift → visual grid is showing; suppress text entirely
-        if (Screen.hasAltDown() && Screen.hasShiftDown()) return;
+        if (isAltDown() && isShiftDown()) return;
 
-        if (Screen.hasShiftDown()) {
+        if (isShiftDown()) {
             // Compact count summary + hint for grid
             lines.add(Component.literal("Contains " + nonEmpty.size() + " stack" + (nonEmpty.size() == 1 ? "" : "s"))
                     .withStyle(ChatFormatting.GRAY));
@@ -73,5 +75,17 @@ public class ShulkerTooltipFeature implements FoxFeature {
                     .withStyle(ChatFormatting.DARK_GRAY));
         }
         // No modifier → no extra lines (vanilla tooltip only)
+    }
+
+    private static boolean isShiftDown() {
+        com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
+        return InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_SHIFT)
+            || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_SHIFT);
+    }
+
+    private static boolean isAltDown() {
+        com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
+        return InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_ALT)
+            || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_ALT);
     }
 }

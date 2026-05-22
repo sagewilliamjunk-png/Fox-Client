@@ -64,9 +64,11 @@ function upsert(profile) {
   const doc = load();
   const idx = doc.profiles.findIndex(p => p.id === cleaned.id);
   if (idx >= 0) {
-    // Merge — preserve fields the caller didn't set so partial PATCHes
-    // (e.g. just renaming) don't wipe disabledMods / lastPlayedAt.
-    doc.profiles[idx] = { ...doc.profiles[idx], ...cleaned };
+    // Merge the raw input over the existing profile, then sanitize the
+    // combined result.  This preserves fields the caller omitted (e.g.
+    // ramMin stays 4 when only `name` is passed) while still running
+    // all validation on the final object.
+    doc.profiles[idx] = sanitize({ ...doc.profiles[idx], ...profile });
   } else {
     doc.profiles.push(cleaned);
   }

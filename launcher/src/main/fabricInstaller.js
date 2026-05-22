@@ -15,68 +15,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const { URL } = require('url');
+const { fetchJson, fetchWithRetry, writeAtomic } = require('./httpClient');
 
 const META_BASE  = 'https://meta.fabricmc.net/v2';
 const MAVEN_FALLBACK = 'https://maven.fabricmc.net/';
 const MODRINTH_API = 'https://api.modrinth.com/v2';
 const FABRIC_API_PROJECT = 'P7dR8mSH'; // Fabric API Modrinth project ID
-const REQUEST_TIMEOUT_MS = 15_000;
-const MAX_RETRIES = 5;
-
-// ---- HTTP helpers ----
-
-function fetchBuffer(urlStr, attempt = 0) {
-  return new Promise((resolve, reject) => {
-    let u;
-    try { u = new URL(urlStr); } catch (e) { return reject(e); }
-    const req = https.request({
-      method: 'GET',
-      hostname: u.hostname,
-      port: u.port || 443,
-      path: u.pathname + u.search,
-      headers: { 'User-Agent': 'Fox-Launcher', Accept: '*/*' },
-      timeout: REQUEST_TIMEOUT_MS,
-    }, (res) => {
-      // Follow up to 5 redirects.
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && attempt < 5) {
-        res.resume();
-        const next = new URL(res.headers.location, urlStr).toString();
-        return fetchBuffer(next, attempt + 1).then(resolve, reject);
-      }
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        res.resume();
-        return reject(new Error(`HTTP ${res.statusCode} for ${urlStr}`));
-      }
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => resolve(Buffer.concat(chunks)));
-      res.on('error', reject);
-    });
-    req.on('error', reject);
-    req.on('timeout', () => req.destroy(new Error(`Request timed out: ${urlStr}`)));
-    req.end();
-  });
-}
-
-async function fetchWithRetry(urlStr) {
-  let lastErr;
-  for (let i = 0; i < MAX_RETRIES; i++) {
-    try { return await fetchBuffer(urlStr); }
-    catch (err) {
-      lastErr = err;
-      // Exponential backoff capped at 5 s — keeps the install responsive.
-      await new Promise(r => setTimeout(r, Math.min(5000, 250 * Math.pow(2, i))));
-    }
-  }
-  throw lastErr;
-}
-
-async function fetchJson(urlStr) {
-  const buf = await fetchWithRetry(urlStr);
-  return JSON.parse(buf.toString('utf8'));
-}
 
 // ---- Maven coordinate parsing ----
 
@@ -201,11 +145,19 @@ async function install(gameDir, mcVersion, opts = {}) {
  */
 async function installFabricApi(gameDir, mcVersion, onProgress = () => {}) {
   const modsDir = path.join(gameDir, 'mods');
-
-  // Check whether any fabric-api jar already exists.
   fs.mkdirSync(modsDir, { recursive: true });
-  const existing = fs.readdirSync(modsDir).find(f => /^fabric-api[-_]/i.test(f));
-  if (existing) return; // already installed
+
+  const entries = fs.readdirSync(modsDir);
+
+  // Skip if a jar for the exact MC version is already present.
+  if (entries.find(f => /^fabric-api[-_]/i.test(f) && f.includes(`+${mcVersion}`))) return;
+
+  // Remove stale fabric-api jars built for a different MC version.
+  for (const f of entries) {
+    if (/^fabric-api[-_]/i.test(f)) {
+      try { fs.unlinkSync(path.join(modsDir, f)); } catch (_) {}
+    }
+  }
 
   onProgress('Fetching Fabric API from Modrinth…', 100);
 
@@ -234,16 +186,6 @@ async function installFabricApi(gameDir, mcVersion, onProgress = () => {}) {
   const buf = await fetchWithRetry(primaryFile.url);
   await writeAtomic(dest, buf);
   onProgress(`Fabric API ${release.version_number} installed.`, 100);
-}
-
-function writeAtomic(target, contents) {
-  return new Promise((resolve, reject) => {
-    const tmp = target + '.tmp';
-    fs.writeFile(tmp, contents, (err) => {
-      if (err) return reject(err);
-      fs.rename(tmp, target, (e2) => e2 ? reject(e2) : resolve());
-    });
-  });
 }
 
 module.exports = { install, installFabricApi, latestStableLoader, profileForVersion };

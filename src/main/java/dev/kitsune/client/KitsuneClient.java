@@ -19,7 +19,7 @@ import dev.kitsune.client.features.qol.ShulkerTooltipFeature;
 import dev.kitsune.client.features.qol.ZoomFeature;
 import dev.kitsune.client.tooltip.ClientShulkerPreviewTooltip;
 import dev.kitsune.client.tooltip.ShulkerPreviewTooltip;
-import net.fabricmc.fabric.api.client.rendering.v1.TooltipComponentCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.ClientTooltipComponentCallback;
 import dev.kitsune.client.features.optimization.AdaptiveFpsLimitFeature;
 import dev.kitsune.client.screen.FoxMainMenuScreen;
 import dev.kitsune.client.server.ServerRuleStore;
@@ -127,7 +127,7 @@ public class KitsuneClient implements ClientModInitializer {
         // 3b. Register visual tooltip component for shulker box grid preview.
         //     Must be done at init (not per-feature enable) — the callback is
         //     global and just returns null for any TooltipComponent it doesn't own.
-        TooltipComponentCallback.EVENT.register(data -> {
+        ClientTooltipComponentCallback.EVENT.register(data -> {
             if (data instanceof ShulkerPreviewTooltip sp) return new ClientShulkerPreviewTooltip(sp);
             return null;
         });

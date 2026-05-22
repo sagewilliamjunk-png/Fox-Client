@@ -33,3 +33,7 @@ Thumbs.db
 "Fox art.png"
 "Fox-1.png.png"
 "transparant fox_2.png"
+TheRealFoxArt.png
+
+# Installer build artifacts
+*.exe

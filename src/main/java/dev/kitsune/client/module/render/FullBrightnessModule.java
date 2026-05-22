@@ -27,15 +27,15 @@ public class FullBrightnessModule extends Module {
     @Override
     protected void onEnable() {
         Minecraft mc = Minecraft.getInstance();
-        savedGamma = mc.options.gamma.get();
-        mc.options.gamma.set(FULL_BRIGHT_GAMMA);
+        savedGamma = mc.options.gamma().get();
+        mc.options.gamma().set(FULL_BRIGHT_GAMMA);
     }
 
     @Override
     protected void onDisable() {
         if (savedGamma < 0) return;
         Minecraft mc = Minecraft.getInstance();
-        mc.options.gamma.set(savedGamma);
+        mc.options.gamma().set(savedGamma);
         savedGamma = -1;
     }
 }

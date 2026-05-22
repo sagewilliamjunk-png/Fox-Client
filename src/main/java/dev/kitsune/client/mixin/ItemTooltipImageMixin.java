@@ -3,8 +3,10 @@ package dev.kitsune.client.mixin;
 import dev.kitsune.client.features.FeatureRegistry;
 import dev.kitsune.client.features.qol.ShulkerTooltipFeature;
 import dev.kitsune.client.tooltip.ShulkerPreviewTooltip;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
+import com.mojang.blaze3d.platform.InputConstants;
+import org.lwjgl.glfw.GLFW;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -40,7 +42,10 @@ public class ItemTooltipImageMixin {
             // Feature must be enabled
             if (!FeatureRegistry.isEnabled(ShulkerTooltipFeature.ID)) return;
             // Visual grid only on Alt+Shift
-            if (!Screen.hasAltDown() || !Screen.hasShiftDown()) return;
+            com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
+            boolean altDown   = InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_ALT)   || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_ALT);
+            boolean shiftDown = InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_SHIFT) || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_SHIFT);
+            if (!altDown || !shiftDown) return;
             // Must be a shulker box BlockItem
             if (!((Object) this instanceof BlockItem bi)) return;
             if (!(bi.getBlock() instanceof ShulkerBoxBlock)) return;
