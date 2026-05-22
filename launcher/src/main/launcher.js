@@ -21,11 +21,21 @@ const javaDownloader = require('./javaDownloader');
 const mcInstaller = require('./mcInstaller');
 const notifications = require('./notifications');
 
-/** The MC version the Fox Client jar is built against. Bump in lockstep with
- *  the mod's gradle.properties `minecraft_version`. When a profile targets a
- *  different version the Fox Client jar is skipped and the game launches with
- *  plain Fabric (or vanilla if Fabric isn't installed for that version). */
-const TARGET_MC_VERSION = '26.1.2';
+/** The MC version the Fox Client jar is built against.
+ *  Read directly from gradle.properties so bumping the version in one place
+ *  (the mod's build config) automatically updates the launcher too.
+ *  Falls back to a hardcoded value only if the file can't be read. */
+function readGradleMcVersion() {
+  try {
+    // launcher/src/main/launcher.js → launcher/src/main → launcher → project root
+    const propsPath = path.resolve(__dirname, '..', '..', '..', 'gradle.properties');
+    const text = fs.readFileSync(propsPath, 'utf8');
+    const match = text.match(/^\s*minecraft_version\s*=\s*(.+)$/m);
+    if (match) return match[1].trim();
+  } catch (_) {}
+  return '26.1.2'; // fallback — keep in sync manually only if gradle.properties moves
+}
+const TARGET_MC_VERSION = readGradleMcVersion();
 
 /** Return the MC version to use for a given profile.
  *  Falls back to TARGET_MC_VERSION when the profile has no override. */
