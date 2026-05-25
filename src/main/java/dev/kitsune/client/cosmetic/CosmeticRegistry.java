@@ -136,8 +136,17 @@ public final class CosmeticRegistry {
                     ANY_OWNER.add(uuid);
                 }
             }
-            KitsuneClient.LOGGER.info("[Fox] cosmetics: {} cape(s), {} owner(s)",
-                    CAPES.size(), OWNERSHIP.size());
+            // Verbose-but-bounded summary so the user (and future devs) can
+            // diagnose "my cape doesn't show up" without enabling DEBUG logs.
+            String capeIds = String.join(",", CAPES.keySet());
+            String sampleOwners = OWNERSHIP.keySet().stream()
+                    .limit(3)
+                    .map(UUID::toString)
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("(none)");
+            KitsuneClient.LOGGER.info(
+                    "[Fox] cosmetics: {} cape(s) [{}], {} owner(s), {} globally-granted cape(s), sample owners: {}",
+                    CAPES.size(), capeIds, OWNERSHIP.size(), GLOBAL_CAPES.size(), sampleOwners);
         }
     }
 

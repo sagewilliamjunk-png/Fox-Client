@@ -1,5 +1,6 @@
 package dev.kitsune.client.module.cosmetic;
 
+import dev.kitsune.client.KitsuneClient;
 import dev.kitsune.client.cosmetic.CosmeticRegistry;
 import dev.kitsune.client.core.KitsuneConfig;
 import dev.kitsune.client.module.Category;
@@ -9,6 +10,7 @@ import dev.kitsune.client.setting.ModeSetting;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -23,33 +25,44 @@ import java.util.UUID;
  *       {@link KitsuneConfig#selectedCapeId}.</li>
  * </ul>
  *
+ * <p>v1.2: dropped the {@code Field.setAccessible} reflection hack that silently
+ * failed against {@code ModeSetting}'s previously-final options list. The setting
+ * now exposes a public {@link ModeSetting#setOptions(List)} method and we call
+ * it directly. The "owned cape never appears in the dropdown" bug is gone with
+ * the reflection.
+ *
  * <p>Server-safe: the rendering swap happens client-side in a render-state
  * extraction mixin. No packets, no extra requests.
  */
 public class CapesModule extends Module {
+
+    private static final String NONE = "(none)";
 
     /** When false, the module renders nothing — vanilla cape behaviour returns. */
     private final BooleanSetting showOtherPlayers = addSetting(new BooleanSetting("Show On Other Players", true));
     /** Self-only opt-out for users who own a cape but don't want it visible to themselves. */
     private final BooleanSetting showOnSelf       = addSetting(new BooleanSetting("Show On Self", true));
 
-    /** Choice list — populated lazily so the registry has time to load. */
+    /** Choice list — re-synced from {@link CosmeticRegistry} each tick. */
     private final ModeSetting localCape;
+
+    /** Cached for sameContents() early-out — avoids touching the setting when
+     *  nothing has changed (which would no-op anyway but is wasted work). */
+    private List<String> lastSyncedOptions = List.of(NONE);
 
     public CapesModule() {
         super("Capes", "Render Fox Client cosmetic capes for owners", Category.COSMETIC);
-        // Seed the mode setting with at least the "(none)" option; we re-sync
-        // the option list each tick so newly-loaded capes show up without a
-        // restart.
-        this.localCape = addSetting(new ModeSetting("Local Cape", "(none)", List.of("(none)")));
-        // Rehydrate from persisted choice
+        this.localCape = addSetting(new ModeSetting("Local Cape", NONE, List.of(NONE)));
+
+        // Rehydrate from persisted choice. We don't have the registry loaded
+        // yet at construction time, so we just remember the desired value and
+        // syncOptions() below will apply it the moment the option list grows
+        // to include it.
         String persisted = KitsuneConfig.get().selectedCapeId;
         if (persisted != null && !persisted.isEmpty()) {
-            // Set raw — even if it's not yet in the option list, we'll widen on
-            // next tick. ModeSetting.set ignores values not in the list, so we
-            // bypass that by hot-swapping the options first.
-            ensureOption(persisted);
+            localCape.setOptions(List.of(NONE, persisted));
             localCape.set(persisted);
+            lastSyncedOptions = List.of(NONE, persisted);
         }
     }
 
@@ -59,26 +72,13 @@ public class CapesModule extends Module {
     /** Return the cape id the local player should currently render, or null. */
     public String localCapeId() {
         String v = localCape.get();
-        if (v == null || v.equals("(none)")) return null;
+        if (v == null || NONE.equals(v)) return null;
         return v;
     }
 
     @Override
     public void onTick() {
-        // Refresh the choice list from the registry so newly-granted capes
-        // (e.g. a fresh resource pack reload) appear immediately. Cheap —
-        // string list concat, runs once per tick only.
         syncOptions();
-    }
-
-    /** Insert {@code id} into the option list if absent, preserving order. */
-    private void ensureOption(String id) {
-        List<String> opts = localCape.options();
-        if (opts.contains(id)) return;
-        // ModeSetting.options is unmodifiable — rebuild via reflection-free
-        // path: instantiate a replacement setting under the same name. We
-        // can't actually replace the setting in-place without a registry
-        // shake-up, so instead we widen the list ahead of time in syncOptions.
     }
 
     private void syncOptions() {
@@ -88,63 +88,31 @@ public class CapesModule extends Module {
         if (self == null) return;
 
         List<String> wanted = new ArrayList<>();
-        wanted.add("(none)");
+        wanted.add(NONE);
         wanted.addAll(CosmeticRegistry.capesOwnedBy(self));
 
-        List<String> have = localCape.options();
-        if (sameContents(wanted, have)) return;
+        if (sameContents(wanted, lastSyncedOptions)) return;
+        lastSyncedOptions = List.copyOf(wanted);
 
-        // Replace the underlying ModeSetting with one carrying the new options
-        // by invoking the field setter directly. We take care to preserve the
-        // current value if it's still valid; otherwise reset to "(none)".
+        // Preserve the user's current choice if still valid; otherwise revert
+        // to "(none)" via setOptions' built-in fallback.
         String current = localCape.get();
-        if (!wanted.contains(current)) current = "(none)";
+        localCape.setOptions(wanted);
+        if (wanted.contains(current)) localCape.set(current);
 
-        // Mutate via a private field swap. ModeSetting exposes options() as a
-        // List.copyOf — we can't add to it. So instead we publish a NEW
-        // ModeSetting with the same name, copying the chosen value across.
-        // The settings list lives on Module; index lookup keeps stable order.
-        replaceSetting();
+        // Persist current selection so it survives a restart.
+        KitsuneConfig cfg = KitsuneConfig.get();
+        String now = localCape.get();
+        String toStore = NONE.equals(now) ? "" : now;
+        if (!Objects.equals(cfg.selectedCapeId, toStore)) {
+            cfg.selectedCapeId = toStore;
+            KitsuneConfig.save();
+        }
     }
 
     private static boolean sameContents(List<String> a, List<String> b) {
         if (a.size() != b.size()) return false;
         for (int i = 0; i < a.size(); i++) if (!a.get(i).equals(b.get(i))) return false;
         return true;
-    }
-
-    /** Rebuild the ModeSetting with a refreshed option list. Safe to call
-     *  every tick — early-outs in {@link #syncOptions} avoid the work when
-     *  the list hasn't changed. */
-    private void replaceSetting() {
-        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        UUID self = (mc != null && mc.player != null) ? mc.player.getUUID() : null;
-        if (self == null) return;
-
-        List<String> opts = new ArrayList<>();
-        opts.add("(none)");
-        opts.addAll(CosmeticRegistry.capesOwnedBy(self));
-
-        String current = localCape.get();
-        if (!opts.contains(current)) current = "(none)";
-
-        // Surgically patch the options + value via reflection on ModeSetting.
-        // We avoid this if a public setter ever lands.
-        try {
-            var optsField = localCape.getClass().getDeclaredField("options");
-            optsField.setAccessible(true);
-            optsField.set(localCape, List.copyOf(opts));
-            localCape.set(current);
-        } catch (Throwable ignored) {
-            // Reflection failed — leave the setting alone. The user can still
-            // pick their cape next launch when init seeds the right options.
-        }
-
-        // Persist current selection so it survives a restart.
-        KitsuneConfig cfg = KitsuneConfig.get();
-        if (!java.util.Objects.equals(cfg.selectedCapeId, current)) {
-            cfg.selectedCapeId = "(none)".equals(current) ? "" : current;
-            KitsuneConfig.save();
-        }
     }
 }
