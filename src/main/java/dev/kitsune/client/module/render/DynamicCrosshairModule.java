@@ -42,6 +42,12 @@ public class DynamicCrosshairModule extends Module {
     private final ColorSetting   hostileColor = addSetting(new ColorSetting("Hostile Color",  0xFFFF4444));
     private final ColorSetting   friendColor  = addSetting(new ColorSetting("Friendly Color", 0xFF44FF44));
     private final ColorSetting   blockColor   = addSetting(new ColorSetting("Block Color",    0xFFFFFF44));
+    // Extra tiers — fine-grained colour for usable blocks (chests/furnaces),
+    // interactable mobs (villagers), and other players. Precedence in colour
+    // resolution: player > hostile > usable > interactable > block > default.
+    private final ColorSetting   usableColor       = addSetting(new ColorSetting("Usable Color",       0xFF66B2FF));
+    private final ColorSetting   interactableColor = addSetting(new ColorSetting("Interactable Color", 0xFFFFAA66));
+    private final ColorSetting   playerColor       = addSetting(new ColorSetting("Player Color",       0xFFFF66FF));
 
     private final Consumer<RenderHudEvent> renderHandler = this::onRender;
 
@@ -72,9 +78,32 @@ public class DynamicCrosshairModule extends Module {
             if (hit != null) {
                 if (hit.getType() == HitResult.Type.ENTITY && hit instanceof EntityHitResult ehr) {
                     Entity target = ehr.getEntity();
-                    color = (target instanceof Monster) ? hostileColor.get() : friendColor.get();
-                } else if (hit.getType() == HitResult.Type.BLOCK) {
-                    color = blockColor.get();
+                    // Precedence: player > hostile > interactable > friendly.
+                    if (target instanceof net.minecraft.world.entity.player.Player) {
+                        color = playerColor.get();
+                    } else if (target instanceof Monster) {
+                        color = hostileColor.get();
+                    } else if (isInteractable(target)) {
+                        color = interactableColor.get();
+                    } else {
+                        color = friendColor.get();
+                    }
+                } else if (hit.getType() == HitResult.Type.BLOCK
+                        && hit instanceof net.minecraft.world.phys.BlockHitResult bhr) {
+                    // Usable = the block has a MenuProvider (chest/furnace/anvil/etc.)
+                    // Fall back to "block" colour for anything else.
+                    if (mc.level != null) {
+                        var state = mc.level.getBlockState(bhr.getBlockPos());
+                        if (state.getBlock() instanceof net.minecraft.world.MenuProvider
+                                || state.hasBlockEntity()
+                                && mc.level.getBlockEntity(bhr.getBlockPos()) instanceof net.minecraft.world.MenuProvider) {
+                            color = usableColor.get();
+                        } else {
+                            color = blockColor.get();
+                        }
+                    } else {
+                        color = blockColor.get();
+                    }
                 }
             }
         }
@@ -191,5 +220,16 @@ public class DynamicCrosshairModule extends Module {
                 }
             }
         }
+    }
+
+    /** True for entities the player can right-click to interact with in a
+     *  meaningful way — villagers (trade), iron golems (toss flowers), any
+     *  Animal (breed / leash / shear / saddle). On MC 26.1.x these packages
+     *  moved (IronGolem is now under animal/golem; AbstractVillager is under
+     *  npc/villager); we use the moved paths directly. */
+    private static boolean isInteractable(Entity e) {
+        return e instanceof net.minecraft.world.entity.npc.villager.AbstractVillager
+                || e instanceof net.minecraft.world.entity.animal.golem.IronGolem
+                || e instanceof net.minecraft.world.entity.animal.Animal;
     }
 }
