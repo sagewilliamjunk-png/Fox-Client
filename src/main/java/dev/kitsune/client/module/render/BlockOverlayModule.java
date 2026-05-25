@@ -25,8 +25,11 @@ public class BlockOverlayModule extends Module {
     private final ColorSetting   outlineColor = addSetting(new ColorSetting("Outline Color", 0xFFFFFFFF));
     private final ColorSetting   fillColor    = addSetting(new ColorSetting("Fill Color",    0x30FFFFFF));
     private final SliderSetting  lineWidth    = addSetting(new SliderSetting("Line Width", 2.0, 0.5, 5.0, 0.5));
+    // "Dashed" and "Glow" were removed in v1.2 — neither had a mixin
+    // implementation so picking them did nothing. Re-add them once the
+    // BlockOverlayMixin actually honours per-style line rendering.
     private final ModeSetting    style        = addSetting(new ModeSetting("Style", "Solid",
-            List.of("Solid", "Dashed", "Glow")));
+            List.of("Solid")));
 
     public BlockOverlayModule() {
         super("Block Overlay", "Custom block selection outline with fill and colour options", Category.RENDER);

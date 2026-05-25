@@ -143,7 +143,7 @@ public class LootHistoryModule extends Module implements HudWidget {
             int delta = e.getValue() - prev;
             if (delta > 0) {
                 if (ignoreCommon.get() && isCommon(e.getKey())) continue;
-                String name = e.getKey().getName(new net.minecraft.world.item.ItemStack(e.getKey())).getString();
+                String name = safeItemName(e.getKey());
                 LootHistory.record(name, delta);
                 if (showToast.get()) {
                     long expires = System.currentTimeMillis() + (long)(toastDuration.get() * 1000);
@@ -158,6 +158,26 @@ public class LootHistoryModule extends Module implements HudWidget {
     }
 
     // ---- helpers ----
+
+    /** Defensive name lookup. Modded items can throw or return null from their
+     *  default-instance / hover-name path; fall back to the registry id so we
+     *  never NPE on pickup. Uses getDefaultInstance() to avoid the per-pickup
+     *  ItemStack allocation the old path had. */
+    private static String safeItemName(Item item) {
+        try {
+            net.minecraft.world.item.ItemStack stack = item.getDefaultInstance();
+            if (stack != null) {
+                var hover = stack.getHoverName();
+                if (hover != null) return hover.getString();
+            }
+        } catch (Throwable ignored) {}
+        try {
+            var key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
+            return key != null ? key.getPath() : "unknown";
+        } catch (Throwable ignored) {
+            return "unknown";
+        }
+    }
 
     private static boolean isCommon(Item item) {
         String path = item.toString().toLowerCase();

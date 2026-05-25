@@ -20,7 +20,8 @@ public class MenuBlurModule extends Module {
     private static MenuBlurModule INSTANCE;
 
     private final SliderSetting  darkness    = addSetting(new SliderSetting("Darkness",    0.55, 0.0, 0.9, 0.05));
-    private final SliderSetting  blurRadius  = addSetting(new SliderSetting("Blur Radius",  6,   0,   16,  1));
+    // blurRadius removed — no GLSL pass behind it in v1.1. Re-added in v1.2
+    // commit 5 when the kitsune_blur_h/v shader chain lands.
     private final BooleanSetting vignette    = addSetting(new BooleanSetting("Vignette",   true));
     private final SliderSetting  vigStrength = addSetting(new SliderSetting("Vignette Strength", 0.4, 0.0, 1.0, 0.05));
     private final ColorSetting   tintColor   = addSetting(new ColorSetting("Tint Color",   0x00000000));
@@ -45,11 +46,10 @@ public class MenuBlurModule extends Module {
         return INSTANCE.animatedDarkness();
     }
 
-    /** Desired pixel blur radius, 0 when disabled. */
-    public static double blurRadius() {
-        if (INSTANCE == null || !INSTANCE.isEnabled()) return 0;
-        return INSTANCE.blurRadius.get();
-    }
+    /** Desired pixel blur radius, 0 when disabled. v1.2 commit 5 wires this
+     *  to a real Gaussian post-process pass; for now it returns 0 so any
+     *  caller short-circuits cleanly. */
+    public static double blurRadius() { return 0; }
 
     /** Whether to draw the extra vignette inside the screen border. */
     public static boolean vignetteEnabled() {

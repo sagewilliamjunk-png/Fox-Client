@@ -16,9 +16,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * Heap-usage display with optional automatic cleanup.
  *
  * <p>When enabled, shows a bar + percentage of the JVM's used heap vs. max.
- * When "Auto Clean" is on, triggers {@code System.gc()} and pushes a soft
- * reference flush when usage exceeds the threshold — with a cooldown so
- * repeated GCs can't thrash.
+ * When "Auto Clean" is on, calls {@code System.gc()} when usage exceeds the
+ * threshold — with a cooldown so repeated GCs can't thrash. A soft-reference
+ * flush was originally planned but never implemented; we deliberately do NOT
+ * do that here because the heap impact on modern G1/ZGC is negligible and the
+ * pause cost dwarfs any benefit.
  *
  * <p>{@code System.gc()} is a hint, not a guarantee; it's safe and widely used
  * in Minecraft clients for manual "free memory" actions. This module does NOT

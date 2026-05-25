@@ -67,7 +67,7 @@ public class EntityCountHudModule extends Module implements HudWidget {
             t++;
             if (e instanceof Player) p++;
             else if (e instanceof LivingEntity) l++;
-            else if (e.getType().toString().contains("item")) i++;
+            else if (e instanceof net.minecraft.world.entity.item.ItemEntity) i++;
         }
         total = t; living = l; players = p; items = i;
     }

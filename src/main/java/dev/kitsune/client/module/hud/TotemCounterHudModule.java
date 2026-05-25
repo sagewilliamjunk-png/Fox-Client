@@ -11,7 +11,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -67,16 +66,13 @@ public class TotemCounterHudModule extends Module implements HudWidget {
         int n = 0;
         var inv = p.getInventory();
         int size = inv.getContainerSize();
+        // On MC 1.20.5+ Inventory.getContainerSize() returns 41:
+        //   36 main + 4 armor + 1 offhand
+        // So iterating 0..size-1 already covers the offhand slot at index 40 —
+        // no separate offhand probe needed (and adding one would double-count).
         for (int i = 0; i < size; i++) {
             ItemStack s = inv.getItem(i);
             if (!s.isEmpty() && s.getItem() == Items.TOTEM_OF_UNDYING) n += s.getCount();
-        }
-        // Off-hand is usually covered by containerSize on 1.21, but guard anyway
-        ItemStack off = p.getItemBySlot(EquipmentSlot.OFFHAND);
-        if (!off.isEmpty() && off.getItem() == Items.TOTEM_OF_UNDYING) {
-            // Avoid double-counting: if off-hand slot appears in inventory, skip
-            // (getInventory() on 1.21 includes offhand at the end; be defensive)
-            // No reliable portable check — trust container traversal above.
         }
         totalTotems = n;
     }

@@ -87,9 +87,11 @@ public class PotionTimersModule extends Module implements HudWidget {
             return false;
         });
 
-        // Sort
+        // Sort — Duration is descending (longest first) so the effects about to
+        // expire end up at the bottom, matching Lunar/Badlion behaviour.
         switch (sortMode.get()) {
-            case "Duration"     -> effects.sort(Comparator.comparingInt(e -> e.isInfiniteDuration() ? Integer.MAX_VALUE : e.getDuration()));
+            case "Duration"     -> effects.sort(Comparator.<MobEffectInstance>comparingInt(
+                    e -> e.isInfiniteDuration() ? Integer.MAX_VALUE : e.getDuration()).reversed());
             case "Alphabetical" -> effects.sort(Comparator.comparing(e -> effectName(e)));
             case "Category"     -> effects.sort(Comparator.comparing(e -> e.getEffect().value().getCategory().name()));
         }

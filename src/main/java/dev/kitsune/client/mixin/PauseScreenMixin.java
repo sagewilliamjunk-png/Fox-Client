@@ -39,7 +39,7 @@ public abstract class PauseScreenMixin extends Screen {
                     btn -> Minecraft.getInstance().setScreen(new FoxSettingsScreen((PauseScreen) (Object) this))
             ).bounds(this.width - 104, 6, 98, 18).build());
         } catch (Throwable t) {
-            System.err.println("[Fox] PauseScreenMixin add settings button failed: " + t);
+            dev.kitsune.client.KitsuneClient.LOGGER.warn("[Fox] PauseScreenMixin add settings button failed: {}", t.toString());
         }
     }
 
@@ -79,7 +79,7 @@ public abstract class PauseScreenMixin extends Screen {
             this.disconnectButton = replacement;
             this.addRenderableWidget(replacement);
         } catch (Throwable t) {
-            System.err.println("[Fox] PauseScreenMixin failed: " + t);
+            dev.kitsune.client.KitsuneClient.LOGGER.warn("[Fox] PauseScreenMixin failed: {}", t.toString());
         }
     }
 }
