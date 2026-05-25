@@ -7,8 +7,13 @@ import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.StringSetting;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +33,10 @@ public class ChatHighlightsModule extends Module {
     private final BooleanSetting highlightKeys   = addSetting(new BooleanSetting("Highlight Keywords", true));
     private final BooleanSetting wholeWord       = addSetting(new BooleanSetting("Whole Word Only",   false));
     private final BooleanSetting caseSensitive   = addSetting(new BooleanSetting("Case Sensitive",    false));
+    /** When on, each comma-separated entry is treated as a Java regex pattern.
+     *  Compiled lazily and cached in {@link #patternCache}. Invalid patterns
+     *  log a warning and fall back to literal matching for that entry. */
+    private final BooleanSetting useRegex        = addSetting(new BooleanSetting("Use Regex", false));
     private final ColorSetting   nameColor       = addSetting(new ColorSetting("Name Colour",    0xFFFFCC00));
     private final ColorSetting   keywordColor    = addSetting(new ColorSetting("Keyword Colour", 0xFFFFFF44));
     private final ModeSetting    soundType       = addSetting(new ModeSetting("Sound Type", "Ping",
@@ -76,6 +85,43 @@ public class ChatHighlightsModule extends Module {
     public void   setKeywordList(String v) { keywords.set(v); }
 
     public String getSoundType() { return soundType.get(); }
+
+    public boolean isRegexEnabled() { return useRegex.get(); }
+
+    /** Cached regex patterns keyed by raw pattern string. Invalidated whenever
+     *  the regex toggle flips or the keyword string changes (handled below by
+     *  string-identity comparison in {@link #getCompiledPatterns}). */
+    private final Map<String, Pattern> patternCache = new HashMap<>();
+    private String cachedKeywordSource = null;
+    private boolean cachedRegexFlag = false;
+
+    /** Returns compiled patterns when regex mode is on. Each cache miss tries
+     *  to compile; a Pattern.LITERAL fallback is stored on failure so the
+     *  caller still gets a substring match. */
+    public List<Pattern> getCompiledPatterns() {
+        if (!useRegex.get()) return List.of();
+        String src = keywords.get();
+        // Rebuild only when the source string OR regex toggle changed.
+        if (src.equals(cachedKeywordSource) && cachedRegexFlag == useRegex.get()) {
+            return new ArrayList<>(patternCache.values());
+        }
+        patternCache.clear();
+        cachedKeywordSource = src;
+        cachedRegexFlag = useRegex.get();
+        int flags = caseSensitive.get() ? 0 : Pattern.CASE_INSENSITIVE;
+        for (String raw : getParsedKeywords()) {
+            try {
+                patternCache.put(raw, Pattern.compile(raw, flags));
+            } catch (PatternSyntaxException pse) {
+                // Fall back to literal so the user still gets some match.
+                patternCache.put(raw, Pattern.compile(Pattern.quote(raw), flags));
+                dev.kitsune.client.KitsuneClient.LOGGER.warn(
+                        "[ChatHighlights] invalid regex '{}': {} — using literal fallback",
+                        raw, pse.getDescription());
+            }
+        }
+        return new ArrayList<>(patternCache.values());
+    }
 
     // ---- helpers ----
 

@@ -40,11 +40,16 @@ public class WeaponSwapReminderModule extends Module {
 
     private final BooleanSetting onceMode    = addSetting(new BooleanSetting("Once Per Combat", true));
     private final SliderSetting  graceTicks  = addSetting(new SliderSetting("Combat Window (ticks)", 80, 20, 200, 10));
+    // Half-hearts threshold — only warn when the hit took at least N HP. Default 1
+    // (any damage) preserves the v1.1 behaviour; raising it filters out tiny
+    // poison ticks / 1-damage projectile grazes from quiet AFK damage.
+    private final SliderSetting  damageThreshold = addSetting(new SliderSetting("Damage Threshold (HP)", 1, 0, 20, 1));
     private final BooleanSetting warnFood    = addSetting(new BooleanSetting("Warn on Food",   true));
     private final BooleanSetting warnTool    = addSetting(new BooleanSetting("Warn on Tools",  true));
     private final BooleanSetting warnEmpty   = addSetting(new BooleanSetting("Warn on Empty Hand", false));
 
     private int prevHurtTime = 0;
+    private float prevHealth = -1f;
     private int inCombatTicks = 0; // counts down; 0 = not in combat
     private boolean warnedThisBout = false;
 
@@ -57,6 +62,7 @@ public class WeaponSwapReminderModule extends Module {
     @Override
     protected void onDisable() {
         prevHurtTime = 0;
+        prevHealth = -1f;
         inCombatTicks = 0;
         warnedThisBout = false;
     }
@@ -67,12 +73,22 @@ public class WeaponSwapReminderModule extends Module {
         LocalPlayer p = mc.player;
         if (p == null) return;
 
-        // Detect hurt edge
+        // Detect hurt edge + measured damage. Without a damage measurement,
+        // poison/wither ticks would qualify; with one we can ignore them.
         int ht = p.hurtTime;
         boolean justHurt = ht > prevHurtTime;
         prevHurtTime = ht;
+        float health = p.getHealth();
+        float dmg = (prevHealth >= 0f && health < prevHealth) ? (prevHealth - health) : 0f;
+        prevHealth = health;
 
-        if (justHurt || p.getLastHurtByMob() != null) {
+        int threshold = damageThreshold.get().intValue();
+        boolean qualifyingHit = justHurt && dmg >= threshold;
+        // If lastHurtByMob is set (entity attack), accept it regardless of
+        // measured damage — that signal is fully reliable from the server.
+        boolean inCombatTrigger = qualifyingHit || p.getLastHurtByMob() != null;
+
+        if (inCombatTrigger) {
             // Reset (or start) combat window
             if (inCombatTicks == 0) warnedThisBout = false;
             inCombatTicks = graceTicks.get().intValue();
