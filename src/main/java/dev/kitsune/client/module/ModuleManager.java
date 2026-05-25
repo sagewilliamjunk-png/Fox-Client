@@ -13,7 +13,7 @@ import dev.kitsune.client.module.hud.CoordsHudModule;
 import dev.kitsune.client.module.hud.CpsHudModule;
 import dev.kitsune.client.module.hud.DeathCoordsHudModule;
 import dev.kitsune.client.module.hud.EntityCountHudModule;
-import dev.kitsune.client.module.hud.EntityRadarModule;
+import dev.kitsune.client.module.hud.MinimapModule;
 import dev.kitsune.client.module.hud.TargetHudModule;
 import dev.kitsune.client.module.hud.PerfDashboardModule;
 import dev.kitsune.client.module.hud.XpHudModule;
@@ -157,7 +157,10 @@ public final class ModuleManager {
         register(new PingBarsModule()); // opt-in coloured bars alongside numeric ping
 
         // ---- Radar + entity awareness ----
-        register(new EntityRadarModule());
+        // v1.2: EntityRadar was merged into MinimapModule (Dots mode preserves
+        // the old radar behaviour). Old "entity_radar" widget id will not exist
+        // in saved profiles; the new "minimap" id starts fresh on first launch.
+        register(new MinimapModule());
         register(new TargetHudModule());
 
         // ---- Performance ----
