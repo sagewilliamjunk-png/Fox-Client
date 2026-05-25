@@ -13,13 +13,9 @@ import dev.kitsune.client.hud.HudEditorScreen;
 import dev.kitsune.client.hud.HudManager;
 import dev.kitsune.client.hud.VanillaHudProxies;
 import dev.kitsune.client.module.ModuleManager;
-import dev.kitsune.client.features.qol.MapTooltipFeature;
-import dev.kitsune.client.features.qol.ShulkerTooltipFeature;
-import dev.kitsune.client.features.qol.ZoomFeature;
 import dev.kitsune.client.tooltip.ClientShulkerPreviewTooltip;
 import dev.kitsune.client.tooltip.ShulkerPreviewTooltip;
 import net.fabricmc.fabric.api.client.rendering.v1.ClientTooltipComponentCallback;
-import dev.kitsune.client.features.optimization.AdaptiveFpsLimitFeature;
 import dev.kitsune.client.screen.FoxMainMenuScreen;
 import dev.kitsune.client.server.ServerRuleStore;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -157,19 +153,17 @@ public class KitsuneClient implements ClientModInitializer {
     }
 
     private void registerFeatures() {
-        // QoL — only legacy features that actually do something. The stub
-        // FoxFeatures (ArmorHud, ChatHeads, LowFire, LowShield, ArmorTrims,
-        // ContainerRecolor, CapitalizedFont, SimpleCulling, ParticleCull)
-        // were deleted in the module revamp — their functionality is either
-        // covered by native modules in module/ or was never implemented.
-        FeatureRegistry.register(new ZoomFeature());
-        // FullBrightFeature removed — superseded by FullBrightnessModule (module
-        // system). Registering both caused savedGamma to be clobbered when both
-        // owners enabled in sequence, locking gamma at 16.0 permanently.
-        FeatureRegistry.register(new ShulkerTooltipFeature());
-        FeatureRegistry.register(new MapTooltipFeature());
-        // Optimization
-        FeatureRegistry.register(new AdaptiveFpsLimitFeature());
+        // v1.2: All four remaining legacy features (Zoom, ShulkerTooltip,
+        // MapTooltip, AdaptiveFpsLimit) were ported into proper Modules under
+        // dev.kitsune.client.module.misc.*. They register themselves via
+        // ModuleManager.init() in onInitializeClient (the call above), so
+        // there's nothing to add here anymore.
+        //
+        // The FeatureRegistry / FoxFeature / LegacyFeatureModule infrastructure
+        // is left in place as a no-op shell so older mixins and per-profile
+        // config keys keep compiling. The full removal of that infrastructure
+        // is scheduled for v1.3 once we've verified no in-the-wild config
+        // depends on the old shape.
     }
 
     private void onClientTick(Minecraft client) {

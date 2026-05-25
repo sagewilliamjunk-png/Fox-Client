@@ -123,6 +123,14 @@ public final class ModuleManager {
         register(new DeathScreenModule());
         register(new LootHistoryModule());
 
+        // v1.2: legacy FoxFeature ports — Zoom, ShulkerTooltip, MapTooltip,
+        // AdaptiveFpsLimit. The classes in client/features/ are no longer
+        // registered with FeatureRegistry; these native modules replace them.
+        register(new dev.kitsune.client.module.misc.ZoomModule());
+        register(new dev.kitsune.client.module.misc.ShulkerTooltipModule());
+        register(new dev.kitsune.client.module.misc.MapTooltipModule());
+        register(new dev.kitsune.client.module.misc.AdaptiveFpsLimitModule());
+
         // ---- Step 7G B-tier additions ----
         register(new PaperDollHudModule());
         register(new ShieldStatusHudModule());

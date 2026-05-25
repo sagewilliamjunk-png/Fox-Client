@@ -1,60 +1,66 @@
-package dev.kitsune.client.features.qol;
+package dev.kitsune.client.module.misc;
 
-import dev.kitsune.client.features.FeatureRegistry;
-import dev.kitsune.client.features.FoxFeature;
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.kitsune.client.module.Category;
+import dev.kitsune.client.module.Module;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
-import com.mojang.blaze3d.platform.InputConstants;
-import org.lwjgl.glfw.GLFW;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Shulker-box (and other container item) tooltip improvements.
+ * Shulker-box (and other container item) tooltip improvements. Ported from
+ * the legacy {@code ShulkerTooltipFeature} into the proper module system in v1.2.
  *
  * <ul>
- *   <li><b>Default</b> — compact "Contains N stack(s)" summary line plus a
- *       keybind hint.</li>
- *   <li><b>Shift held</b> — full item list (count × name) for every non-empty
- *       slot.</li>
- *   <li><b>Alt held</b> — the visual 9×3 grid is rendered by
- *       {@link dev.kitsune.client.tooltip.ClientShulkerPreviewTooltip} (injected
- *       via {@link dev.kitsune.client.mixin.ItemTooltipImageMixin}); the text
- *       tooltip is suppressed to avoid clutter.</li>
+ *   <li><b>Default</b> — vanilla tooltip only.</li>
+ *   <li><b>Shift held</b> — adds a "Contains N stack(s)" line + hint that
+ *       Alt+Shift shows the full visual grid.</li>
+ *   <li><b>Alt+Shift held</b> — the visual 9×3 grid is rendered by
+ *       {@link dev.kitsune.client.tooltip.ClientShulkerPreviewTooltip}
+ *       (injected via {@link dev.kitsune.client.mixin.ItemTooltipImageMixin});
+ *       text tooltip is suppressed to avoid clutter.</li>
  * </ul>
+ *
+ * <p>Both the Fabric tooltip callback and the mixin's image-injection path
+ * check {@link #isActive()} so the module can be toggled at runtime without
+ * needing to unregister the callback.
  */
-public class ShulkerTooltipFeature implements FoxFeature {
+public class ShulkerTooltipModule extends Module {
 
-    public static final String ID = "shulker_tooltip";
+    public static final String MODULE_NAME = "Shulker Tooltip";
+    private static volatile ShulkerTooltipModule INSTANCE = null;
     private static boolean callbackRegistered = false;
 
-    @Override public String id()             { return ID; }
-    @Override public String displayName()    { return "Shulker Box Tooltip"; }
-    @Override public boolean defaultEnabled(){ return true; }
-    @Override public String category()       { return "qol"; }
-
-    @Override
-    public void onEnable() {
+    public ShulkerTooltipModule() {
+        super(MODULE_NAME, "Compact stack count on Shift; full 9×3 grid on Alt+Shift.", Category.MISC);
+        INSTANCE = this;
         ensureCallbackRegistered();
+    }
+
+    /** True when the module is registered, enabled, and not server-suppressed.
+     *  Read by both the tooltip callback and ItemTooltipImageMixin. */
+    public static boolean isActive() {
+        return INSTANCE != null && INSTANCE.isEffectivelyEnabled();
     }
 
     private static void ensureCallbackRegistered() {
         if (callbackRegistered) return;
         callbackRegistered = true;
-        ItemTooltipCallback.EVENT.register(ShulkerTooltipFeature::appendTooltip);
+        ItemTooltipCallback.EVENT.register(ShulkerTooltipModule::appendTooltip);
     }
 
-    private static void appendTooltip(ItemStack stack, Object ctx, Object flag,
-                                      List<Component> lines) {
-        if (!FeatureRegistry.isEnabled(ID)) return;
+    private static void appendTooltip(ItemStack stack, Object ctx, Object flag, List<Component> lines) {
+        if (!isActive()) return;
         if (!(stack.getItem() instanceof BlockItem bi)) return;
         if (!(bi.getBlock() instanceof ShulkerBoxBlock)) return;
 
@@ -64,17 +70,15 @@ public class ShulkerTooltipFeature implements FoxFeature {
         List<ItemStack> nonEmpty = contents.nonEmptyItemCopyStream().collect(Collectors.toList());
         if (nonEmpty.isEmpty()) return;
 
-        // Alt+Shift → visual grid is showing; suppress text entirely
+        // Alt+Shift → visual grid is showing; suppress text entirely.
         if (isAltDown() && isShiftDown()) return;
 
         if (isShiftDown()) {
-            // Compact count summary + hint for grid
             lines.add(Component.literal("Contains " + nonEmpty.size() + " stack" + (nonEmpty.size() == 1 ? "" : "s"))
                     .withStyle(ChatFormatting.GRAY));
             lines.add(Component.literal("Alt+Shift: view full contents")
                     .withStyle(ChatFormatting.DARK_GRAY));
         }
-        // No modifier → no extra lines (vanilla tooltip only)
     }
 
     private static boolean isShiftDown() {

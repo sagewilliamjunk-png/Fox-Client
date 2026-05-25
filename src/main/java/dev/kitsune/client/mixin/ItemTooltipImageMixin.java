@@ -1,7 +1,6 @@
 package dev.kitsune.client.mixin;
 
-import dev.kitsune.client.features.FeatureRegistry;
-import dev.kitsune.client.features.qol.ShulkerTooltipFeature;
+import dev.kitsune.client.module.misc.ShulkerTooltipModule;
 import dev.kitsune.client.tooltip.ShulkerPreviewTooltip;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -40,7 +39,7 @@ public class ItemTooltipImageMixin {
             // Don't clobber existing tooltip images (bundles, maps, etc.)
             if (cir.getReturnValue().isPresent()) return;
             // Feature must be enabled
-            if (!FeatureRegistry.isEnabled(ShulkerTooltipFeature.ID)) return;
+            if (!ShulkerTooltipModule.isActive()) return;
             // Visual grid only on Alt+Shift
             com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
             boolean altDown   = InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_ALT)   || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_ALT);
