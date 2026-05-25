@@ -19,6 +19,7 @@ const news = require('./news');
 const presence = require('./presence');
 const addons = require('./addons');
 const recommendedMods = require('./recommendedMods');
+const modrinthBrowser = require('./modrinthBrowser');
 const profiles = require('./profiles');
 const resourcepacks = require('./resourcepacks');
 const skins = require('./skins');
@@ -845,6 +846,51 @@ function register(getWindow) {
       return await recommendedMods.installOne(slug, dir, mc);
     } catch (err) {
       return { slug, status: 'error', error: err.message };
+    }
+  });
+
+  // ---- Modrinth marketplace ----
+  //
+  // Each handler resolves the active-OR-specified profile's game directory so
+  // installs land in the right mods folder for isolated/overridden profiles.
+
+  /** Resolve game directory for a profile id, or current active when null. */
+  function gameDirForProfile(profileId) {
+    const s = settings.load();
+    const id = profileId || s.selectedProfile;
+    const profile = id ? profiles.find(id) : null;
+    if (profile && profile.isolated) return paths.instanceDir(id);
+    if (profile && profile.gameDirOverride && profile.gameDirOverride.trim()) return profile.gameDirOverride.trim();
+    return (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft();
+  }
+
+  ipcMain.handle('modrinth:search', async (_e, payload) => {
+    const { query, mcVersion, sort, limit, offset } = payload || {};
+    return modrinthBrowser.search(query || '', mcVersion || launcher.TARGET_MC_VERSION, {
+      sort, limit, offset,
+    });
+  });
+
+  ipcMain.handle('modrinth:project', async (_e, payload) => {
+    const { slug, mcVersion } = payload || {};
+    if (!slug) return { error: 'slug is required' };
+    return modrinthBrowser.project(slug, mcVersion || launcher.TARGET_MC_VERSION);
+  });
+
+  ipcMain.handle('modrinth:install', async (_e, payload) => {
+    const { slug, profileId, installDependencies } = payload || {};
+    if (!slug) return { slug: '', status: 'error', error: 'slug is required' };
+    const dir = gameDirForProfile(profileId);
+    if (!fs.existsSync(dir)) {
+      try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+    }
+    const mc = launcher.TARGET_MC_VERSION;
+    try {
+      return await modrinthBrowser.install(slug, dir, mc, {
+        installDependencies: installDependencies !== false,
+      });
+    } catch (err) {
+      return { slug, status: 'error', error: err.message || String(err) };
     }
   });
 

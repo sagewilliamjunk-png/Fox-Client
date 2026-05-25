@@ -571,6 +571,7 @@ function renderLoadoutTab(profile) {
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
         <button class="btn btn-primary" id="btn-mods-add" ${profile.locked ? 'disabled' : ''}>+ Add mod…</button>
+        <button class="btn btn-primary" id="btn-mods-browse" ${profile.locked ? 'disabled' : ''} title="Search Modrinth and install directly into this profile">🔍 Browse Modrinth</button>
         <button class="btn" id="btn-mods-folder">Open mods folder</button>
         <button class="btn" id="btn-mods-refresh">Refresh list</button>
         <button class="btn" id="btn-mods-rec-pack" title="Downloads Sodium, Lithium, Iris, EMF, ETF, AppleSkin and more from Modrinth">⬇ Recommended pack</button>
@@ -579,6 +580,29 @@ function renderLoadoutTab(profile) {
         <button class="btn" id="btn-mods-all-off" ${profile.locked ? 'disabled' : ''}>Disable all (vanilla-safe)</button>
       </div>
       <div id="rec-pack-progress" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted)"></div>
+    </div>
+
+    <!-- Modrinth marketplace panel — collapsed by default. Toggled by the
+         "Browse Modrinth" button above. Lives inside the same profile context
+         so installs land in the right per-profile mods folder. -->
+    <div class="section modrinth-panel hidden" id="modrinth-panel">
+      <div class="section-title">
+        🔍 Modrinth marketplace
+        <span class="muted" style="font-size:11px;margin-left:6px;">searching for Fabric mods compatible with this profile's Minecraft version</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input type="text" class="input" id="mr-search" placeholder="Search mods… (e.g. sodium, voice chat, jei)" style="flex:1" autocomplete="off" />
+        <select class="input" id="mr-sort" style="width:140px;">
+          <option value="relevance">Relevance</option>
+          <option value="downloads">Most downloads</option>
+          <option value="updated">Recently updated</option>
+          <option value="newest">Newest</option>
+          <option value="follows">Most followed</option>
+        </select>
+        <button class="btn" id="mr-close" title="Hide the marketplace panel">✕</button>
+      </div>
+      <div id="mr-status" class="muted" style="font-size:12px;margin-bottom:6px;">Start typing to search.</div>
+      <div id="mr-results" class="modrinth-grid"></div>
     </div>
 
     <div class="section">
@@ -671,6 +695,9 @@ function wireLoadoutTab(profile) {
   });
   $('btn-mods-refresh').addEventListener('click', refreshMods);
   $('btn-mods-folder').addEventListener('click', () => window.fox.openModsFolder());
+
+  // ---- Modrinth browser ----
+  wireModrinthPanel(profile, refreshMods);
 
   $('btn-mods-rec-pack') && $('btn-mods-rec-pack').addEventListener('click', async () => {
     const btn      = $('btn-mods-rec-pack');
@@ -1050,6 +1077,133 @@ function openTemplatePicker() {
 
   backdrop.classList.remove('hidden');
   setTimeout(() => nameInput.focus(), 50);
+}
+
+// ---- Modrinth marketplace panel ----------------------------------------
+//
+// The panel lives inside the Loadout tab DOM so it sees the same `profile`
+// reference and reuses the existing refreshMods() callback to repaint the
+// local mod list immediately after an install.
+
+function wireModrinthPanel(profile, refreshMods) {
+  const panel    = document.getElementById('modrinth-panel');
+  const openBtn  = document.getElementById('btn-mods-browse');
+  const closeBtn = document.getElementById('mr-close');
+  const search   = document.getElementById('mr-search');
+  const sort     = document.getElementById('mr-sort');
+  const status   = document.getElementById('mr-status');
+  const results  = document.getElementById('mr-results');
+  if (!panel || !openBtn) return;
+
+  openBtn.addEventListener('click', () => {
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!search.value) setTimeout(() => search.focus(), 50);
+  });
+  closeBtn && closeBtn.addEventListener('click', () => panel.classList.add('hidden'));
+
+  // Debounce the search 250ms so we don't hammer Modrinth on each keystroke.
+  let timer;
+  let lastQuery = null;
+  const fire = () => {
+    const q = search.value.trim();
+    if (q === lastQuery) return;
+    lastQuery = q;
+    runSearch(q);
+  };
+  search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(fire, 250); });
+  sort.addEventListener('change',  () => { clearTimeout(timer); fire(); });
+
+  async function runSearch(query) {
+    if (!query) {
+      status.textContent = 'Start typing to search.';
+      results.innerHTML = '';
+      return;
+    }
+    status.textContent = `Searching “${query}”…`;
+    results.innerHTML = '';
+    const r = await window.fox.modrinthSearch({ query, sort: sort.value, limit: 30 });
+    if (r.error) {
+      status.innerHTML = `<span style="color:var(--danger,#e05a5a);">Search failed: ${escapeHtml(r.error)}</span>`;
+      return;
+    }
+    if (!r.hits || r.hits.length === 0) {
+      status.textContent = `No matches. Try a different keyword.`;
+      return;
+    }
+    status.textContent = `${r.hits.length} of ${r.totalHits} results`;
+    results.innerHTML = r.hits.map(renderModrinthCard).join('');
+    wireModrinthInstallButtons(profile, refreshMods);
+  }
+}
+
+function renderModrinthCard(hit) {
+  const downloads = formatCount(hit.downloads);
+  const icon = hit.icon
+    ? `<img class="mr-card-icon" src="${escapeHtml(hit.icon)}" alt="" loading="lazy" />`
+    : `<div class="mr-card-icon mr-card-icon-placeholder">🦊</div>`;
+  return `
+    <div class="mr-card" data-slug="${escapeHtml(hit.slug)}">
+      ${icon}
+      <div class="mr-card-body">
+        <div class="mr-card-title">${escapeHtml(hit.title)}</div>
+        <div class="mr-card-author">by ${escapeHtml(hit.author || 'unknown')} · ${downloads} downloads</div>
+        <div class="mr-card-desc">${escapeHtml(hit.description || '')}</div>
+      </div>
+      <div class="mr-card-actions">
+        <button class="btn btn-primary mr-install" data-slug="${escapeHtml(hit.slug)}" data-title="${escapeHtml(hit.title)}">
+          Install
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function wireModrinthInstallButtons(profile, refreshMods) {
+  for (const btn of document.querySelectorAll('.mr-install')) {
+    btn.addEventListener('click', async () => {
+      const slug  = btn.dataset.slug;
+      const title = btn.dataset.title;
+      btn.disabled = true;
+      btn.textContent = 'Installing…';
+      try {
+        const r = await window.fox.modrinthInstall({
+          slug,
+          profileId: profile.id,
+          installDependencies: true,
+        });
+        if (r.status === 'installed') {
+          let label = '✓ Installed';
+          if (r.dependencies && r.dependencies.length) {
+            const depCount = r.dependencies.filter(d => d.status === 'installed').length;
+            if (depCount) label += ` (+${depCount} dep${depCount === 1 ? '' : 's'})`;
+          }
+          btn.textContent = label;
+          await refreshMods();
+        } else if (r.status === 'skipped') {
+          btn.textContent = '✓ Already installed';
+        } else if (r.status === 'no-version') {
+          btn.disabled = false;
+          btn.textContent = 'No matching version';
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Failed — retry';
+          alert(`Install failed for ${title}: ${r.error || 'unknown error'}`);
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Failed — retry';
+        alert(`Install failed: ${err.message || err}`);
+      }
+    });
+  }
+}
+
+function formatCount(n) {
+  if (n == null) return '0';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+  return String(n);
 }
 
 // ---- mod / addon list helpers (mostly unchanged from the old screen) ----

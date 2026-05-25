@@ -79,6 +79,11 @@ contextBridge.exposeInMainWorld('fox', {
   onRecommendedProgress: (fn) => on('recommended:progress', fn),
   onRecommendedAutoResult: (fn) => on('recommended:autoResult', fn),
 
+  // Modrinth marketplace — per-profile search + install
+  modrinthSearch:  (payload) => invoke('modrinth:search',  payload || {}),
+  modrinthProject: (payload) => invoke('modrinth:project', payload || {}),
+  modrinthInstall: (payload) => invoke('modrinth:install', payload || {}),
+
   // Mods (jars in <gameDir>/mods)
   listMods:       () => invoke('mods:list'),
   addMods:        () => invoke('mods:add'),
