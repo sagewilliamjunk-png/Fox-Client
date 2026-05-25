@@ -35,6 +35,9 @@ public class CpsHudModule extends Module implements HudWidget {
     private final SliderSetting  bgOpacity  = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
     private final ColorSetting   accent     = addSetting(new ColorSetting("Accent",      0xFF44CCCC));
     private final ColorSetting   textColor  = addSetting(new ColorSetting("Text Color",  0xFFFFFFFF));
+    private final BooleanSetting splitColors = addSetting(new BooleanSetting("Split L/R Colors", false));
+    private final ColorSetting   lmbColor   = addSetting(new ColorSetting("Left Color",  0xFF4090FF));
+    private final ColorSetting   rmbColor   = addSetting(new ColorSetting("Right Color", 0xFFFF5050));
 
     private final long[] lmbClicks = new long[BUFFER];
     private final long[] rmbClicks = new long[BUFFER];
@@ -106,24 +109,33 @@ public class CpsHudModule extends Module implements HudWidget {
 
         int color = textColor.get();
         boolean labels = showLabels.get();
+        boolean split  = splitColors.get();
+        int lColor = split ? lmbColor.get() : color;
+        int rColor = split ? rmbColor.get() : color;
 
         if ("Vertical".equals(style.get())) {
             int cy = y + 2;
             if (showLeft.get()) {
                 String s = labels ? ("L: " + lmbCps) : String.valueOf(lmbCps);
-                gfx.text(font, s, x + 2, cy, color);
+                gfx.text(font, s, x + 2, cy, lColor);
                 cy += 12;
             }
             if (showRight.get()) {
                 String s = labels ? ("R: " + rmbCps) : String.valueOf(rmbCps);
-                gfx.text(font, s, x + 2, cy, color);
+                gfx.text(font, s, x + 2, cy, rColor);
             }
         } else {
-            StringBuilder sb = new StringBuilder();
-            if (showLeft.get())  sb.append(labels ? "L " : "").append(lmbCps);
-            if (showLeft.get() && showRight.get()) sb.append("  ");
-            if (showRight.get()) sb.append(labels ? "R " : "").append(rmbCps);
-            gfx.text(font, sb.toString(), x + 2, y + 3, color);
+            // Horizontal: render L and R independently so each gets its own color.
+            int cx = x + 2;
+            if (showLeft.get()) {
+                String s = (labels ? "L " : "") + lmbCps;
+                gfx.text(font, s, cx, y + 3, lColor);
+                cx += font.width(s) + 6;
+            }
+            if (showRight.get()) {
+                String s = (labels ? "R " : "") + rmbCps;
+                gfx.text(font, s, cx, y + 3, rColor);
+            }
         }
     }
 }

@@ -31,6 +31,7 @@ public class KeystrokesHudModule extends Module implements HudWidget {
     private final ColorSetting   pressColor  = addSetting(new ColorSetting("Press Color",  0xFF44CCCC));
     private final ColorSetting   textColor   = addSetting(new ColorSetting("Text Color",   0xFFFFFFFF));
     private final ColorSetting   pressedText = addSetting(new ColorSetting("Pressed Text", 0xFF000000));
+    private final BooleanSetting cpsTint     = addSetting(new BooleanSetting("CPS Tint", false));
 
     // Click tracking for CPS display (populated from edge detection in onTick)
     private static final int WINDOW_MS = 1000;
@@ -123,13 +124,16 @@ public class KeystrokesHudModule extends Module implements HudWidget {
 
         int cursorY = row2y + s + g;
 
-        // Row 3: LMB + RMB (wide, centered)
+        // Row 3: LMB + RMB (wide, centered). When cpsTint is on, the press
+        // colour saturates as CPS climbs — full saturation at 20 cps.
         if (showMouse.get()) {
             int halfW = (w - g) / 2;
             String lmb = showCps.get() ? (lmbCount + " CPS") : "LMB";
             String rmb = showCps.get() ? (rmbCount + " CPS") : "RMB";
-            drawWideKey(gfx, font, x,                  cursorY, halfW, s, lmb, opts.keyAttack.isDown());
-            drawWideKey(gfx, font, x + halfW + g,      cursorY, halfW, s, rmb, opts.keyUse.isDown());
+            int lmbBg = cpsTint.get() ? scaleByCps(pressColor.get(), lmbCount) : pressColor.get();
+            int rmbBg = cpsTint.get() ? scaleByCps(pressColor.get(), rmbCount) : pressColor.get();
+            drawWideKeyColored(gfx, font, x,             cursorY, halfW, s, lmb, opts.keyAttack.isDown(), lmbBg);
+            drawWideKeyColored(gfx, font, x + halfW + g, cursorY, halfW, s, rmb, opts.keyUse.isDown(),    rmbBg);
             cursorY += s + g;
         }
 
@@ -160,12 +164,28 @@ public class KeystrokesHudModule extends Module implements HudWidget {
     }
 
     private void drawWideKey(GuiGraphicsExtractor gfx, Font font, int x, int y, int w, int h, String label, boolean pressed) {
-        int bg = pressed ? pressColor.get() : idleColor.get();
+        drawWideKeyColored(gfx, font, x, y, w, h, label, pressed, pressColor.get());
+    }
+
+    /** Like drawWideKey but the press-state colour is supplied (used by CPS tint). */
+    private void drawWideKeyColored(GuiGraphicsExtractor gfx, Font font, int x, int y, int w, int h, String label, boolean pressed, int pressBg) {
+        int bg = pressed ? pressBg : idleColor.get();
         int fg = pressed ? pressedText.get() : textColor.get();
         gfx.fill(x, y, x + w, y + h, bg);
         int tw = font.width(label);
         int tx = x + (w - tw) / 2;
         int ty = y + (h - 8) / 2;
         gfx.text(font, label, tx, ty, fg);
+    }
+
+    /** Multiply RGB by a [0.4..1.0] factor where 1.0 = the configured press
+     *  colour at 20+ cps and 0.4 = a dim variant at 0 cps. Preserves alpha. */
+    private static int scaleByCps(int argb, int cps) {
+        float f = Math.min(1.0f, Math.max(0.4f, 0.4f + (cps / 20.0f) * 0.6f));
+        int a = (argb >>> 24) & 0xFF;
+        int r = (int)(((argb >>> 16) & 0xFF) * f);
+        int g = (int)(((argb >>>  8) & 0xFF) * f);
+        int b = (int)(( argb         & 0xFF) * f);
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 }

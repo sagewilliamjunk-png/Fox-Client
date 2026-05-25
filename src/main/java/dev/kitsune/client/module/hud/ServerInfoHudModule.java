@@ -22,11 +22,12 @@ import java.util.List;
  */
 public class ServerInfoHudModule extends Module implements HudWidget {
 
-    private final BooleanSetting showName     = addSetting(new BooleanSetting("Show Server Name", true));
-    private final BooleanSetting showPingBar  = addSetting(new BooleanSetting("Show Ping Bar", true));
-    private final BooleanSetting showTpsBar   = addSetting(new BooleanSetting("Show TPS Bar",  true));
-    private final BooleanSetting showNumeric  = addSetting(new BooleanSetting("Show Numbers",  true));
-    private final BooleanSetting compactMode  = addSetting(new BooleanSetting("Compact Mode",  false));
+    private final BooleanSetting showName        = addSetting(new BooleanSetting("Show Server Name", true));
+    private final BooleanSetting showPingBar     = addSetting(new BooleanSetting("Show Ping Bar", true));
+    private final BooleanSetting showTpsBar      = addSetting(new BooleanSetting("Show TPS Bar",  true));
+    private final BooleanSetting showNumeric     = addSetting(new BooleanSetting("Show Numbers",  true));
+    private final BooleanSetting showPlayerCount = addSetting(new BooleanSetting("Show Player Count", true));
+    private final BooleanSetting compactMode     = addSetting(new BooleanSetting("Compact Mode",  false));
     private final SliderSetting  goodPing     = addSetting(new SliderSetting("Good Ping (ms)",  80, 20, 200, 10));
     private final SliderSetting  badPing      = addSetting(new SliderSetting("Bad Ping (ms)",  200, 100, 500, 25));
     private final ModeSetting    accentColor  = addSetting(new ModeSetting("Accent", "Cyan",
@@ -57,6 +58,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
         if (showPingBar.get())                  rows++;
         rows++; // tps row always
         if (showTpsBar.get())                   rows++;
+        if (showPlayerCount.get())              rows++;
         return rows * 10 + 8;
     }
 
@@ -159,6 +161,14 @@ public class ServerInfoHudModule extends Module implements HudWidget {
             int barY = curY - 4;
             float pct = (float)(estimatedTps / 20.0);
             drawBar(gfx, x + 2, barY, barW, 3, pct, tpsColor);
+            curY += 4;
+        }
+
+        // Player count from the tab list. Includes ourself; conn.getOnlinePlayers()
+        // already returns the visible roster the server sends.
+        if (showPlayerCount.get() && conn != null) {
+            int online = conn.getOnlinePlayers().size();
+            gfx.text(font, "Players  " + online, x + 2, curY, 0xFFCCCCCC);
         }
     }
 

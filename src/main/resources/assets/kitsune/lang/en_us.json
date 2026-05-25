@@ -48,5 +48,6 @@
   "key.kitsune.full_bright": "Toggle Full Brightness",
   "key.kitsune.clickgui": "Open ClickGUI",
   "key.kitsune.hud_editor": "Open HUD Editor",
+  "key.kitsune.copy_coords": "Copy Coords to Clipboard",
   "key.categories.kitsune": "Fox Client"
 }

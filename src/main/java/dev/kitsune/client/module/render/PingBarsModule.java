@@ -33,6 +33,15 @@ public class PingBarsModule extends Module {
 
     private final BooleanSetting hideNumbers = addSetting(
             new BooleanSetting("Hide Numbers", false));
+    // User-tunable thresholds. Default values match the original hardcoded
+    // breakpoints. Each is the upper bound in ms for that band; anything
+    // above the highest goes to "red".
+    private final dev.kitsune.client.setting.SliderSetting greenMax = addSetting(
+            new dev.kitsune.client.setting.SliderSetting("Green Max (ms)",  50,  10,  500,  5));
+    private final dev.kitsune.client.setting.SliderSetting limeMax  = addSetting(
+            new dev.kitsune.client.setting.SliderSetting("Lime Max (ms)",   150, 20,  700,  10));
+    private final dev.kitsune.client.setting.SliderSetting yellowMax = addSetting(
+            new dev.kitsune.client.setting.SliderSetting("Yellow Max (ms)", 300, 50,  1000, 10));
 
     public PingBarsModule() {
         super("Ping Bars",
@@ -73,11 +82,16 @@ public class PingBarsModule extends Module {
         }
     }
 
-    /** Number of bars to light up for the given ping. */
-    private static int litBars(int ms) {
-        if (ms < 50)  return 4;
-        if (ms < 150) return 3;
-        if (ms < 300) return 2;
+    /** Number of bars to light up for the given ping. Uses the user-configured
+     *  thresholds; falls back to the hardcoded defaults if the user's chosen
+     *  values are out of order. */
+    private int litBars(int ms) {
+        int g = greenMax.get().intValue();
+        int l = Math.max(g + 1, limeMax.get().intValue());
+        int y = Math.max(l + 1, yellowMax.get().intValue());
+        if (ms < g) return 4;
+        if (ms < l) return 3;
+        if (ms < y) return 2;
         return 1;
     }
 

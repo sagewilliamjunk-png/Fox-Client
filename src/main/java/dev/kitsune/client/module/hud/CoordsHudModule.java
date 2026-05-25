@@ -22,6 +22,10 @@ import java.util.List;
  */
 public class CoordsHudModule extends Module implements HudWidget {
 
+    /** Time (epoch ms) the user last hit the copy keybind; used for the
+     *  "Copied!" overlay. Zero = never. */
+    private long copiedAtMs = 0;
+
     private final BooleanSetting showDirection  = addSetting(new BooleanSetting("Show Direction", true));
     private final BooleanSetting showBlock       = addSetting(new BooleanSetting("Show Block Pos", true));
     private final BooleanSetting showChunk       = addSetting(new BooleanSetting("Show Chunk", false));
@@ -63,6 +67,24 @@ public class CoordsHudModule extends Module implements HudWidget {
     }
 
     @Override public boolean isWidgetVisible() { return isEnabled(); }
+
+    /** Copies the current player coords to the system clipboard and shows a
+     *  brief on-widget overlay. Called by KitsuneClient when the copy
+     *  keybind fires. */
+    public void copyCoordsToClipboard() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.keyboardHandler == null) return;
+        String coords = mc.player.getBlockX() + " " + mc.player.getBlockY() + " " + mc.player.getBlockZ();
+        try {
+            mc.keyboardHandler.setClipboard(coords);
+            copiedAtMs = System.currentTimeMillis();
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Copied: " + coords,
+                    dev.kitsune.client.hud.NotificationManager.Type.SUCCESS);
+        } catch (Throwable t) {
+            dev.kitsune.client.KitsuneClient.LOGGER.warn("[CoordsHud] copy failed: {}", t.toString());
+        }
+    }
 
     @Override
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {

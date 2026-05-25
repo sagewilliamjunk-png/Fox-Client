@@ -53,6 +53,7 @@ public class KitsuneClient implements ClientModInitializer {
     public static KeyMapping fullBrightKey;
     public static KeyMapping clickGuiKey;
     public static KeyMapping hudEditorKey;
+    public static KeyMapping copyCoordsKey;
 
     private static final KeyMapping.Category FOX_CATEGORY =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
@@ -122,6 +123,13 @@ public class KitsuneClient implements ClientModInitializer {
                 "key.kitsune.hud_editor",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_END,
+                FOX_CATEGORY
+        ));
+        copyCoordsKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.copy_coords",
+                InputConstants.Type.KEYSYM,
+                // Unbound by default — too easy to collide. Users bind in Options.
+                InputConstants.UNKNOWN.getValue(),
                 FOX_CATEGORY
         ));
 
@@ -206,6 +214,13 @@ public class KitsuneClient implements ClientModInitializer {
             // Toggle the native FullBrightnessModule via the module manager.
             dev.kitsune.client.module.Module m = ModuleManager.getByName("Full Brightness");
             if (m != null) m.toggle();
+        }
+        // Copy coords to clipboard
+        while (copyCoordsKey.consumeClick()) {
+            dev.kitsune.client.module.Module m = ModuleManager.getByName("Coords HUD");
+            if (m instanceof dev.kitsune.client.module.hud.CoordsHudModule c && c.isEffectivelyEnabled()) {
+                c.copyCoordsToClipboard();
+            }
         }
         // Tick features
         FeatureRegistry.tickAll(client);

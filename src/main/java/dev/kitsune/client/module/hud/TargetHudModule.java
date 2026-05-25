@@ -34,6 +34,7 @@ public class TargetHudModule extends Module implements HudWidget {
 
     private final BooleanSetting showDistance = addSetting(new BooleanSetting("Show Distance", true));
     private final BooleanSetting showArmor    = addSetting(new BooleanSetting("Show Armor",    true));
+    private final BooleanSetting showHelmet   = addSetting(new BooleanSetting("Show Helmet",   true));
     private final SliderSetting  widthSetting = addSetting(new SliderSetting("Width", 130, 80, 220, 10));
 
     // Cached data — updated each tick
@@ -43,6 +44,7 @@ public class TargetHudModule extends Module implements HudWidget {
     private float   targetDist     = 0;
     private int     targetArmor    = 0;
     private boolean targetIsPlayer = false;
+    private net.minecraft.world.item.ItemStack targetHelmet = net.minecraft.world.item.ItemStack.EMPTY;
 
     // Visibility fade: stays at 1.0 while targeted, counts down when lost
     private float fadeTimer = 0f; // seconds remaining
@@ -91,6 +93,7 @@ public class TargetHudModule extends Module implements HudWidget {
         targetDist     = (float) self.distanceTo(living);
         targetArmor    = living.getArmorValue(); // 0–20 points (each point = half armor icon)
         targetIsPlayer = living instanceof Player;
+        targetHelmet   = living.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD);
         fadeTimer      = 0; // actively targeted — no fade
     }
 
@@ -140,11 +143,23 @@ public class TargetHudModule extends Module implements HudWidget {
         gfx.text(font, displayName, x + 4, y + 4, nameColor);
 
         // ---- Distance (optional) ----
+        // Helmet icon (right side; pushes the distance text left so they don't overlap).
+        int rightInset = 4;
+        if (showHelmet.get() && !targetHelmet.isEmpty()) {
+            // Vanilla item render is 16x16 — anchor top-right of the widget.
+            int iconX = x + w - 18;
+            int iconY = y + 2;
+            try {
+                gfx.item(targetHelmet, iconX, iconY);
+                gfx.itemDecorations(font, targetHelmet, iconX, iconY);
+            } catch (Throwable ignored) {}
+            rightInset = 22;
+        }
         if (showDistance.get() && targetName != null) {
             String distText = String.format("%.1fm", targetDist);
             int dtW = font.width(distText);
             int mutedColor = (ia << 24) | 0x888888;
-            gfx.text(font, distText, x + w - dtW - 4, y + 4, mutedColor);
+            gfx.text(font, distText, x + w - dtW - rightInset, y + 4, mutedColor);
         }
 
         // ---- Health bar ----
