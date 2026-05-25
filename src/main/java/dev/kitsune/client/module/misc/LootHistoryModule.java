@@ -20,84 +20,113 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Loot History Tracker.
- * Diffs the player's inventory each tick — any item whose count increases is
- * recorded in {@link LootHistory} and shown as a brief on-screen toast.
+ * Ephemeral loot pickup tracker. Diffs the player's inventory each tick — any
+ * item whose count increases produces a short-lived toast that includes the
+ * item's icon and name. The widget is INVISIBLE when no toast is active so
+ * it doesn't clutter the HUD between drops.
  *
- * <p>Use {@code .fox loot} to view the most recent entries.
+ * <h3>v1.2 changes (user request)</h3>
+ * <ul>
+ *   <li>Dropped the "Show History List" mode entirely — the widget is now
+ *       toast-only. The full history is still queryable via
+ *       {@code .fox loot} which reads from {@link LootHistory#recent}.</li>
+ *   <li>Each toast row renders the item icon at 16×16 via
+ *       {@link GuiGraphicsExtractor#item} on the left, count + name to the right.</li>
+ *   <li>Capped at 6 stacked toasts; oldest dropped when a 7th lands.</li>
+ *   <li>{@link #isWidgetVisible()} returns false when the toast queue is empty,
+ *       so the HUD slot doesn't reserve space when nothing's being picked up.</li>
+ * </ul>
+ *
+ * <p>Hooked from the client tick. No mixins; no packets.
  */
 public class LootHistoryModule extends Module implements HudWidget {
 
+    private static final int MAX_TOASTS = 6;
+    private static final int ROW_HEIGHT = 18;
+    private static final int ICON_SIZE  = 16;
+
     private final BooleanSetting ignoreCommon  = addSetting(new BooleanSetting("Ignore Common Drops",  false));
-    private final BooleanSetting showToast     = addSetting(new BooleanSetting("Show Toast Popup",     true));
-    // History list is opt-in — most users only want the transient pickup
-    // popup. The full scrolling history is still available via `.fox loot`.
-    private final BooleanSetting showHistory   = addSetting(new BooleanSetting("Show History List",    false));
-    private final SliderSetting  maxEntries    = addSetting(new SliderSetting("Max History", 5, 2, 10, 1));
     private final SliderSetting  toastDuration = addSetting(new SliderSetting("Toast Duration (s)", 4, 1, 10, 1));
 
     // Inventory state
     private final Map<Item, Integer> lastCounts = new HashMap<>();
     private boolean primed = false;
 
-    // Toast queue: (name, count, expiry time ms)
-    private record Toast(String name, int count, long expiresAt) {}
+    /** A single pending pickup toast. The Item reference is the actual Item
+     *  instance so {@link GuiGraphicsExtractor#item} can render its icon
+     *  faithfully (including durability bar, enchantment glint, etc.). */
+    private record Toast(Item item, String name, int count, long expiresAt) {}
+
     private final Deque<Toast> toasts = new ArrayDeque<>();
 
     public LootHistoryModule() {
-        super("Loot History", "Tracks items picked up with toast notifications", Category.MISC);
+        super("Loot History", "Brief on-screen toasts when you pick items up", Category.MISC);
         HudManager.register(this);
     }
 
-    // ---- HudWidget ----
+    // ---- HudWidget --------------------------------------------------------
 
     @Override public String widgetId()    { return "loot_history"; }
     @Override public String displayName() { return "Loot"; }
-    @Override public int widgetWidth()    { return 140; }
-    @Override public int widgetHeight() {
-        int toastCount = (int) toasts.stream().filter(t -> t.expiresAt() > System.currentTimeMillis()).count();
-        int limit      = maxEntries.get().intValue();
-        int histCount  = Math.min(limit, LootHistory.recent(limit).size());
-        int rows = (showToast.get() ? toastCount : 0) + (showHistory.get() ? histCount : 0);
-        return Math.max(1, rows) * 11 + 8;
+    @Override public int widgetWidth()    { return 160; }
+
+    @Override
+    public int widgetHeight() {
+        long now = System.currentTimeMillis();
+        int alive = 0;
+        for (Toast t : toasts) if (t.expiresAt() > now) alive++;
+        return Math.max(1, alive) * ROW_HEIGHT + 4;
     }
-    @Override public boolean isWidgetVisible() { return isEnabled() && (showToast.get() || showHistory.get()); }
+
+    /** Invisible when no toast is alive — the widget doesn't reserve HUD
+     *  space between pickups. The HUD editor still shows the widget bounds
+     *  using its widgetHeight when the editor screen is open (the editor
+     *  treats invisibility as a runtime state, not a layout signal). */
+    @Override
+    public boolean isWidgetVisible() {
+        if (!isEnabled()) return false;
+        long now = System.currentTimeMillis();
+        for (Toast t : toasts) if (t.expiresAt() > now) return true;
+        return false;
+    }
 
     @Override
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
-        Minecraft mc = Minecraft.getInstance();
-        Font font    = mc.font;
-        long now     = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        // Drain expired toasts first.
+        toasts.removeIf(t -> t.expiresAt() <= now);
+        if (toasts.isEmpty()) return;
 
+        Minecraft mc = Minecraft.getInstance();
+        Font font = mc.font;
         int w = widgetWidth();
         int h = widgetHeight();
 
         gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, 0x88000000);
         gfx.fill(x - 2, y - 2, x + w + 2, y - 1, 0xFFCC8833); // amber accent
 
-        int curY = y + 2;
-        int rowH = 11;
+        int rowY = y + 2;
+        for (Toast t : toasts) {
+            float frac = (t.expiresAt() - now) / (toastDuration.get().floatValue() * 1000f);
+            int alpha = (int) (Math.min(1f, frac * 3f) * 220);
+            int textColor = (alpha << 24) | 0x88FF88;
 
-        // Active toasts (recent pickups, fade out)
-        if (showToast.get()) {
-            toasts.removeIf(t -> t.expiresAt() <= now);
-            for (Toast t : toasts) {
-                float frac = (t.expiresAt() - now) / (toastDuration.get().floatValue() * 1000f);
-                int alpha  = (int)(Math.min(1f, frac * 3) * 220);
-                int color  = (alpha << 24) | 0x88FF88;
-                gfx.text(font, "+ " + t.count() + "x " + t.name(), x + 2, curY, color);
-                curY += rowH;
-            }
-        }
+            // Item icon on the left. Wrap in try/catch so a malformed modded
+            // item can't crash the HUD pass.
+            try {
+                ItemStack icon = new ItemStack(t.item(), Math.max(1, t.count()));
+                gfx.item(icon, x + 2, rowY);
+                if (t.count() > 1) {
+                    // Use the vanilla decorations path — gives us count text +
+                    // durability bar styling consistent with inventory.
+                    gfx.itemDecorations(font, icon, x + 2, rowY);
+                }
+            } catch (Throwable ignored) {}
 
-        // Scrolling history
-        if (showHistory.get()) {
-            int limit  = maxEntries.get().intValue();
-            var recent = LootHistory.recent(limit);
-            for (int i = recent.size() - 1; i >= 0; i--) {
-                gfx.text(font, "\u00b7 " + recent.get(i), x + 2, curY, 0xFFAAAAAA);
-                curY += rowH;
-            }
+            // Name (and count when icon stack-count would be visually noisy).
+            String label = "+ " + t.count() + "× " + t.name();
+            gfx.text(font, label, x + 2 + ICON_SIZE + 4, rowY + 4, textColor);
+            rowY += ROW_HEIGHT;
         }
     }
 
@@ -138,20 +167,18 @@ public class LootHistoryModule extends Module implements HudWidget {
             return;
         }
 
+        long expiresAt = System.currentTimeMillis() + (long)(toastDuration.get() * 1000);
         for (var e : current.entrySet()) {
             int prev  = lastCounts.getOrDefault(e.getKey(), 0);
             int delta = e.getValue() - prev;
-            if (delta > 0) {
-                if (ignoreCommon.get() && isCommon(e.getKey())) continue;
-                String name = safeItemName(e.getKey());
-                LootHistory.record(name, delta);
-                if (showToast.get()) {
-                    long expires = System.currentTimeMillis() + (long)(toastDuration.get() * 1000);
-                    toasts.addLast(new Toast(name, delta, expires));
-                    // Cap toast queue
-                    while (toasts.size() > 8) toasts.removeFirst();
-                }
-            }
+            if (delta <= 0) continue;
+            if (ignoreCommon.get() && isCommon(e.getKey())) continue;
+            String name = safeItemName(e.getKey());
+            // Push to the central history (still consumable via .fox loot).
+            LootHistory.record(name, delta);
+            // And queue a toast.
+            toasts.addLast(new Toast(e.getKey(), name, delta, expiresAt));
+            while (toasts.size() > MAX_TOASTS) toasts.removeFirst();
         }
         lastCounts.clear();
         lastCounts.putAll(current);
@@ -159,13 +186,10 @@ public class LootHistoryModule extends Module implements HudWidget {
 
     // ---- helpers ----
 
-    /** Defensive name lookup. Modded items can throw or return null from their
-     *  default-instance / hover-name path; fall back to the registry id so we
-     *  never NPE on pickup. Uses getDefaultInstance() to avoid the per-pickup
-     *  ItemStack allocation the old path had. */
+    /** Defensive name lookup — see ChatLogger / Tier 1 fix for the rationale. */
     private static String safeItemName(Item item) {
         try {
-            net.minecraft.world.item.ItemStack stack = item.getDefaultInstance();
+            ItemStack stack = item.getDefaultInstance();
             if (stack != null) {
                 var hover = stack.getHoverName();
                 if (hover != null) return hover.getString();

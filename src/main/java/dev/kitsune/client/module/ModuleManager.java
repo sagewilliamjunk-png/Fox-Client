@@ -40,7 +40,7 @@ import dev.kitsune.client.module.misc.DeathScreenModule;
 import dev.kitsune.client.module.misc.DisconnectConfirmModule;
 import dev.kitsune.client.module.misc.LootHistoryModule;
 import dev.kitsune.client.module.misc.MemoryCleanerModule;
-import dev.kitsune.client.module.misc.QuickCommandsModule;
+import dev.kitsune.client.module.chat.ChatAliasModule;
 import dev.kitsune.client.module.movement.AntiAfkModule;
 import dev.kitsune.client.module.movement.FreeLookModule;
 import dev.kitsune.client.module.movement.ToggleSprintModule;
@@ -116,7 +116,9 @@ public final class ModuleManager {
         register(new LowFireModule());
         register(new LowShieldModule());
         register(new WeatherTimeModule());
-        register(new QuickCommandsModule());
+        // v1.2: QuickCommandsModule deleted — replaced by ChatAliasModule
+        // which rewrites user-defined triggers into any chat/command string.
+        register(new ChatAliasModule());
         register(new ChatLoggerModule());
         register(new DeathScreenModule());
         register(new LootHistoryModule());
