@@ -205,6 +205,9 @@ export async function renderSettings(mount) {
           ${renderShortcut('Zoom (hold)',           'C',          'Smooth hold-to-zoom (Lunar-style).')}
           ${renderShortcut('Toggle Full Brightness','(unbound)', 'Defaults unbound to avoid colliding with vanilla\\'s G (Social Interactions). Rebind in Options → Controls.')}
           ${renderShortcut('Copy coords',           '(unbound)', 'Copies your XYZ to the clipboard via the Coords HUD module.')}
+          ${renderShortcut('Minimap zoom in',       'I',          'Zooms the minimap to a smaller block range (closer view).')}
+          ${renderShortcut('Minimap zoom out',      'O',          'Zooms the minimap to a larger block range (wider view).')}
+          ${renderShortcut('Minimap enlarge',       'Z (hold)',   'Temporarily enlarges the minimap to take a better look. Release to restore.')}
           ${renderShortcut('Tab-held minimap',      'Tab',        'When the Minimap module is on, holding tab swaps player dots for their actual skin\\'s head face.')}
         </div>
 

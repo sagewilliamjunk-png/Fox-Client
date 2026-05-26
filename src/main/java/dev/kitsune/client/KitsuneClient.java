@@ -50,6 +50,9 @@ public class KitsuneClient implements ClientModInitializer {
     public static KeyMapping clickGuiKey;
     public static KeyMapping hudEditorKey;
     public static KeyMapping copyCoordsKey;
+    public static KeyMapping minimapZoomInKey;
+    public static KeyMapping minimapZoomOutKey;
+    public static KeyMapping minimapEnlargeKey;
 
     private static final KeyMapping.Category FOX_CATEGORY =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
@@ -128,6 +131,16 @@ public class KitsuneClient implements ClientModInitializer {
                 InputConstants.UNKNOWN.getValue(),
                 FOX_CATEGORY
         ));
+        // Minimap controls — Xaeros parity (I/O/Z).
+        minimapZoomInKey  = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.minimap_zoom_in",  InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_I, FOX_CATEGORY));
+        minimapZoomOutKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.minimap_zoom_out", InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_O, FOX_CATEGORY));
+        minimapEnlargeKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.minimap_enlarge",  InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_Z, FOX_CATEGORY));
 
         // 3b. Register visual tooltip component for shulker box grid preview.
         //     Must be done at init (not per-feature enable) — the callback is
@@ -215,6 +228,23 @@ public class KitsuneClient implements ClientModInitializer {
             if (m instanceof dev.kitsune.client.module.hud.CoordsHudModule c && c.isEffectivelyEnabled()) {
                 c.copyCoordsToClipboard();
             }
+        }
+        // Minimap zoom (I = closer / smaller range, O = farther / larger range).
+        // consumeClick semantics fit zoom steps perfectly — each press = one step.
+        while (minimapZoomInKey.consumeClick()) {
+            dev.kitsune.client.module.hud.MinimapModule mm = dev.kitsune.client.module.hud.MinimapModule.instance();
+            if (mm != null && mm.isEffectivelyEnabled()) mm.adjustZoom(-16);
+        }
+        while (minimapZoomOutKey.consumeClick()) {
+            dev.kitsune.client.module.hud.MinimapModule mm = dev.kitsune.client.module.hud.MinimapModule.instance();
+            if (mm != null && mm.isEffectivelyEnabled()) mm.adjustZoom(+16);
+        }
+        // Enlarge — hold key, so we poll isDown() not consumeClick().
+        {
+            dev.kitsune.client.module.hud.MinimapModule mm = dev.kitsune.client.module.hud.MinimapModule.instance();
+            if (mm != null) mm.setEnlargeActive(minimapEnlargeKey.isDown());
+            // Drain any click queue so the editor doesn't process them.
+            while (minimapEnlargeKey.consumeClick()) { /* noop */ }
         }
         // Tick features
         FeatureRegistry.tickAll(client);
