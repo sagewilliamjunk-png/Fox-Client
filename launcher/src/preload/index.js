@@ -84,6 +84,10 @@ contextBridge.exposeInMainWorld('fox', {
   modrinthProject: (payload) => invoke('modrinth:project', payload || {}),
   modrinthInstall: (payload) => invoke('modrinth:install', payload || {}),
 
+  // Mod update detection
+  modUpdatesCheck: (payload) => invoke('modUpdates:check', payload || {}),
+  modUpdatesApply: (payload) => invoke('modUpdates:apply', payload || {}),
+
   // Mods (jars in <gameDir>/mods)
   listMods:       () => invoke('mods:list'),
   addMods:        () => invoke('mods:add'),

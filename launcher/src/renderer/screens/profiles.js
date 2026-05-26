@@ -572,6 +572,7 @@ function renderLoadoutTab(profile) {
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
         <button class="btn btn-primary" id="btn-mods-add" ${profile.locked ? 'disabled' : ''}>+ Add mod…</button>
         <button class="btn btn-primary" id="btn-mods-browse" ${profile.locked ? 'disabled' : ''} title="Search Modrinth and install directly into this profile">🔍 Browse Modrinth</button>
+        <button class="btn" id="btn-mods-update-check" ${profile.locked ? 'disabled' : ''} title="Check Modrinth for newer versions of every installed mod in this profile">↻ Check for updates</button>
         <button class="btn" id="btn-mods-folder">Open mods folder</button>
         <button class="btn" id="btn-mods-refresh">Refresh list</button>
         <button class="btn" id="btn-mods-rec-pack" title="Downloads Sodium, Lithium, Iris, EMF, ETF, AppleSkin and more from Modrinth">⬇ Recommended pack</button>
@@ -580,6 +581,7 @@ function renderLoadoutTab(profile) {
         <button class="btn" id="btn-mods-all-off" ${profile.locked ? 'disabled' : ''}>Disable all (vanilla-safe)</button>
       </div>
       <div id="rec-pack-progress" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted)"></div>
+      <div id="mod-updates-panel" style="display:none;margin-top:10px;"></div>
     </div>
 
     <!-- Modrinth marketplace panel — collapsed by default. Toggled by the
@@ -698,6 +700,9 @@ function wireLoadoutTab(profile) {
 
   // ---- Modrinth browser ----
   wireModrinthPanel(profile, refreshMods);
+
+  // ---- Mod update detection ----
+  wireUpdateCheckButton(profile, refreshMods);
 
   $('btn-mods-rec-pack') && $('btn-mods-rec-pack').addEventListener('click', async () => {
     const btn      = $('btn-mods-rec-pack');
@@ -1204,6 +1209,122 @@ function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
   return String(n);
+}
+
+// ---- Mod update detection ------------------------------------------------
+//
+// "Check for updates" → batch SHA-512 hash every installed jar → POST to
+// Modrinth's /v2/version_files/update → render an inline list of updates with
+// per-row "Update" buttons. The detection only resolves jars Modrinth knows
+// about; modpack-bundled internal jars and custom builds are silently skipped.
+
+function wireUpdateCheckButton(profile, refreshMods) {
+  const btn   = document.getElementById('btn-mods-update-check');
+  const panel = document.getElementById('mod-updates-panel');
+  if (!btn || !panel) return;
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = '↻ Checking…';
+    panel.style.display = '';
+    panel.innerHTML = `<div class="muted" style="font-size:12px;">Hashing installed jars and querying Modrinth…</div>`;
+
+    let result;
+    try { result = await window.fox.modUpdatesCheck({ profileId: profile.id }); }
+    catch (err) { result = { error: err.message || String(err) }; }
+
+    btn.disabled = false;
+    btn.textContent = '↻ Check for updates';
+
+    if (result.error) {
+      panel.innerHTML = `<div style="color:var(--danger,#e05a5a);font-size:12px;">Check failed: ${escapeHtml(result.error)}</div>`;
+      return;
+    }
+
+    const updates = result.updates || [];
+    if (updates.length === 0) {
+      panel.innerHTML = `<div class="muted" style="font-size:12px;">✓ All up to date · scanned ${result.scanned}, resolved ${result.resolved} on Modrinth.</div>`;
+      return;
+    }
+
+    panel.innerHTML = renderUpdatesList(result);
+    wireUpdateApplyButtons(profile, refreshMods);
+  });
+}
+
+function renderUpdatesList(result) {
+  const rows = result.updates.map(u => `
+    <div class="upd-row" data-filename="${escapeHtml(u.filename)}">
+      <div class="upd-row-name">
+        <div class="upd-row-file">${escapeHtml(u.filename)}</div>
+        <div class="upd-row-version muted">→ <strong>${escapeHtml(u.latest.versionNumber)}</strong> (${escapeHtml(u.latest.primaryFile.filename)})</div>
+      </div>
+      <button class="btn btn-primary upd-apply" data-filename="${escapeHtml(u.filename)}">Update</button>
+    </div>
+  `).join('');
+  return `
+    <div class="section-title" style="margin:0 0 6px 0;">
+      ↻ ${result.updates.length} update${result.updates.length === 1 ? '' : 's'} available
+      <span class="muted" style="font-size:11px;margin-left:6px;">scanned ${result.scanned}, resolved ${result.resolved} on Modrinth</span>
+    </div>
+    <div class="upd-list">${rows}</div>
+    <button class="btn btn-primary" id="upd-apply-all" style="margin-top:6px;">↻ Update all</button>
+  `;
+}
+
+function wireUpdateApplyButtons(profile, refreshMods) {
+  // Keep the per-profile update payloads keyed by filename so the click
+  // handler doesn't need to re-fetch the list when the user clicks Update.
+  // Persisted on a function-level field so a refresh-list inside refreshMods
+  // wouldn't accidentally drop them.
+  if (!wireUpdateApplyButtons._pendingByFile) wireUpdateApplyButtons._pendingByFile = new Map();
+
+  // Re-scan the DOM and stash whatever updates the renderer just drew.
+  // Snapshot from the same checkForUpdates result by reading back from the
+  // panel's data attributes is unwieldy; simpler to invoke modUpdatesCheck
+  // again in apply-all — but for per-row applies we need the structured data.
+  // We refetch lazily inside the click handler instead — Modrinth's response
+  // is cached at the CDN so the second call is cheap.
+
+  for (const btn of document.querySelectorAll('.upd-apply')) {
+    btn.addEventListener('click', async () => {
+      const filename = btn.dataset.filename;
+      btn.disabled = true;
+      btn.textContent = 'Updating…';
+      // Re-query so we have a structured update record (the inline render
+      // dropped most of it). Cheap because Modrinth caches the response.
+      const fresh = await window.fox.modUpdatesCheck({ profileId: profile.id }).catch(() => ({ updates: [] }));
+      const update = (fresh.updates || []).find(u => u.filename === filename);
+      if (!update) {
+        btn.textContent = '✓ Up to date';
+        return;
+      }
+      const r = await window.fox.modUpdatesApply({ profileId: profile.id, update }).catch(err => ({ ok: false, error: err.message }));
+      if (r.ok) {
+        btn.textContent = '✓ Updated';
+        await refreshMods();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Failed — retry';
+        alert(`Update failed for ${filename}: ${r.error || 'unknown error'}`);
+      }
+    });
+  }
+
+  const all = document.getElementById('upd-apply-all');
+  if (all) all.addEventListener('click', async () => {
+    all.disabled = true;
+    all.textContent = '↻ Updating all…';
+    const fresh = await window.fox.modUpdatesCheck({ profileId: profile.id }).catch(() => ({ updates: [] }));
+    const updates = fresh.updates || [];
+    let ok = 0, failed = 0;
+    for (const update of updates) {
+      const r = await window.fox.modUpdatesApply({ profileId: profile.id, update }).catch(() => ({ ok: false }));
+      if (r.ok) ok++; else failed++;
+    }
+    all.textContent = `✓ ${ok} updated${failed ? `, ${failed} failed` : ''}`;
+    await refreshMods();
+  });
 }
 
 // ---- mod / addon list helpers (mostly unchanged from the old screen) ----

@@ -20,6 +20,7 @@ const presence = require('./presence');
 const addons = require('./addons');
 const recommendedMods = require('./recommendedMods');
 const modrinthBrowser = require('./modrinthBrowser');
+const modUpdates      = require('./modUpdates');
 const profiles = require('./profiles');
 const resourcepacks = require('./resourcepacks');
 const skins = require('./skins');
@@ -892,6 +893,32 @@ function register(getWindow) {
     } catch (err) {
       return { slug, status: 'error', error: err.message || String(err) };
     }
+  });
+
+  // ---- Mod update detection ----
+  //
+  // checkForUpdates hashes every installed jar and batch-queries Modrinth for
+  // newer versions. applyUpdate downloads + hash-verifies + atomically writes
+  // the new jar, deleting the old one. Both are per-profile.
+
+  ipcMain.handle('modUpdates:check', async (_e, payload) => {
+    const profileId = payload && payload.profileId;
+    const dir = gameDirForProfile(profileId);
+    if (!fs.existsSync(dir)) {
+      return { scanned: 0, resolved: 0, updates: [], error: 'Game directory does not exist.' };
+    }
+    return modUpdates.checkForUpdates(dir, launcher.TARGET_MC_VERSION);
+  });
+
+  ipcMain.handle('modUpdates:apply', async (_e, payload) => {
+    const profileId = payload && payload.profileId;
+    const update    = payload && payload.update;
+    if (!update || !update.filename || !update.latest) {
+      return { ok: false, error: 'malformed update payload' };
+    }
+    const dir = gameDirForProfile(profileId);
+    if (!fs.existsSync(dir)) return { ok: false, error: 'Game directory does not exist.' };
+    return modUpdates.applyUpdate(dir, update);
   });
 
   // ---- news feed (from a configurable URL; cached + offline-tolerant) ----
