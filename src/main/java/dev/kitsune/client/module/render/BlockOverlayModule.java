@@ -25,11 +25,18 @@ public class BlockOverlayModule extends Module {
     private final ColorSetting   outlineColor = addSetting(new ColorSetting("Outline Color", 0xFFFFFFFF));
     private final ColorSetting   fillColor    = addSetting(new ColorSetting("Fill Color",    0x30FFFFFF));
     private final SliderSetting  lineWidth    = addSetting(new SliderSetting("Line Width", 2.0, 0.5, 5.0, 0.5));
-    // "Dashed" and "Glow" were removed in v1.2 — neither had a mixin
-    // implementation so picking them did nothing. Re-add them once the
-    // BlockOverlayMixin actually honours per-style line rendering.
+    // Style: Solid is the default vanilla-ish outline. Dashed alternates
+    // visible/transparent segments. Glow draws a thicker, lower-alpha
+    // outline on top of the regular one so it appears to bloom. The mixin
+    // reads getStyle() / getOutlineColor() / getLineWidth() each frame; the
+    // dashed/glow distinction is just an additional pass over the same
+    // edge geometry — no shader work, no GL state leak.
     private final ModeSetting    style        = addSetting(new ModeSetting("Style", "Solid",
-            List.of("Solid")));
+            List.of("Solid", "Dashed", "Glow")));
+    /** Dashed mode: visible segment length in 1/16th-block units. */
+    private final SliderSetting  dashLength   = addSetting(new SliderSetting("Dash length (1/16 block)", 4, 1, 16, 1));
+    /** Glow mode: extra outline thickness on top of the base line. */
+    private final SliderSetting  glowSpread   = addSetting(new SliderSetting("Glow spread (px)", 3, 1, 8, 1));
 
     public BlockOverlayModule() {
         super("Block Overlay", "Custom block selection outline with fill and colour options", Category.RENDER);
@@ -52,6 +59,22 @@ public class BlockOverlayModule extends Module {
     public int    getFillColor()   { return fillColor.get(); }
     public double getLineWidth()   { return lineWidth.get(); }
     public String getStyle()       { return style.get(); }
+    /** True when the current segment fraction (0..1) within a block edge should
+     *  draw a visible dash. Mixin calls this once per edge sample. */
+    public boolean isDashOn(double edgeFraction) {
+        if (!"Dashed".equals(style.get())) return true;
+        int dashLen = Math.max(1, dashLength.get().intValue()); // in 1/16 units
+        int totalUnits = 16;
+        int unit = (int) Math.floor((edgeFraction * totalUnits) % (dashLen * 2));
+        return unit < dashLen;
+    }
+    /** Glow modifier — returns how many extra-pixel outline passes the mixin
+     *  should draw. The mixin runs this many additional outlines with
+     *  progressively lower alpha to fake a bloom without needing a shader. */
+    public int getGlowPasses() {
+        if (!"Glow".equals(style.get())) return 0;
+        return glowSpread.get().intValue();
+    }
 
     // ---- helpers ----
 

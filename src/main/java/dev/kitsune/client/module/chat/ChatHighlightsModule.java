@@ -88,6 +88,80 @@ public class ChatHighlightsModule extends Module {
 
     public boolean isRegexEnabled() { return useRegex.get(); }
 
+    /**
+     * One highlight rule parsed from the keywords field. Each entry in the
+     * comma-separated list can carry up to two extra pipe-delimited segments:
+     * <pre>
+     *   diamond|#FFD700|pling
+     *   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+     *   |        |       |
+     *   pattern  color   sound
+     * </pre>
+     * Color may be {@code #RGB}, {@code #RRGGBB}, or {@code #AARRGGBB}; missing
+     * values fall back to the module-global defaults. Sound is one of the
+     * {@link #soundType} mode values (Ping / Note / Pling) — anything else
+     * also falls back to the global default.
+     */
+    public record HighlightRule(String rawPattern, int color, String sound, Pattern compiled) {}
+
+    /** Lazily parsed rule list. Same caching pattern as patternCache. */
+    private final List<HighlightRule> ruleCache = new ArrayList<>();
+    private String   cachedRuleSource = null;
+    private boolean  cachedRuleRegexFlag = false;
+
+    /** Returns the parsed rules. Recompiles when the keyword source string
+     *  or the regex toggle changes. */
+    public List<HighlightRule> getParsedRules() {
+        String src = keywords.get();
+        if (src == null) src = "";
+        if (src.equals(cachedRuleSource) && cachedRuleRegexFlag == useRegex.get()) {
+            return new ArrayList<>(ruleCache);
+        }
+        cachedRuleSource    = src;
+        cachedRuleRegexFlag = useRegex.get();
+        ruleCache.clear();
+        int flags = caseSensitive.get() ? 0 : Pattern.CASE_INSENSITIVE;
+        for (String raw : src.split(",")) {
+            String entry = raw.trim();
+            if (entry.isEmpty()) continue;
+            String[] parts = entry.split("\\|", 3);
+            String pattern = parts[0].trim();
+            if (pattern.isEmpty()) continue;
+            int color = parts.length > 1 ? parseColorOrDefault(parts[1].trim(), keywordColor.get()) : keywordColor.get();
+            String sound = parts.length > 2 ? parts[2].trim() : soundType.get();
+            Pattern compiled;
+            if (useRegex.get()) {
+                try { compiled = Pattern.compile(pattern, flags); }
+                catch (PatternSyntaxException pse) {
+                    dev.kitsune.client.KitsuneClient.LOGGER.warn(
+                            "[ChatHighlights] invalid regex '{}': {} — using literal fallback",
+                            pattern, pse.getDescription());
+                    compiled = Pattern.compile(Pattern.quote(pattern), flags);
+                }
+            } else {
+                compiled = Pattern.compile(Pattern.quote(pattern), flags);
+            }
+            ruleCache.add(new HighlightRule(pattern, color, sound, compiled));
+        }
+        return new ArrayList<>(ruleCache);
+    }
+
+    private static int parseColorOrDefault(String s, int fallback) {
+        if (s == null || s.isEmpty()) return fallback;
+        if (s.startsWith("#")) s = s.substring(1);
+        try {
+            if (s.length() == 3) {
+                int r = Integer.parseInt(s.substring(0, 1), 16);
+                int g = Integer.parseInt(s.substring(1, 2), 16);
+                int b = Integer.parseInt(s.substring(2, 3), 16);
+                return 0xFF000000 | (r * 0x11 << 16) | (g * 0x11 << 8) | (b * 0x11);
+            }
+            if (s.length() == 6) return 0xFF000000 | Integer.parseInt(s, 16);
+            if (s.length() == 8) return (int) Long.parseLong(s, 16);
+        } catch (NumberFormatException ignored) {}
+        return fallback;
+    }
+
     /** Cached regex patterns keyed by raw pattern string. Invalidated whenever
      *  the regex toggle flips or the keyword string changes (handled below by
      *  string-identity comparison in {@link #getCompiledPatterns}). */
