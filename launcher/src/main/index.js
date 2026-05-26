@@ -149,6 +149,40 @@ async function autoInstallRecommended() {
   });
 }
 
+/** Background mod-update check for the active profile. Silent on "all up to
+ *  date" (we never interrupt for a no-op); fires a single toast when updates
+ *  are available. The renderer wires the toast to a "review updates" action
+ *  that navigates to Profiles. */
+async function checkActiveProfileModUpdates() {
+  try {
+    const s = settings.load();
+    const profileId = s.selectedProfile;
+    const readiness = launcher.clientReadiness();
+    if (!readiness || !readiness.gameDirExists) return;
+    // Lazy require avoids paying the modUpdates load cost at boot for users
+    // whose first action isn't a profile launch.
+    const modUpdates = require('./modUpdates');
+    let gameDir = readiness.gameDir;
+    // gameDirForProfile is in ipc.js so we duplicate the resolution here
+    // rather than thread that helper out. Same logic as the IPC handler.
+    const profiles = require('./profiles');
+    const p = profileId ? profiles.find(profileId) : null;
+    if (p && p.isolated) gameDir = paths.instanceDir(profileId);
+    else if (p && p.gameDirOverride && p.gameDirOverride.trim()) gameDir = p.gameDirOverride.trim();
+
+    const result = await modUpdates.checkForUpdates(gameDir, readiness.targetMcVersion);
+    if (!result || !result.updates || result.updates.length === 0) return;
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('modUpdates:autoResult', {
+        count:    result.updates.length,
+        scanned:  result.scanned,
+        resolved: result.resolved,
+      });
+    }
+  } catch (_) { /* silent failure — re-check next boot */ }
+}
+
 /** Single fire of the update check. Sends progress events while running and
  *  a one-shot `updater:result` event when done so the renderer can show a
  *  single toast per outcome. Never throws — every failure path is surfaced
@@ -369,6 +403,11 @@ app.whenReady().then(() => {
   // install errored. Skips if Fabric isn't installed yet (mods would do
   // nothing) or the user has already had it run successfully.
   setTimeout(autoInstallRecommended, 4000);
+
+  // Background mod-update check (Modrinth). Runs once at boot for the
+  // active profile, then surfaces a single toast if anything's stale.
+  // Silent on "all up to date" so we never interrupt the user for a no-op.
+  setTimeout(checkActiveProfileModUpdates, 12_000);
 
   // If the user toggles autoUpdate in Settings, react immediately rather
   // than waiting until the next launch. ipc.js fires this after every

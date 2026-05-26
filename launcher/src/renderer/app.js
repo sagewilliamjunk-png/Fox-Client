@@ -737,6 +737,18 @@ window.fox.onRecommendedAutoResult((r) => {
   }
 });
 
+// Background mod-update check (runs ~12s after launcher boot). Silent on
+// "all up to date"; one toast on stale-mod detection with a click-to-jump
+// action so the user can go straight to the Profiles "Check for updates"
+// flow without hunting for it.
+window.fox.onModUpdatesAutoResult((r) => {
+  if (!r || !r.count) return;
+  const label = r.count === 1 ? '1 mod update available' : `${r.count} mod updates available`;
+  // 0 ttl = persistent — the user dismisses by hitting the toast's [×] or
+  // by navigating away from Home (toast TTL pruning is per-frame).
+  showToast(`${label} — click to review in Profiles.`, 'info', 9000);
+});
+
 // ---- kick off ----
 
 boot().catch(err => {

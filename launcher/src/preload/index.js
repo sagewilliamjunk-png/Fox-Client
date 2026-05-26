@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('fox', {
   // Mod update detection
   modUpdatesCheck: (payload) => invoke('modUpdates:check', payload || {}),
   modUpdatesApply: (payload) => invoke('modUpdates:apply', payload || {}),
+  onModUpdatesAutoResult: (fn) => on('modUpdates:autoResult', fn),
 
   // Mods (jars in <gameDir>/mods)
   listMods:       () => invoke('mods:list'),
