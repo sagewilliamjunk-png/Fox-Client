@@ -55,6 +55,7 @@ public class KitsuneClient implements ClientModInitializer {
     public static KeyMapping minimapEnlargeKey;
     public static KeyMapping waypointCreateKey;
     public static KeyMapping waypointListKey;
+    public static KeyMapping worldMapKey;
 
     private static final KeyMapping.Category FOX_CATEGORY =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
@@ -150,6 +151,10 @@ public class KitsuneClient implements ClientModInitializer {
         waypointListKey   = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.waypoint_list",    InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_U, FOX_CATEGORY));
+        // World map — Xaeros parity (M is the standard "open map" key).
+        worldMapKey       = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.world_map",        InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_M, FOX_CATEGORY));
 
         // 3b. Register visual tooltip component for shulker box grid preview.
         //     Must be done at init (not per-feature enable) — the callback is
@@ -165,6 +170,16 @@ public class KitsuneClient implements ClientModInitializer {
 
         // 5. Tick hook
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
+
+        // Save the active world-map data on client shutdown so the last few
+        // minutes of exploration aren't lost on close. The save itself is a
+        // .tmp + ATOMIC_MOVE rename so a forced kill mid-write can't corrupt
+        // the cache file.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(
+                mc -> {
+                    try { dev.kitsune.client.worldmap.WorldMapManager.saveActive(); }
+                    catch (Throwable t) { LOGGER.warn("[Fox] WorldMap save-on-quit failed: {}", t.toString()); }
+                });
 
         // 6. Initial feature sync is deferred to the first tick — see `initialSyncDone`.
         //    Calling syncEnabledStates() here would crash because Minecraft.options
@@ -277,6 +292,15 @@ public class KitsuneClient implements ClientModInitializer {
         while (waypointListKey.consumeClick()) {
             client.setScreen(new dev.kitsune.client.screen.WaypointsScreen(client.screen));
         }
+        // Open the world map.
+        while (worldMapKey.consumeClick()) {
+            client.setScreen(new dev.kitsune.client.screen.WorldMapScreen(client.screen));
+        }
+
+        // Drive the world-map chunk-discovery cache. Saves are throttled
+        // internally so the per-tick cost is one bounded chunk scan.
+        try { dev.kitsune.client.worldmap.WorldMapManager.tick(); }
+        catch (Throwable t) { LOGGER.warn("[Fox] WorldMapManager.tick failed: {}", t.toString()); }
         // Tick features
         FeatureRegistry.tickAll(client);
     }

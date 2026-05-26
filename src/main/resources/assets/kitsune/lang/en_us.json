@@ -54,5 +54,6 @@
   "key.kitsune.minimap_enlarge": "Minimap Enlarge (hold)",
   "key.kitsune.waypoint_create": "Create Waypoint Here",
   "key.kitsune.waypoint_list": "Open Waypoints List",
+  "key.kitsune.world_map": "Open World Map",
   "key.categories.kitsune": "Fox Client"
 }
