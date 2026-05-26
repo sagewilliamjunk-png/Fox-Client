@@ -42,6 +42,17 @@ public class CapesModule extends Module {
     private final BooleanSetting showOtherPlayers = addSetting(new BooleanSetting("Show On Other Players", true));
     /** Self-only opt-out for users who own a cape but don't want it visible to themselves. */
     private final BooleanSetting showOnSelf       = addSetting(new BooleanSetting("Show On Self", true));
+    /** Velocity-driven cape sway. When on, the cape leans forward / back / sideways
+     *  proportional to the player's horizontal velocity, smoothed each tick. */
+    private final BooleanSetting physicsEnabled   = addSetting(new BooleanSetting("Physics Sway", true));
+    /** Multiplier on the velocity → degrees mapping. 1.0 = "natural" (Lunar-ish).
+     *  Lower = stiffer cape; higher = exaggerated cartoony sway. */
+    private final dev.kitsune.client.setting.SliderSetting physicsStrength =
+            addSetting(new dev.kitsune.client.setting.SliderSetting("Physics Strength", 1.0, 0.2, 2.5, 0.1));
+
+    // Per-player smoothed sway state. Read by AvatarRendererCapeMixin each
+    // frame to drive capeLean / capeFlap. Cleared on disable.
+    private final java.util.Map<java.util.UUID, float[]> capeSway = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** Choice list — re-synced from {@link CosmeticRegistry} each tick. */
     private final ModeSetting localCape;
@@ -68,6 +79,18 @@ public class CapesModule extends Module {
 
     public boolean showOtherPlayers() { return showOtherPlayers.get(); }
     public boolean showOnSelf()       { return showOnSelf.get(); }
+    public boolean physicsEnabled()   { return physicsEnabled.get(); }
+
+    /** Cape sway tuple: [lean (forward/back, deg), lean2 (sideways, deg), flap].
+     *  Read by AvatarRendererCapeMixin to override the vanilla cape angles. */
+    public float[] swayFor(java.util.UUID uuid) {
+        return capeSway.get(uuid);
+    }
+
+    @Override
+    protected void onDisable() {
+        capeSway.clear();
+    }
 
     /** Return the cape id the local player should currently render, or null. */
     public String localCapeId() {
@@ -79,6 +102,55 @@ public class CapesModule extends Module {
     @Override
     public void onTick() {
         syncOptions();
+        tickPhysics();
+    }
+
+    /** Smooth per-player velocity into a lean/lean2/flap tuple. Skips quickly
+     *  when physics is off; iterates only the players the registry knows about
+     *  + ourselves, which is at most the current server roster (cheap). */
+    private void tickPhysics() {
+        if (!physicsEnabled.get()) return;
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return;
+
+        float strength = physicsStrength.get().floatValue();
+        java.util.HashSet<java.util.UUID> seen = new java.util.HashSet<>();
+        for (var p : mc.level.players()) {
+            seen.add(p.getUUID());
+            // Skip elytra glide — vanilla's wing logic owns the cape pose there.
+            if (p.isFallFlying()) {
+                capeSway.put(p.getUUID(), new float[]{0f, 0f, 0f});
+                continue;
+            }
+            var v = p.getDeltaMovement();
+            double horizSpeed = Math.sqrt(v.x * v.x + v.z * v.z);
+            // Project velocity onto the player's facing so forward motion =
+            // positive lean and lateral motion drives lean2.
+            float yawRad = (float) Math.toRadians(p.getYRot());
+            double forwardDot  = v.x * -Math.sin(yawRad) + v.z * Math.cos(yawRad);
+            double sidewaysDot = v.x *  Math.cos(yawRad) + v.z * Math.sin(yawRad);
+            float targetLean  = (float)(forwardDot  * 30f * strength);
+            float targetLean2 = (float)(sidewaysDot * 30f * strength);
+            float targetFlap  = (float) Math.min(15f, horizSpeed * 10f * strength);
+
+            // Cap so even a Speed II sprint doesn't fold the cape over.
+            targetLean  = clamp(targetLean,  -45f, 45f);
+            targetLean2 = clamp(targetLean2, -45f, 45f);
+
+            float[] state = capeSway.computeIfAbsent(p.getUUID(), u -> new float[3]);
+            // Linear smoothing — 25% per tick is a fast-but-natural curve.
+            state[0] += (targetLean  - state[0]) * 0.25f;
+            state[1] += (targetLean2 - state[1]) * 0.25f;
+            state[2] += (targetFlap  - state[2]) * 0.25f;
+        }
+        // Garbage-collect entries for players that left.
+        if (capeSway.size() > seen.size()) {
+            capeSway.keySet().retainAll(seen);
+        }
+    }
+
+    private static float clamp(float v, float lo, float hi) {
+        return v < lo ? lo : (v > hi ? hi : v);
     }
 
     private void syncOptions() {

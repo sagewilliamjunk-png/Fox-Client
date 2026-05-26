@@ -79,6 +79,18 @@ public abstract class AvatarRendererCapeMixin {
                     Optional.empty()));
             state.skin = patched;
             state.showCape = true;
+
+            // Physics sway: drive capeLean / capeLean2 / capeFlap from the
+            // module's smoothed per-player tuple. Skip silently when the
+            // module isn't running physics or the player has no entry yet.
+            if (mod.physicsEnabled()) {
+                float[] sway = mod.swayFor(uuid);
+                if (sway != null) {
+                    state.capeLean  = sway[0];
+                    state.capeLean2 = sway[1];
+                    state.capeFlap  = sway[2];
+                }
+            }
         } catch (Throwable t) {
             // Mapping drift between MC patch versions — fail safe rather than
             // crash the renderer. Worst case the user just doesn't see capes.
