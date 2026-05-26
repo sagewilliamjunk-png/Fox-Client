@@ -83,6 +83,14 @@ async function boot() {
     showUser(status);
     initNav();
     navigate(window.location.hash.replace('#', '') || 'home');
+    // First-run wizard — shown once per fresh install after auth succeeds.
+    // Lazily imported so the splash → home path stays free of the wizard
+    // bundle on every subsequent launch.
+    window.fox.getSettings().then(s => {
+      if (!s.firstRunComplete) {
+        import('./screens/wizard.js').then(m => m.showWizard && m.showWizard());
+      }
+    }).catch(() => {});
   } else {
     login.classList.remove('hidden');
     initLogin();

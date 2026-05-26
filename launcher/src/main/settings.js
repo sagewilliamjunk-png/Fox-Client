@@ -45,6 +45,9 @@ const DEFAULTS = {
   /** v2 flag — set after the full pack (essentialOnly:false) has been installed.
    *  Supersedes recommendedModsInstalled so existing users get the full pack. */
   recommendedModsInstalledFull: false,
+  /** One-shot: shows the first-run wizard once after sign-in for new users.
+   *  Set to true the moment the user finishes the wizard or dismisses it. */
+  firstRunComplete: false,
   /** Launch Fox Launcher automatically when the user logs into Windows / macOS.
    *  Implemented via Electron's app.setLoginItemSettings(). Defaults off so
    *  the launcher doesn't silently add itself to startup on fresh installs. */
@@ -110,6 +113,7 @@ function validate(raw) {
     lastGuestName:     asString(merged.lastGuestName, DEFAULTS.lastGuestName),
     recommendedModsInstalled:     asBool(merged.recommendedModsInstalled,     DEFAULTS.recommendedModsInstalled),
     recommendedModsInstalledFull: asBool(merged.recommendedModsInstalledFull, DEFAULTS.recommendedModsInstalledFull),
+    firstRunComplete:             asBool(merged.firstRunComplete,             DEFAULTS.firstRunComplete),
     launchOnStartup:   asBool(merged.launchOnStartup, DEFAULTS.launchOnStartup),
   };
 }

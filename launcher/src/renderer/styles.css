@@ -1981,3 +1981,169 @@ a:hover { color: var(--fox-warm); }
 }
 .upd-row-version { font-size: 11px; margin-top: 2px; }
 .upd-apply { padding: 4px 10px; font-size: 11px; min-width: 70px; }
+
+/* ──────────────────────────────────────────────────────────────────────── */
+/* First-run wizard (full-screen overlay shown once for new users)          */
+/* ──────────────────────────────────────────────────────────────────────── */
+
+.wizard-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: wizard-fade-in 0.25s ease;
+}
+@keyframes wizard-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.wizard-shell {
+  width: min(640px, 92vw);
+  max-height: 90vh;
+  background: var(--surface-1, #181818);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.wizard-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.wizard-logo { width: 28px; height: 28px; image-rendering: pixelated; }
+.wizard-step-dots { display: flex; gap: 6px; flex: 1; justify-content: center; }
+.wizard-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--surface-2, #2a2a2a);
+  transition: background 0.2s ease;
+}
+.wizard-dot.done   { background: var(--success, #44dd88); }
+.wizard-dot.active { background: var(--accent,  #ff8c42); transform: scale(1.4); }
+
+.wizard-skip {
+  background: transparent;
+  border: none;
+  color: var(--text-3, #888);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.wizard-skip:hover { color: var(--text-1, #eee); }
+
+.wizard-body {
+  padding: 28px 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+.wizard-title {
+  font-size: 22px;
+  margin: 0 0 8px 0;
+  color: var(--text-1, #eee);
+}
+.wizard-sub {
+  font-size: 13px;
+  color: var(--text-2, #bbb);
+  margin: 0 0 18px 0;
+}
+
+.wizard-features {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wizard-feature {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.wizard-feature-ico {
+  font-size: 22px;
+  text-align: center;
+  line-height: 1;
+  padding-top: 2px;
+}
+.wizard-feature-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1, #eee);
+}
+.wizard-feature-desc {
+  font-size: 12px;
+  color: var(--text-2, #bbb);
+  margin-top: 2px;
+}
+
+.wizard-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.wizard-template {
+  text-align: left;
+  background: var(--surface-2, #222);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.wizard-template:hover { border-color: var(--accent, #ff8c42); }
+.wizard-template.selected {
+  border-color: var(--accent, #ff8c42);
+  background: rgba(255, 140, 66, 0.08);
+}
+.wizard-template-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1, #eee);
+}
+.wizard-template-desc {
+  font-size: 11px;
+  color: var(--text-2, #bbb);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.wizard-template-hint { font-size: 11px; margin-top: 4px; }
+
+.wizard-ready-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wizard-ready-tip {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-2, #bbb);
+  background: var(--surface-2, #222);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.wizard-ready-tip strong { color: var(--text-1, #eee); }
+.wizard-ready-tip-ico {
+  font-size: 20px;
+  text-align: center;
+  color: var(--accent, #ff8c42);
+}
+
+.wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border, #2a2a2a);
+  background: var(--surface-0, #0d0d0d);
+}
