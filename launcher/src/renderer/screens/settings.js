@@ -209,6 +209,8 @@ export async function renderSettings(mount) {
           ${renderShortcut('Minimap zoom out',      'O',          'Zooms the minimap to a larger block range (wider view).')}
           ${renderShortcut('Minimap enlarge',       'Z (hold)',   'Temporarily enlarges the minimap to take a better look. Release to restore.')}
           ${renderShortcut('Tab-held minimap',      'Tab',        'When the Minimap module is on, holding tab swaps player dots for their actual skin\\'s head face.')}
+          ${renderShortcut('Create waypoint',       'B',          'Pins a waypoint at your current location with an auto-generated name.')}
+          ${renderShortcut('Open waypoints list',   'U',          'Opens the full waypoints screen — list, create, rename, delete.')}
         </div>
 
         <div class="shortcut-group-label">Vanilla MC defaults still apply</div>

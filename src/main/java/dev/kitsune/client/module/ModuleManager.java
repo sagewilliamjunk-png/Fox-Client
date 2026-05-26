@@ -130,6 +130,8 @@ public final class ModuleManager {
         register(new dev.kitsune.client.module.misc.ShulkerTooltipModule());
         register(new dev.kitsune.client.module.misc.MapTooltipModule());
         register(new dev.kitsune.client.module.misc.AdaptiveFpsLimitModule());
+        // v1.3: deathpoint waypoint auto-creation (depends on WaypointManager).
+        register(new dev.kitsune.client.module.misc.DeathpointModule());
 
         // ---- Step 7G B-tier additions ----
         register(new PaperDollHudModule());

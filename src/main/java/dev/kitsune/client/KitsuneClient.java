@@ -53,6 +53,8 @@ public class KitsuneClient implements ClientModInitializer {
     public static KeyMapping minimapZoomInKey;
     public static KeyMapping minimapZoomOutKey;
     public static KeyMapping minimapEnlargeKey;
+    public static KeyMapping waypointCreateKey;
+    public static KeyMapping waypointListKey;
 
     private static final KeyMapping.Category FOX_CATEGORY =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
@@ -141,6 +143,13 @@ public class KitsuneClient implements ClientModInitializer {
         minimapEnlargeKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.minimap_enlarge",  InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_Z, FOX_CATEGORY));
+        // Waypoint quick actions — Xaeros parity (B = create, U = list).
+        waypointCreateKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.waypoint_create",  InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_B, FOX_CATEGORY));
+        waypointListKey   = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.waypoint_list",    InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_U, FOX_CATEGORY));
 
         // 3b. Register visual tooltip component for shulker box grid preview.
         //     Must be done at init (not per-feature enable) — the callback is
@@ -245,6 +254,28 @@ public class KitsuneClient implements ClientModInitializer {
             if (mm != null) mm.setEnlargeActive(minimapEnlargeKey.isDown());
             // Drain any click queue so the editor doesn't process them.
             while (minimapEnlargeKey.consumeClick()) { /* noop */ }
+        }
+        // Quick-create a waypoint at the player's current position.
+        while (waypointCreateKey.consumeClick()) {
+            if (client.player != null) {
+                String name = dev.kitsune.client.waypoint.WaypointManager.nextDefaultName();
+                String symbol = name.length() > 3
+                        ? name.substring(name.length() - 1)
+                        : name.substring(0, 1);
+                dev.kitsune.client.waypoint.Waypoint w = new dev.kitsune.client.waypoint.Waypoint(
+                        null, name,
+                        client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ(),
+                        dev.kitsune.client.waypoint.Waypoint.DEFAULT_COLOR,
+                        symbol, false, false);
+                dev.kitsune.client.waypoint.WaypointManager.addToCurrent(w);
+                dev.kitsune.client.hud.NotificationManager.show(
+                        "Waypoint created: " + name,
+                        dev.kitsune.client.hud.NotificationManager.Type.SUCCESS);
+            }
+        }
+        // Open the waypoints list screen.
+        while (waypointListKey.consumeClick()) {
+            client.setScreen(new dev.kitsune.client.screen.WaypointsScreen(client.screen));
         }
         // Tick features
         FeatureRegistry.tickAll(client);

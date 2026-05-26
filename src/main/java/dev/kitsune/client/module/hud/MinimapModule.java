@@ -102,6 +102,10 @@ public class MinimapModule extends Module implements HudWidget {
     private final BooleanSetting slimeChunks    = addSetting(new BooleanSetting("Slime Chunks",   false));
     private final BooleanSetting lightOverlay   = addSetting(new BooleanSetting("Light Overlay (≤7)", false));
 
+    // Waypoints
+    private final BooleanSetting showWaypoints  = addSetting(new BooleanSetting("Show Waypoints",  true));
+    private final SliderSetting  wpMaxDistance  = addSetting(new SliderSetting("Local WP max draw (blocks)", 256, 64, 4096, 64));
+
     // Info pills below the map
     private final BooleanSetting showCoords     = addSetting(new BooleanSetting("Info: Coordinates", true));
     private final BooleanSetting showBiome      = addSetting(new BooleanSetting("Info: Biome",       false));
@@ -425,6 +429,10 @@ public class MinimapModule extends Module implements HudWidget {
         // 5. Entity dots / heads
         if (drawDots) drawEntities(gfx, mc, player, cx, cy, r, square, cosY, sinY);
 
+        // 5b. Waypoints — drawn above entities so a player on top of a waypoint
+        //     doesn't fully cover the marker.
+        if (showWaypoints.get()) drawWaypoints(gfx, mc, player, cx, cy, r, square, cosY, sinY);
+
         // 6. Self marker + facing arrow when north-locked
         if (north) {
             // White arrow pointing the player's actual facing direction.
@@ -629,6 +637,58 @@ public class MinimapModule extends Module implements HudWidget {
                 continue;
             }
             gfx.fill(dotX - 1, dotY - 1, dotX + 1, dotY + 1, colorFor(e.kind()));
+        }
+    }
+
+    private void drawWaypoints(GuiGraphicsExtractor gfx, Minecraft mc, LocalPlayer self, int cx, int cy, int r, boolean square, double cosY, double sinY) {
+        var list = dev.kitsune.client.waypoint.WaypointManager.current();
+        if (list.isEmpty()) return;
+        double scale = r / rangeBlocks.get();
+        int innerLim = r - 3;
+        double playerX = self.getX();
+        double playerZ = self.getZ();
+        double localCap = wpMaxDistance.get();
+        double localCap2 = localCap * localCap;
+        Font font = mc.font;
+
+        for (var w : list) {
+            double dx = w.x() - playerX;
+            double dz = w.z() - playerZ;
+            double d2 = dx * dx + dz * dz;
+            // Local waypoints respect the cap; global always render but clip to
+            // the visible map circle/square anyway.
+            if (!w.global() && d2 > localCap2) continue;
+            double sx =  dx * cosY + dz * sinY;
+            double sy =  dx * sinY - dz * cosY;
+            int mx = cx + (int)(sx * scale);
+            int my = cy + (int)(sy * scale);
+            // Clamp inside the visible area — distant waypoints stick to the
+            // border instead of disappearing, so the user can tell which
+            // direction they're in.
+            int dxFromCenter = mx - cx, dyFromCenter = my - cy;
+            if (!insideShape(dxFromCenter, dyFromCenter, innerLim, square)) {
+                if (square) {
+                    int max = innerLim;
+                    int sxC = Math.max(-max, Math.min(max, dxFromCenter));
+                    int syC = Math.max(-max, Math.min(max, dyFromCenter));
+                    mx = cx + sxC; my = cy + syC;
+                } else {
+                    double mag = Math.sqrt(dxFromCenter * (double)dxFromCenter + dyFromCenter * (double)dyFromCenter);
+                    if (mag > 0.001) {
+                        double k = innerLim / mag;
+                        mx = cx + (int)(dxFromCenter * k);
+                        my = cy + (int)(dyFromCenter * k);
+                    }
+                }
+            }
+            // Marker: 5×5 filled square with a dark outline, colored by waypoint.
+            gfx.fill(mx - 3, my - 3, mx + 3, my + 3, 0xFF000000);
+            gfx.fill(mx - 2, my - 2, mx + 2, my + 2, w.color());
+            // Symbol on top (1-character label).
+            String sym = w.deathpoint() ? "☠" : (w.symbol() == null || w.symbol().isEmpty() ? "•" : w.symbol().substring(0, 1));
+            int textColor = 0xFF000000;
+            int tw = font.width(sym);
+            gfx.text(font, sym, mx - tw / 2, my - 4, textColor);
         }
     }
 

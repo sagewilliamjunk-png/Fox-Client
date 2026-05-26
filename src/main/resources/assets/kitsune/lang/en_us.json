@@ -52,5 +52,7 @@
   "key.kitsune.minimap_zoom_in": "Minimap Zoom In",
   "key.kitsune.minimap_zoom_out": "Minimap Zoom Out",
   "key.kitsune.minimap_enlarge": "Minimap Enlarge (hold)",
+  "key.kitsune.waypoint_create": "Create Waypoint Here",
+  "key.kitsune.waypoint_list": "Open Waypoints List",
   "key.categories.kitsune": "Fox Client"
 }
