@@ -116,7 +116,10 @@ public class MinimapModule extends Module implements HudWidget {
 
     // ---- cached state ----
 
-    private record RadarEntry(double dx, double dz, EntityKind kind, UUID uuid) {}
+    /** Cached radar entry. `entityType` is held so the Tab-held render path
+     *  can look up the entity's spawn egg sprite for mob icons. */
+    private record RadarEntry(double dx, double dz, EntityKind kind, UUID uuid,
+                              net.minecraft.world.entity.EntityType<?> entityType) {}
     private enum EntityKind { PLAYER, HOSTILE, FRIENDLY, ITEM, OTHER }
 
     private List<RadarEntry> entityCache = new ArrayList<>();
@@ -263,7 +266,7 @@ public class MinimapModule extends Module implements HudWidget {
                 double dx = p.getX() - px;
                 double dz = p.getZ() - pz;
                 if (dx * dx + dz * dz <= maxR2) {
-                    out.add(new RadarEntry(dx, dz, EntityKind.PLAYER, p.getUUID()));
+                    out.add(new RadarEntry(dx, dz, EntityKind.PLAYER, p.getUUID(), p.getType()));
                 }
             }
         }
@@ -280,7 +283,7 @@ public class MinimapModule extends Module implements HudWidget {
                 if (kind == EntityKind.FRIENDLY && !showFriendlies.get()) continue;
                 if (kind == EntityKind.ITEM     && !showItems.get())    continue;
                 if (kind == EntityKind.OTHER    && !showOther.get())    continue;
-                out.add(new RadarEntry(dx, dz, kind, e.getUUID()));
+                out.add(new RadarEntry(dx, dz, kind, e.getUUID(), e.getType()));
             }
         }
         return out;
@@ -633,10 +636,36 @@ public class MinimapModule extends Module implements HudWidget {
             int dotY = cy + (int)(sy * scale);
             if (!insideShape(dotX - cx, dotY - cy, innerLim, square)) continue;
 
-            if (tabHeld && e.kind() == EntityKind.PLAYER && drawPlayerHead(gfx, mc, e.uuid(), dotX, dotY)) {
-                continue;
+            if (tabHeld) {
+                if (e.kind() == EntityKind.PLAYER && drawPlayerHead(gfx, mc, e.uuid(), dotX, dotY)) continue;
+                // Mob / item icon via spawn egg or fallback item.
+                if (e.kind() != EntityKind.PLAYER && drawSpawnEggIcon(gfx, e.entityType(), dotX, dotY)) continue;
             }
             gfx.fill(dotX - 1, dotY - 1, dotX + 1, dotY + 1, colorFor(e.kind()));
+        }
+    }
+
+    /** Render a spawn-egg item at half scale (8×8) centred on (px, py).
+     *  Falls back to false when the entity has no spawn egg (boats, projectiles,
+     *  item-frames, etc.) so the caller draws a dot instead. */
+    private static boolean drawSpawnEggIcon(GuiGraphicsExtractor gfx, net.minecraft.world.entity.EntityType<?> type, int px, int py) {
+        if (type == null) return false;
+        try {
+            var holderOpt = net.minecraft.world.item.SpawnEggItem.byId(type);
+            if (holderOpt.isEmpty()) return false;
+            net.minecraft.world.item.Item spawnEgg = holderOpt.get().value();
+            net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(spawnEgg);
+            // gfx.item renders at 16×16; scale 0.5 so the icon fits the dot's
+            // ~8px area without dominating the radar. pushMatrix/popMatrix
+            // keeps the pose stack balanced.
+            gfx.pose().pushMatrix();
+            gfx.pose().translate(px - 4, py - 4);
+            gfx.pose().scale(0.5f, 0.5f);
+            gfx.item(stack, 0, 0);
+            gfx.pose().popMatrix();
+            return true;
+        } catch (Throwable t) {
+            return false;
         }
     }
 
