@@ -37,3 +37,23 @@ TheRealFoxArt.png
 
 # Installer build artifacts
 *.exe
+
+# External jars dropped into the repo for ad-hoc inspection (anti-cheat,
+# competitor analysis, etc.) — never commit these. The exception keeps
+# build/libs/ untouched so our own build outputs aren't blocked when
+# someone wants to track a specific release.
+/*.jar
+grimac-*.jar
+meteor-*.jar
+*-fabric-*.jar
+!build/libs/*.jar
+
+# Decompiled class files from auditing the cached MC jar
+net/minecraft/**
+*.class
+
+# Stray Java files that ended up in the repo root from earlier
+# refactors — anything top-level is wrong (everything lives under src/).
+/ZoomFeature.java
+/ShulkerTooltipFeature.java
+/MapTooltipFeature.java
