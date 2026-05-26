@@ -74,11 +74,20 @@ public class WaypointsScreen extends Screen {
         int firstIdx = scrollOffset;
         int lastIdx  = Math.min(snapshot.size(), firstIdx + visibleRows);
 
-        // Renderable text rows are drawn in extractRenderState; only the delete
-        // button per row is a widget so it can take clicks.
+        // Renderable text rows are drawn in extractRenderState; only the
+        // Edit + Delete buttons per row are widgets so they can take clicks.
         for (int i = firstIdx; i < lastIdx; i++) {
             final int idx = i;
             final int y = LIST_TOP + (i - firstIdx) * ROW_HEIGHT;
+            // Edit (left of delete)
+            this.addRenderableWidget(FoxButton.of(this.width - 148, y, 64, 18,
+                    Component.literal("Edit"),
+                    b -> {
+                        if (this.minecraft != null) {
+                            this.minecraft.setScreen(
+                                    new WaypointEditScreen(this, snapshot.get(idx)));
+                        }
+                    }));
             this.addRenderableWidget(FoxButton.of(this.width - 76, y, 64, 18,
                     Component.literal("Delete"),
                     b -> {
