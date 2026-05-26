@@ -1,8 +1,30 @@
-// Settings — tabbed layout. One screen, four panels (Game, Java, Display,
-// Advanced). All inputs write into a single `state` object so partial saves
-// can't desync; the Save button validates + flushes everything atomically.
+// Settings — tabbed layout. One screen, five panels (Game, Java, Display,
+// Shortcuts, Advanced). All inputs write into a single `state` object so
+// partial saves can't desync; the Save button validates + flushes
+// everything atomically.
 
 import { applyTheme } from '../app.js';
+
+/** Render one row of the keyboard-shortcuts reference table. */
+function renderShortcut(action, keys, description) {
+  return `
+    <div class="shortcut-row">
+      <div class="shortcut-action">${action}</div>
+      <div class="shortcut-keys">${formatKeys(keys)}</div>
+      <div class="shortcut-desc">${description}</div>
+    </div>
+  `;
+}
+
+/** Wrap each token (split on spaces / + / -) in a <kbd>, leaving connectors
+ *  visible as plain text. So "Ctrl + R" becomes <kbd>Ctrl</kbd> + <kbd>R</kbd>. */
+function formatKeys(keys) {
+  if (!keys || keys.startsWith('(')) return `<span class="muted">${keys}</span>`;
+  return keys.split(/(\s*\+\s*|\s*-\s*)/).map(part => {
+    if (!part || /^\s*[+\-]\s*$/.test(part)) return part;
+    return `<kbd>${part.trim()}</kbd>`;
+  }).join('');
+}
 
 export async function renderSettings(mount) {
   const s = await window.fox.getSettings();
@@ -45,6 +67,7 @@ export async function renderSettings(mount) {
       <button class="tab active" data-tab="game">Game</button>
       <button class="tab" data-tab="java">Java</button>
       <button class="tab" data-tab="display">Display</button>
+      <button class="tab" data-tab="shortcuts">Shortcuts</button>
       <button class="tab" data-tab="advanced">Advanced</button>
     </div>
 
@@ -155,6 +178,42 @@ export async function renderSettings(mount) {
           <input type="checkbox" id="f-fullscreen" ${state.resolution.fullscreen ? 'checked' : ''} />
           Start in fullscreen
         </label>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="shortcuts">
+      <div class="section">
+        <div class="section-title">⌨ Keyboard shortcuts</div>
+        <div class="section-sub">
+          Every binding the launcher and the Fox Client mod ship with by default. In-game keys are configured under
+          <em>Minecraft → Options → Controls → Fox Client</em> — change them there, not here.
+        </div>
+
+        <div class="shortcut-group-label">In the launcher</div>
+        <div class="shortcut-table">
+          ${renderShortcut('Switch nav tab',     '1 - 5',  'Jump straight to Home / Profiles / Screenshots / Logs / Settings.')}
+          ${renderShortcut('Open DevTools',      'F12',    'Opens Chromium DevTools — useful for debugging.')}
+          ${renderShortcut('Reload launcher',    'Ctrl + R', 'Reloads the renderer without restarting the Electron process.')}
+          ${renderShortcut('Toggle fullscreen',  'F11',    'Standard fullscreen toggle.')}
+        </div>
+
+        <div class="shortcut-group-label">Fox Client (in-game)</div>
+        <div class="shortcut-table">
+          ${renderShortcut('Open Fox Menu',         ']',          'Opens the legacy Fox settings menu.')}
+          ${renderShortcut('Open ClickGUI',         'Right Shift','Opens the module browser / on/off toggles.')}
+          ${renderShortcut('Open HUD Editor',       'End',        'Drag-and-drop layout for every HUD widget.')}
+          ${renderShortcut('Zoom (hold)',           'C',          'Smooth hold-to-zoom (Lunar-style).')}
+          ${renderShortcut('Toggle Full Brightness','(unbound)', 'Defaults unbound to avoid colliding with vanilla\\'s G (Social Interactions). Rebind in Options → Controls.')}
+          ${renderShortcut('Copy coords',           '(unbound)', 'Copies your XYZ to the clipboard via the Coords HUD module.')}
+          ${renderShortcut('Tab-held minimap',      'Tab',        'When the Minimap module is on, holding tab swaps player dots for their actual skin\\'s head face.')}
+        </div>
+
+        <div class="shortcut-group-label">Vanilla MC defaults still apply</div>
+        <div class="shortcut-table">
+          ${renderShortcut('Take screenshot',  'F2',       'Saved into the active profile\\'s screenshots folder — browse them in the launcher\\'s Screenshots tab.')}
+          ${renderShortcut('Debug overlay',    'F3',       'Vanilla F3 debug; toggle entity hitboxes with F3 + B.')}
+          ${renderShortcut('Reload resources', 'F3 + T',   'Reloads resource packs — Fox cosmetics reload with them.')}
+        </div>
       </div>
     </div>
 
