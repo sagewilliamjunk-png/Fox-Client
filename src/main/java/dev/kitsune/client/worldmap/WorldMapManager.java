@@ -73,6 +73,13 @@ public final class WorldMapManager {
         // Discover new chunks. We only compute tiles for chunks the player
         // is currently near — distant chunks aren't loaded so getChunk() would
         // fail anyway. Once stored, they're persisted forever.
+        // The minimap's biome-tint setting drives the world map too so the
+        // two views stay visually consistent.
+        boolean biomeTinted = false;
+        try {
+            var mm = dev.kitsune.client.module.hud.MinimapModule.instance();
+            biomeTinted = mm != null && mm.biomeTinted();
+        } catch (Throwable ignored) {}
         LocalPlayer p = mc.player;
         int pcx = p.getBlockX() >> 4;
         int pcz = p.getBlockZ() >> 4;
@@ -80,7 +87,7 @@ public final class WorldMapManager {
             for (int dz = -DISCOVERY_RADIUS; dz <= DISCOVERY_RADIUS; dz++) {
                 ChunkPos cp = new ChunkPos(pcx + dx, pcz + dz);
                 if (active.contains(cp)) continue;
-                int[] tile = ChunkColorTile.surface(mc.level, cp);
+                int[] tile = ChunkColorTile.surface(mc.level, cp, biomeTinted);
                 if (tile != null) active.put(cp, tile);
             }
         }

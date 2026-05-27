@@ -79,6 +79,8 @@ public class MinimapModule extends Module implements HudWidget {
 
     private final ModeSetting    viewMode       = addSetting(new ModeSetting("View Mode", "Heightmap + Dots",
             List.of("Dots", "Heightmap", "Heightmap + Dots")));
+    private final ModeSetting    colorMode      = addSetting(new ModeSetting("Color Mode", "Altitude",
+            List.of("Altitude", "Biome Tinted")));
     private final ModeSetting    shape          = addSetting(new ModeSetting("Shape", "Circle",
             List.of("Circle", "Square")));
     private final SliderSetting  rangeBlocks    = addSetting(new SliderSetting("Range (blocks)", 64, 16, 256, 8));
@@ -321,30 +323,24 @@ public class MinimapModule extends Module implements HudWidget {
         // Cave-mode tiles are slice-specific, so we evict EVERYTHING on a
         // surface↔cave mode flip rather than try to mix the two in-cache.
         terrainCache.keySet().removeIf(p -> !needed.contains(p));
+        boolean tinted = biomeTinted();
         for (ChunkPos cp : needed) {
             if (terrainCache.containsKey(cp)) continue;
             int[] tile = cave
                     ? computeCaveTile(level, cp, playerY)
-                    : computeSurfaceTile(level, cp);
+                    : dev.kitsune.client.worldmap.ChunkColorTile.surface(level, cp, tinted);
             if (tile != null) terrainCache.put(cp, tile);
         }
     }
 
-    /** Surface (heightmap) tile — color by altitude. */
-    private static int[] computeSurfaceTile(ClientLevel level, ChunkPos cp) {
-        var access = level.getChunk(cp.x(), cp.z(),
-                net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
-        if (!(access instanceof LevelChunk chunk)) return null;
-        int[] argb = new int[256];
-        Heightmap.Types h = Heightmap.Types.MOTION_BLOCKING_NO_LEAVES;
-        for (int lx = 0; lx < 16; lx++) {
-            for (int lz = 0; lz < 16; lz++) {
-                int y = chunk.getHeight(h, lx, lz);
-                argb[lz * 16 + lx] = heightToColor(level, y);
-            }
-        }
-        return argb;
-    }
+    /** Public accessor so external callers (KitsuneClient, WorldMap) can ask
+     *  the active minimap if biome tinting is on. Falls back to false when
+     *  the module isn't enabled — keeps the WorldMap deterministic. */
+    public boolean biomeTinted() { return "Biome Tinted".equals(colorMode.get()); }
+
+    // Surface heightmap tiles now go through ChunkColorTile.surface() (with
+    // optional biome tinting). Local computeCaveTile stays — cave mode is
+    // minimap-only and doesn't need to be shared with the world map.
 
     /** Cave cross-section tile — for each (lx,lz), walk DOWN from playerY+1
      *  until we hit a solid block; render its floor in altitude shade. If we
