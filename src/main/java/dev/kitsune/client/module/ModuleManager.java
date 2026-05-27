@@ -132,6 +132,8 @@ public final class ModuleManager {
         register(new dev.kitsune.client.module.misc.AdaptiveFpsLimitModule());
         // v1.3: deathpoint waypoint auto-creation (depends on WaypointManager).
         register(new dev.kitsune.client.module.misc.DeathpointModule());
+        // v1.4: 3D in-world waypoint markers (Xaeros-style billboards).
+        register(new dev.kitsune.client.module.render.WaypointWorldOverlayModule());
 
         // ---- Step 7G B-tier additions ----
         register(new PaperDollHudModule());
