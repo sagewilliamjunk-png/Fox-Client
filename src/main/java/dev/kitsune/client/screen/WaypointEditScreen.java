@@ -39,6 +39,7 @@ public class WaypointEditScreen extends Screen {
 
     private EditBox nameBox;
     private EditBox symbolBox;
+    private EditBox setBox;
 
     public WaypointEditScreen(Screen parent, Waypoint waypoint) {
         super(Component.literal("Edit waypoint"));
@@ -82,6 +83,14 @@ public class WaypointEditScreen extends Screen {
                 b -> { editGlobal = !editGlobal; this.rebuildWidgets(); }
         ).bounds(cx - 150, 180, 300, 20).build());
 
+        // Set field — free text, defaults to "Default". Users build their own
+        // taxonomy (e.g. "Bases", "Diamond Mines", "Allies"). Cycling via the
+        // dedicated keybind walks the alphabetical list of distinct sets.
+        setBox = new EditBox(this.font, cx - 150, 220, 300, 20, Component.literal("Set"));
+        setBox.setValue(original.set() == null ? Waypoint.DEFAULT_SET : original.set());
+        setBox.setMaxLength(32);
+        this.addRenderableWidget(setBox);
+
         // Save / Cancel
         this.addRenderableWidget(FoxButton.of(cx - 150, this.height - 40, 145, 20,
                 Component.literal("Cancel"), b -> this.onClose()));
@@ -94,11 +103,13 @@ public class WaypointEditScreen extends Screen {
         if (name.isEmpty()) name = original.name();
         String symbol = symbolBox.getValue();
         if (symbol == null || symbol.isEmpty()) symbol = original.symbol();
+        String set = setBox != null ? setBox.getValue().trim() : Waypoint.DEFAULT_SET;
+        if (set.isEmpty()) set = Waypoint.DEFAULT_SET;
         Waypoint updated = new Waypoint(
                 original.id(), name,
                 original.x(), original.y(), original.z(),
                 editColor, symbol, editGlobal,
-                original.deathpoint());
+                original.deathpoint(), set);
         WaypointManager.update(updated);
         this.onClose();
     }
@@ -116,6 +127,7 @@ public class WaypointEditScreen extends Screen {
         gfx.text(this.font, "Symbol", symbolBox.getX(), symbolBox.getY() - 12, 0xFFAAAAAA);
         gfx.text(this.font, "Color",  cx - 100,         128,                   0xFFAAAAAA);
         gfx.text(this.font, "Scope",  cx - 150,         168,                   0xFFAAAAAA);
+        gfx.text(this.font, "Set",    cx - 150,         208,                   0xFFAAAAAA);
     }
 
     @Override

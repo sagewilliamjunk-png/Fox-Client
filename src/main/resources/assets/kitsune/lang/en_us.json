@@ -55,5 +55,6 @@
   "key.kitsune.waypoint_create": "Create Waypoint Here",
   "key.kitsune.waypoint_list": "Open Waypoints List",
   "key.kitsune.world_map": "Open World Map",
+  "key.kitsune.waypoint_set_cycle": "Cycle Waypoint Set",
   "key.categories.kitsune": "Fox Client"
 }

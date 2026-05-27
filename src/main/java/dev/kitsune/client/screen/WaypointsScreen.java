@@ -59,7 +59,15 @@ public class WaypointsScreen extends Screen {
                 b -> createAtCurrentLocation()
         ).bounds(cx + 50, this.height - 40, 200, 20).build());
 
-        // Top bar: close
+        // Top bar: cycle set + close
+        this.addRenderableWidget(FoxButton.of(this.width - 220, 8, 130, 20,
+                Component.literal("Set: " + WaypointManager.activeSet()),
+                b -> {
+                    WaypointManager.cycleActiveSet();
+                    snapshot.clear();
+                    snapshot.addAll(WaypointManager.current());
+                    this.rebuildWidgets();
+                }));
         this.addRenderableWidget(FoxButton.of(this.width - 76, 8, 64, 20,
                 Component.literal("Close"),
                 b -> this.onClose()));
@@ -75,11 +83,16 @@ public class WaypointsScreen extends Screen {
         int lastIdx  = Math.min(snapshot.size(), firstIdx + visibleRows);
 
         // Renderable text rows are drawn in extractRenderState; only the
-        // Edit + Delete buttons per row are widgets so they can take clicks.
+        // Share / Edit / Delete buttons per row are widgets so they can take clicks.
         for (int i = firstIdx; i < lastIdx; i++) {
             final int idx = i;
             final int y = LIST_TOP + (i - firstIdx) * ROW_HEIGHT;
-            // Edit (left of delete)
+            // Share — send a "name @ X, Y, Z (set)" line to chat. Useful for
+            // calling out positions to friends; the launcher's ChatLogger
+            // module persists the conversation so it ends up in your logs too.
+            this.addRenderableWidget(FoxButton.of(this.width - 220, y, 64, 18,
+                    Component.literal("Share"),
+                    b -> shareToChat(snapshot.get(idx))));
             this.addRenderableWidget(FoxButton.of(this.width - 148, y, 64, 18,
                     Component.literal("Edit"),
                     b -> {
@@ -96,6 +109,28 @@ public class WaypointsScreen extends Screen {
                         snapshot.addAll(WaypointManager.current());
                         this.rebuildWidgets();
                     }));
+        }
+    }
+
+    /** Send a chat line describing the waypoint. We use the raw chat channel
+     *  (not a command) so it goes into the public room — calling out coords
+     *  to teammates is the entire reason this button exists. */
+    private void shareToChat(dev.kitsune.client.waypoint.Waypoint w) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.player.connection == null) return;
+        String line = w.name() + " @ " + w.x() + ", " + w.y() + ", " + w.z()
+                + (w.deathpoint() ? " (deathpoint)" : "")
+                + (w.set() != null && !w.set().equals(dev.kitsune.client.waypoint.Waypoint.DEFAULT_SET)
+                        ? " [" + w.set() + "]" : "");
+        try {
+            mc.player.connection.sendChat(line);
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Shared: " + w.name(),
+                    dev.kitsune.client.hud.NotificationManager.Type.SUCCESS);
+        } catch (Throwable t) {
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Share failed: " + t.getMessage(),
+                    dev.kitsune.client.hud.NotificationManager.Type.WARNING);
         }
     }
 

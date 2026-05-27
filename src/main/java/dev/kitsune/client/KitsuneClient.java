@@ -56,6 +56,7 @@ public class KitsuneClient implements ClientModInitializer {
     public static KeyMapping waypointCreateKey;
     public static KeyMapping waypointListKey;
     public static KeyMapping worldMapKey;
+    public static KeyMapping waypointSetCycleKey;
 
     private static final KeyMapping.Category FOX_CATEGORY =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
@@ -155,6 +156,11 @@ public class KitsuneClient implements ClientModInitializer {
         worldMapKey       = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.world_map",        InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_M, FOX_CATEGORY));
+        // Cycle through waypoint sets. Unbound by default so it doesn't
+        // collide with anything common; users bind in Options → Controls.
+        waypointSetCycleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.kitsune.waypoint_set_cycle", InputConstants.Type.KEYSYM,
+                InputConstants.UNKNOWN.getValue(), FOX_CATEGORY));
 
         // 3b. Register visual tooltip component for shulker box grid preview.
         //     Must be done at init (not per-feature enable) — the callback is
@@ -295,6 +301,13 @@ public class KitsuneClient implements ClientModInitializer {
         // Open the world map.
         while (worldMapKey.consumeClick()) {
             client.setScreen(new dev.kitsune.client.screen.WorldMapScreen(client.screen));
+        }
+        // Cycle through waypoint sets.
+        while (waypointSetCycleKey.consumeClick()) {
+            dev.kitsune.client.waypoint.WaypointManager.cycleActiveSet();
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Waypoint set: " + dev.kitsune.client.waypoint.WaypointManager.activeSet(),
+                    dev.kitsune.client.hud.NotificationManager.Type.INFO);
         }
 
         // Drive the world-map chunk-discovery cache. Saves are throttled

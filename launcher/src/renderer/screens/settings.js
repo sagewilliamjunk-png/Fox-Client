@@ -211,7 +211,8 @@ export async function renderSettings(mount) {
           ${renderShortcut('Tab-held minimap',      'Tab',        'When the Minimap module is on, holding tab swaps player dots for their actual skin\\'s head face.')}
           ${renderShortcut('Create waypoint',       'B',          'Pins a waypoint at your current location with an auto-generated name.')}
           ${renderShortcut('Open waypoints list',   'U',          'Opens the full waypoints screen — list, create, rename, delete.')}
-          ${renderShortcut('Open world map',        'M',          'Full-screen scrollable map of every chunk you\\'ve explored. Drag to pan, scroll to zoom.')}
+          ${renderShortcut('Open world map',        'M',          'Full-screen scrollable map of every chunk you\\'ve explored. Drag to pan, scroll to zoom, right-click to drop a waypoint.')}
+          ${renderShortcut('Cycle waypoint set',    '(unbound)',  'Rotates through your waypoint sets — useful when you organize them into Bases / Diamond Mines / Allies etc.')}
         </div>
 
         <div class="shortcut-group-label">Vanilla MC defaults still apply</div>

@@ -54,15 +54,67 @@ public final class WaypointManager {
     /** Sub-worlds we've already loaded from disk this session. */
     private static final java.util.Set<String> LOADED_FROM_DISK = ConcurrentHashMap.newKeySet();
 
+    /** Currently active waypoint set for the UI / minimap. Special sentinel
+     *  "All" (no quotes) means render every set together. */
+    public static final String ALL_SETS = "All";
+    private static volatile String activeSet = ALL_SETS;
+
+    public static String activeSet() { return activeSet; }
+    public static void setActiveSet(String name) {
+        activeSet = (name == null || name.isEmpty()) ? ALL_SETS : name;
+    }
+
+    /** Cycle to the next set in the current sub-world's roster — used by
+     *  the U+RightArrow / dedicated cycle keybind. Wraps. */
+    public static void cycleActiveSet() {
+        java.util.List<String> sets = knownSets();
+        if (sets.isEmpty()) return;
+        int idx = sets.indexOf(activeSet);
+        activeSet = sets.get((idx + 1) % sets.size());
+    }
+
+    /** Distinct set names for the current sub-world, plus the "All" sentinel
+     *  at index 0. Used to drive the set-cycle keybind and any UI dropdown. */
+    public static java.util.List<String> knownSets() {
+        String sub = currentSubWorldId();
+        if (sub == null) return java.util.List.of(ALL_SETS, Waypoint.DEFAULT_SET);
+        ensureLoaded(sub);
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        out.add(ALL_SETS);
+        out.add(Waypoint.DEFAULT_SET);
+        List<Waypoint> list = WORLDS.get(sub);
+        if (list != null) {
+            for (Waypoint w : list) {
+                String s = w.set();
+                if (s != null && !s.isEmpty()) out.add(s);
+            }
+        }
+        return new java.util.ArrayList<>(out);
+    }
+
     private WaypointManager() {}
 
     // ---- public API -------------------------------------------------------
 
-    /** All waypoints for the current sub-world (defensive copy). */
+    /** Waypoints for the current sub-world filtered by {@link #activeSet}
+     *  ({@link #ALL_SETS} returns everything). Defensive copy. */
     public static List<Waypoint> current() {
-        return forSubWorld(currentSubWorldId());
+        return currentInSet(activeSet);
     }
 
+    /** Waypoints for the current sub-world, filtered to the given set name
+     *  (or {@link #ALL_SETS} for all). Defensive copy. */
+    public static List<Waypoint> currentInSet(String setName) {
+        List<Waypoint> all = forSubWorld(currentSubWorldId());
+        if (ALL_SETS.equals(setName) || setName == null) return all;
+        List<Waypoint> filtered = new ArrayList<>();
+        for (Waypoint w : all) {
+            if (setName.equals(w.set())) filtered.add(w);
+        }
+        return filtered;
+    }
+
+    /** Full unfiltered list for a specific sub-world. */
     public static List<Waypoint> forSubWorld(String subWorldId) {
         if (subWorldId == null) return Collections.emptyList();
         ensureLoaded(subWorldId);
@@ -154,7 +206,8 @@ public final class WaypointManager {
                             o.has("color")  ? o.get("color").getAsInt()     : Waypoint.DEFAULT_COLOR,
                             o.has("symbol") ? o.get("symbol").getAsString() : "•",
                             o.has("global") && o.get("global").getAsBoolean(),
-                            o.has("deathpoint") && o.get("deathpoint").getAsBoolean()
+                            o.has("deathpoint") && o.get("deathpoint").getAsBoolean(),
+                            o.has("set")    ? o.get("set").getAsString()    : Waypoint.DEFAULT_SET
                     ));
                 } catch (Exception ignored) { /* skip malformed entry */ }
             }
@@ -180,6 +233,7 @@ public final class WaypointManager {
             o.addProperty("symbol", w.symbol());
             o.addProperty("global", w.global());
             o.addProperty("deathpoint", w.deathpoint());
+            o.addProperty("set", w.set() == null ? Waypoint.DEFAULT_SET : w.set());
             arr.add(o);
         }
         root.add("waypoints", arr);

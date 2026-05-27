@@ -22,19 +22,33 @@ public record Waypoint(
         int color,
         String symbol,
         boolean global,
-        boolean deathpoint) {
+        boolean deathpoint,
+        String set) {
     public static final int DEFAULT_COLOR     = 0xFFCC8833;
     public static final int DEATHPOINT_COLOR  = 0xFFFF3333;
+    /** The implicit default set every new waypoint lands in. */
+    public static final String DEFAULT_SET    = "Default";
+
+    /** Back-compat ctor used by callers from v1.3.x that pre-dated the set field. */
+    public Waypoint(String id, String name, int x, int y, int z, int color, String symbol,
+                    boolean global, boolean deathpoint) {
+        this(id, name, x, y, z, color, symbol, global, deathpoint, DEFAULT_SET);
+    }
 
     public Waypoint withName(String newName) {
-        return new Waypoint(id, newName, x, y, z, color, symbol, global, deathpoint);
+        return new Waypoint(id, newName, x, y, z, color, symbol, global, deathpoint, set);
     }
 
     public Waypoint withColor(int newColor) {
-        return new Waypoint(id, name, x, y, z, newColor, symbol, global, deathpoint);
+        return new Waypoint(id, name, x, y, z, newColor, symbol, global, deathpoint, set);
     }
 
     public Waypoint withGlobal(boolean isGlobal) {
-        return new Waypoint(id, name, x, y, z, color, symbol, isGlobal, deathpoint);
+        return new Waypoint(id, name, x, y, z, color, symbol, isGlobal, deathpoint, set);
+    }
+
+    public Waypoint withSet(String newSet) {
+        return new Waypoint(id, name, x, y, z, color, symbol, global, deathpoint,
+                            newSet == null || newSet.isEmpty() ? DEFAULT_SET : newSet);
     }
 }
