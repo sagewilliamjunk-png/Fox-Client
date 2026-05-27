@@ -203,21 +203,21 @@ export async function renderSettings(mount) {
           ${renderShortcut('Open ClickGUI',         'Right Shift','Opens the module browser / on/off toggles.')}
           ${renderShortcut('Open HUD Editor',       'End',        'Drag-and-drop layout for every HUD widget.')}
           ${renderShortcut('Zoom (hold)',           'C',          'Smooth hold-to-zoom (Lunar-style).')}
-          ${renderShortcut('Toggle Full Brightness','(unbound)', 'Defaults unbound to avoid colliding with vanilla\\'s G (Social Interactions). Rebind in Options → Controls.')}
+          ${renderShortcut('Toggle Full Brightness','(unbound)', "Defaults unbound to avoid colliding with vanilla's G (Social Interactions). Rebind in Options → Controls.")}
           ${renderShortcut('Copy coords',           '(unbound)', 'Copies your XYZ to the clipboard via the Coords HUD module.')}
           ${renderShortcut('Minimap zoom in',       'I',          'Zooms the minimap to a smaller block range (closer view).')}
           ${renderShortcut('Minimap zoom out',      'O',          'Zooms the minimap to a larger block range (wider view).')}
           ${renderShortcut('Minimap enlarge',       'Z (hold)',   'Temporarily enlarges the minimap to take a better look. Release to restore.')}
-          ${renderShortcut('Tab-held minimap',      'Tab',        'When the Minimap module is on, holding tab swaps player dots for their actual skin\\'s head face.')}
+          ${renderShortcut('Tab-held minimap',      'Tab',        "When the Minimap module is on, holding tab swaps player dots for their actual skin's head face.")}
           ${renderShortcut('Create waypoint',       'B',          'Pins a waypoint at your current location with an auto-generated name.')}
           ${renderShortcut('Open waypoints list',   'U',          'Opens the full waypoints screen — list, create, rename, delete.')}
-          ${renderShortcut('Open world map',        'M',          'Full-screen scrollable map of every chunk you\\'ve explored. Drag to pan, scroll to zoom, right-click to drop a waypoint.')}
+          ${renderShortcut('Open world map',        'M',          "Full-screen scrollable map of every chunk you've explored. Drag to pan, scroll to zoom, right-click to drop a waypoint.")}
           ${renderShortcut('Cycle waypoint set',    '(unbound)',  'Rotates through your waypoint sets — useful when you organize them into Bases / Diamond Mines / Allies etc.')}
         </div>
 
         <div class="shortcut-group-label">Vanilla MC defaults still apply</div>
         <div class="shortcut-table">
-          ${renderShortcut('Take screenshot',  'F2',       'Saved into the active profile\\'s screenshots folder — browse them in the launcher\\'s Screenshots tab.')}
+          ${renderShortcut('Take screenshot',  'F2',       "Saved into the active profile's screenshots folder — browse them in the launcher's Screenshots tab.")}
           ${renderShortcut('Debug overlay',    'F3',       'Vanilla F3 debug; toggle entity hitboxes with F3 + B.')}
           ${renderShortcut('Reload resources', 'F3 + T',   'Reloads resource packs — Fox cosmetics reload with them.')}
         </div>
