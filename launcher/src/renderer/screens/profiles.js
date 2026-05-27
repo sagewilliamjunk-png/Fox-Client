@@ -110,8 +110,12 @@ export async function renderProfiles(mount) {
             + New profile
           </button>
           <button class="btn" id="btn-import-profile" style="margin-top:6px;width:100%;">
-            Import from file…
+            Import profile from file…
           </button>
+          <button class="btn" id="btn-import-mrpack" style="margin-top:6px;width:100%;" title="Modrinth modpack — fetches every mod listed in the .mrpack, hash-verifies, and creates a fresh isolated profile.">
+            🧩 Import Modrinth modpack…
+          </button>
+          <div id="mrpack-progress" style="display:none;margin-top:6px;font-size:11px;font-family:ui-monospace,monospace;max-height:150px;overflow-y:auto;background:var(--surface-2);border-radius:4px;padding:6px;color:var(--text-2);"></div>
         </div>
       </div>
 
@@ -141,6 +145,43 @@ export async function renderProfiles(mount) {
   `;
 
   document.getElementById('btn-new-profile').addEventListener('click', openTemplatePicker);
+  // Modrinth .mrpack importer — opens a file picker, downloads every mod
+  // from the modpack into a fresh isolated profile, and live-logs progress
+  // into a tail-style box under the buttons.
+  document.getElementById('btn-import-mrpack').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-import-mrpack');
+    const log = document.getElementById('mrpack-progress');
+    btn.disabled = true;
+    btn.textContent = '⬇ Importing…';
+    log.style.display = '';
+    log.innerHTML = '';
+    const appendLine = (msg) => {
+      const div = document.createElement('div');
+      div.textContent = msg;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    };
+    const unsub = window.fox.onModpackProgress(({ message }) => appendLine(message));
+    let result;
+    try { result = await window.fox.modpackImport(); }
+    catch (err) { result = { ok: false, error: err.message || String(err) }; }
+    if (typeof unsub === 'function') unsub();
+    btn.disabled = false;
+    btn.textContent = '🧩 Import Modrinth modpack…';
+    if (!result.ok) {
+      appendLine('❌ ' + (result.error || 'unknown error'));
+    } else {
+      appendLine(`✅ Done: ${result.fileCount} mods, ${result.overrides} override files`
+              + (result.errors ? `, ${result.errors} failed` : '')
+              + (result.skipped ? `, ${result.skipped} skipped` : ''));
+      // Refresh the profile list so the new modpack shows up immediately.
+      const refreshed = await window.fox.listProfiles();
+      profilesCache = refreshed.profiles;
+      selectedId = result.profileId;
+      rerender();
+    }
+  });
+
   document.getElementById('btn-import-profile').addEventListener('click', async () => {
     const r = await window.fox.importProfile();
     if (r.cancelled) return;

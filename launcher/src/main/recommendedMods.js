@@ -57,6 +57,33 @@ const RECOMMENDED = [
     description: 'OptiFine-style random/emissive entity textures for resource packs.' },
   { slug: 'simple-voice-chat',     displayName: 'Simple Voice Chat', essential: false,
     description: 'Proximity voice chat — hear nearby players in-game (requires server-side mod).' },
+
+  // ----------------------------------------------------------------
+  // Universally-loved QoL mods that ship in nearly every modpack a
+  // typical Modrinth user puts together. Adding them here means a
+  // first-launch user gets the same experience without hunting for
+  // each one individually on Modrinth.
+  // ----------------------------------------------------------------
+  { slug: 'emi',                   displayName: 'EMI',         essential: true,
+    description: 'Recipe browser + ingredient lookup. Smaller and faster than JEI/REI; the standard recipe viewer.' },
+  { slug: 'mouse-tweaks',          displayName: 'Mouse Tweaks', essential: true,
+    description: 'Drag-and-distribute mouse controls for inventories. The "wait, vanilla doesn\'t do this?" mod.' },
+  { slug: 'no-chat-reports',       displayName: 'No Chat Reports', essential: false,
+    description: 'Removes the Mojang chat-report system. Privacy-first chat for multiplayer.' },
+  { slug: 'visuality',             displayName: 'Visuality',   essential: false,
+    description: 'Extra particle effects (water ripples, leaf falls, ender block ambient particles).' },
+  { slug: 'world-host',            displayName: 'World Host',  essential: false,
+    description: 'Open your singleplayer world to friends without port forwarding. P2P relay built in.' },
+  { slug: '3dskinlayers',          displayName: '3D Skin Layers', essential: false,
+    description: 'Renders the second skin layer in proper 3D — gives every player a bit more presence.' },
+  { slug: 'continuity',            displayName: 'Continuity',  essential: false,
+    description: 'OptiFine-style connected textures and emissive overlays for resource packs.' },
+  { slug: 'visual-workbench',      displayName: 'Visual Workbench', essential: false,
+    description: 'Crafting table keeps the items you place in it; lets you see them in the world.' },
+  { slug: 'lambdynamiclights',     displayName: 'LambDynamicLights', essential: false,
+    description: 'Dynamic lighting — torches in hand, glowstone in inventory, magma cubes etc all emit light.' },
+  { slug: 'better-mount-hud',      displayName: 'Better Mount HUD', essential: false,
+    description: 'When riding, shows your mount\'s health, jump strength, and saddle stats.' },
 ];
 
 // ---- HTTP helpers (same shape as fabricInstaller) ----

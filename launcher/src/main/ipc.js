@@ -21,6 +21,7 @@ const addons = require('./addons');
 const recommendedMods = require('./recommendedMods');
 const modrinthBrowser = require('./modrinthBrowser');
 const modUpdates      = require('./modUpdates');
+const modpackImport   = require('./modpackImport');
 const profiles = require('./profiles');
 const resourcepacks = require('./resourcepacks');
 const skins = require('./skins');
@@ -919,6 +920,53 @@ function register(getWindow) {
     const dir = gameDirForProfile(profileId);
     if (!fs.existsSync(dir)) return { ok: false, error: 'Game directory does not exist.' };
     return modUpdates.applyUpdate(dir, update);
+  });
+
+  // ---- Modpack (.mrpack) import ----
+  //
+  // Picks a .mrpack file, parses its modrinth.index.json, creates a fresh
+  // isolated profile named after the pack, downloads every required mod
+  // (SHA-512 verified), extracts overrides into the instance dir.
+  ipcMain.handle('modpack:import', async (_e) => {
+    const { dialog } = require('electron');
+    const win = getWindow();
+    const picked = await dialog.showOpenDialog(win || undefined, {
+      title: 'Pick a .mrpack file',
+      filters: [{ name: 'Modrinth modpack', extensions: ['mrpack'] }],
+      properties: ['openFile'],
+    });
+    if (picked.canceled || !picked.filePaths.length) return { ok: false, error: 'Cancelled' };
+    const mrpackPath = picked.filePaths[0];
+
+    // Notify the renderer of per-file progress so the UI can show a live log.
+    const send = (msg) => {
+      const w = getWindow();
+      if (w && !w.isDestroyed()) w.webContents.send('modpack:progress', { message: msg });
+    };
+
+    return modpackImport.importMrpack(mrpackPath, {
+      mcVersion: launcher.TARGET_MC_VERSION,
+      instanceDir: (id) => paths.instanceDir(id),
+      mkProfile: (name) => {
+        // Sanitize name → unique id. Re-uses the existing profile-create
+        // path so the new modpack profile shows up in the Profiles tab.
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+                + '-' + Date.now().toString(36);
+        try {
+          profiles.save({
+            id, name,
+            notes: 'Imported from .mrpack on ' + new Date().toISOString().slice(0, 10),
+            isolated: true,
+            keepKitsuneEnabled: true,
+          });
+          return id;
+        } catch (err) {
+          send('  → profile create failed: ' + err.message);
+          return null;
+        }
+      },
+      onProgress: send,
+    });
   });
 
   // ---- news feed (from a configurable URL; cached + offline-tolerant) ----

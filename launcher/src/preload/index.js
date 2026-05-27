@@ -89,6 +89,12 @@ contextBridge.exposeInMainWorld('fox', {
   modUpdatesApply: (payload) => invoke('modUpdates:apply', payload || {}),
   onModUpdatesAutoResult: (fn) => on('modUpdates:autoResult', fn),
 
+  // Modpack (.mrpack) import — opens a file picker then runs the full
+  // download + extract pipeline. Subscribe via onModpackProgress for the
+  // live log lines (one per file).
+  modpackImport: () => invoke('modpack:import'),
+  onModpackProgress: (fn) => on('modpack:progress', fn),
+
   // Mods (jars in <gameDir>/mods)
   listMods:       () => invoke('mods:list'),
   addMods:        () => invoke('mods:add'),

@@ -17,7 +17,9 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.js"]
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   },
   "devDependencies": {
     "electron": "^32.0.0",
@@ -57,6 +59,7 @@
     }
   },
   "dependencies": {
-    "electron-updater": "^6.8.3"
+    "electron-updater": "^6.8.3",
+    "yauzl": "^3.3.1"
   }
 }
