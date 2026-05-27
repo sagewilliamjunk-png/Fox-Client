@@ -3,6 +3,7 @@ package dev.kitsune.client.screen;
 import dev.kitsune.client.gui.widget.FoxButton;
 import dev.kitsune.client.waypoint.Waypoint;
 import dev.kitsune.client.waypoint.WaypointManager;
+import dev.kitsune.client.worldmap.Footsteps;
 import dev.kitsune.client.worldmap.WorldMapData;
 import dev.kitsune.client.worldmap.WorldMapManager;
 import net.minecraft.client.Minecraft;
@@ -117,7 +118,16 @@ public class WorldMapScreen extends Screen {
 
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e, boolean focused) {
-        // Start drag only on left-click in the map area (not over a button).
+        // Right-click anywhere on the map area = drop a waypoint there.
+        // We translate screen → world space and create immediately, with a
+        // best-effort Y from the surface tile that covers that block.
+        if (e.button() == 1 && !super.mouseClicked(e, focused)) {
+            double worldX = centerWorldX + (e.x() - this.width  / 2.0) / pixelsPerBlock;
+            double worldZ = centerWorldZ + (e.y() - this.height / 2.0) / pixelsPerBlock;
+            createWaypointAtWorld((int) Math.floor(worldX), (int) Math.floor(worldZ));
+            return true;
+        }
+        // Left-click = pan drag.
         if (e.button() == 0 && !super.mouseClicked(e, focused)) {
             dragging = true;
             dragOriginScreenX = e.x();
@@ -127,6 +137,43 @@ public class WorldMapScreen extends Screen {
             return true;
         }
         return super.mouseClicked(e, focused);
+    }
+
+    /** Create a waypoint at the given world block (x, z). The y comes from
+     *  whatever surface tile we have stored — if the chunk isn't in the
+     *  cache, defaults to sea level. */
+    private void createWaypointAtWorld(int worldX, int worldZ) {
+        int worldY = 64; // sea-level fallback
+        WorldMapData data = WorldMapManager.active();
+        if (data != null) {
+            ChunkPos cp = new ChunkPos(worldX >> 4, worldZ >> 4);
+            // We stored ARGB altitude colors, not raw heights — derive an
+            // approximate y by inverting the heightToColor formula. Quick &
+            // dirty: average the green channel since it maps monotonically
+            // to altitude, then unscale back into the sea-level range.
+            int[] tile = data.get(cp);
+            if (tile != null) {
+                int lx = (worldX & 15);
+                int lz = (worldZ & 15);
+                int argb = tile[lz * 16 + lx];
+                int g = (argb >> 8) & 0xFF;
+                // From ChunkColorTile: g = round(50 + t*170)
+                float t = Math.max(0, Math.min(1, (g - 50) / 170f));
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.level != null) {
+                    int sea = mc.level.getSeaLevel();
+                    int top = Math.min(320, sea + 96);
+                    int bot = Math.max(-64, sea - 32);
+                    worldY = Math.round(bot + t * (top - bot));
+                }
+            }
+        }
+        String name = WaypointManager.nextDefaultName();
+        String sym  = name.length() > 0 ? name.substring(0, 1).toUpperCase() : "•";
+        Waypoint w = new Waypoint(
+                null, name, worldX, worldY, worldZ,
+                Waypoint.DEFAULT_COLOR, sym, false, false);
+        WaypointManager.addToCurrent(w);
     }
 
     @Override
@@ -203,6 +250,39 @@ public class WorldMapScreen extends Screen {
             }
         }
 
+        // Footsteps trail — render before waypoints so the markers sit on top.
+        // Fade alpha from 0 (oldest) up to 255 (most recent) so the trail
+        // looks like it dissolves behind the player.
+        Footsteps.Step[] steps = Footsteps.snapshot();
+        if (steps.length >= 2) {
+            for (int i = 1; i < steps.length; i++) {
+                Footsteps.Step a = steps[i - 1];
+                Footsteps.Step b = steps[i];
+                int alpha = (int) Math.round(40 + 200.0 * (i / (double) steps.length));
+                int color = (alpha << 24) | 0xFFDD66;
+                double axSx = halfW + (a.x() - cxBlock) * scale;
+                double axSy = halfH + (a.z() - czBlock) * scale;
+                double bxSx = halfW + (b.x() - cxBlock) * scale;
+                double bxSy = halfH + (b.z() - czBlock) * scale;
+                // Quick line draw via Bresenham — gfx.fill is the only
+                // primitive we have, so we plot 1×1 pixels along the segment.
+                int x0 = (int) axSx, y0 = (int) axSy, x1 = (int) bxSx, y1 = (int) bxSy;
+                int dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+                int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+                int err = dx + dy;
+                int safety = 2000; // anti-OOL safety net for extreme zoom
+                while (safety-- > 0) {
+                    if (x0 >= 0 && x0 < this.width && y0 >= 0 && y0 < this.height) {
+                        gfx.fill(x0, y0, x0 + 1, y0 + 1, color);
+                    }
+                    if (x0 == x1 && y0 == y1) break;
+                    int e2 = 2 * err;
+                    if (e2 >= dy) { err += dy; x0 += sx; }
+                    if (e2 <= dx) { err += dx; y0 += sy; }
+                }
+            }
+        }
+
         // Waypoint markers.
         for (Waypoint w : WaypointManager.current()) {
             double wsx = halfW + (w.x() - cxBlock) * scale;
@@ -243,7 +323,7 @@ public class WorldMapScreen extends Screen {
         }
         gfx.text(this.font, String.format("§7Zoom: §f%.2fx  §7Chunks: §f%d",
                 pixelsPerBlock, data.count()), this.width - 220, 50, 0xFFFFFFFF);
-        gfx.text(this.font, "§7Drag to pan · scroll to zoom · §fM§7 / §fEsc§7 to close",
+        gfx.text(this.font, "§7Drag to pan · scroll to zoom · §fright-click§7 to drop waypoint · §fM§7 / §fEsc§7 to close",
                 12, this.height - 16, 0xFFAAAAAA);
 
         // Buttons last so they layer on top of the map.

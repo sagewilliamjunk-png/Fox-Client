@@ -3,7 +3,9 @@ package dev.kitsune.client.worldmap;
 import dev.kitsune.client.waypoint.WaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,7 +53,10 @@ public final class WorldMapManager {
             }
             return;
         }
-        String currentSub = WaypointManager.currentSubWorldId();
+        // Per-dimension cache id: host/world + "/" + dim path. Same overworld
+        // map for the same server, but the Nether and End get their own caches
+        // so the surface heightmap doesn't smear together at portal coords.
+        String currentSub = perDimensionId(mc);
         if (currentSub == null) return;
 
         // Sub-world switch: save the old, load the new.
@@ -80,6 +85,10 @@ public final class WorldMapManager {
             }
         }
 
+        // Footsteps sample — bounded ring buffer keyed by the same per-dim
+        // sub-world id so the trail resets cleanly on dimension change.
+        Footsteps.sample(currentSub, p.getX(), p.getZ());
+
         // Throttled save.
         long now = System.currentTimeMillis();
         if (now - lastSaveMs >= SAVE_INTERVAL_MS && active.isDirty()) {
@@ -92,5 +101,22 @@ public final class WorldMapManager {
      *  minutes of exploration on close. */
     public static void saveActive() {
         if (active != null) active.save();
+    }
+
+    /** Host/world id + "/" + dimension path. Null when no world is loaded. */
+    private static String perDimensionId(Minecraft mc) {
+        String host = WaypointManager.currentSubWorldId();
+        if (host == null || mc.level == null) return null;
+        ResourceKey<Level> dim = mc.level.dimension();
+        String dimPath;
+        if (dim.equals(Level.OVERWORLD)) dimPath = "overworld";
+        else if (dim.equals(Level.NETHER)) dimPath = "nether";
+        else if (dim.equals(Level.END)) dimPath = "the_end";
+        else {
+            // Custom / modded dimension — extract the path from the resource key.
+            String s = dim.identifier().getPath();
+            dimPath = s == null || s.isEmpty() ? "custom" : s;
+        }
+        return host + "/" + dimPath;
     }
 }
