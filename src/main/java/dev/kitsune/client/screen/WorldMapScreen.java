@@ -78,6 +78,78 @@ public class WorldMapScreen extends Screen {
         this.addRenderableWidget(FoxButton.of(100, 8, 80, 20,
                 Component.literal("🗺 Fit"),
                 b -> fitToContent()));
+        // Export PNG — dumps the current cache into a PNG file inside the
+        // user's screenshots folder. Same folder vanilla F2 uses so the
+        // launcher's Screenshots gallery picks it up automatically.
+        this.addRenderableWidget(FoxButton.of(184, 8, 90, 20,
+                Component.literal("💾 Export PNG"),
+                b -> exportPng()));
+    }
+
+    /** Allocate one big int[] covering the bbox at 1 pixel per block and
+     *  blit each cached chunk's 16×16 grid into it. Then hand to ImageIO. */
+    private void exportPng() {
+        WorldMapData data = WorldMapManager.active();
+        if (data == null || data.count() == 0) {
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Nothing to export yet — walk around to explore.",
+                    dev.kitsune.client.hud.NotificationManager.Type.WARNING);
+            return;
+        }
+        try {
+            int minCx = data.minCx(), maxCx = data.maxCx();
+            int minCz = data.minCz(), maxCz = data.maxCz();
+            int widthPx  = ((maxCx - minCx + 1) << 4);
+            int heightPx = ((maxCz - minCz + 1) << 4);
+            // Reasonable cap — 8192×8192 is 256 MB worst case for the int[]
+            // and would already produce a 100+ MB PNG. If the user has been
+            // exploring for that long they can split exports manually.
+            if (widthPx > 8192 || heightPx > 8192) {
+                dev.kitsune.client.hud.NotificationManager.show(
+                        "Explored area too large to export — " + widthPx + "×" + heightPx + ".",
+                        dev.kitsune.client.hud.NotificationManager.Type.WARNING);
+                return;
+            }
+            java.awt.image.BufferedImage img =
+                    new java.awt.image.BufferedImage(widthPx, heightPx, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            // Fill background black so missing chunks (holes in exploration)
+            // are visually distinct from unexplored map margins.
+            int[] backing = new int[widthPx * heightPx];
+            java.util.Arrays.fill(backing, 0xFF000000);
+            for (var entry : data.tiles.entrySet()) {
+                var cp = entry.getKey();
+                int[] tile = entry.getValue();
+                int baseX = (cp.x() - minCx) << 4;
+                int baseY = (cp.z() - minCz) << 4;
+                for (int lx = 0; lx < 16; lx++) {
+                    for (int lz = 0; lz < 16; lz++) {
+                        backing[(baseY + lz) * widthPx + (baseX + lx)] = tile[lz * 16 + lx];
+                    }
+                }
+            }
+            img.setRGB(0, 0, widthPx, heightPx, backing, 0, widthPx);
+
+            // Resolve the target file: <gameDir>/screenshots/foxmap-<sub>-<ts>.png.
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            java.io.File ssDir = new java.io.File(mc.gameDirectory, "screenshots");
+            if (!ssDir.exists() && !ssDir.mkdirs()) {
+                throw new java.io.IOException("Failed to create screenshots dir: " + ssDir);
+            }
+            String safeSub = data.subWorldId.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String stamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss")
+                    .format(new java.util.Date());
+            java.io.File out = new java.io.File(ssDir, "foxmap-" + safeSub + "-" + stamp + ".png");
+            javax.imageio.ImageIO.write(img, "PNG", out);
+
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Exported " + widthPx + "×" + heightPx + " → " + out.getName(),
+                    dev.kitsune.client.hud.NotificationManager.Type.SUCCESS);
+        } catch (Throwable t) {
+            dev.kitsune.client.KitsuneClient.LOGGER.warn("[WorldMap] PNG export failed: {}", t.toString());
+            dev.kitsune.client.hud.NotificationManager.show(
+                    "Export failed: " + t.getMessage(),
+                    dev.kitsune.client.hud.NotificationManager.Type.WARNING);
+        }
     }
 
     private void fitToContent() {
