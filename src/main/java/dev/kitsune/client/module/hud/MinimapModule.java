@@ -79,8 +79,8 @@ public class MinimapModule extends Module implements HudWidget {
 
     private final ModeSetting    viewMode       = addSetting(new ModeSetting("View Mode", "Heightmap + Dots",
             List.of("Dots", "Heightmap", "Heightmap + Dots")));
-    private final ModeSetting    colorMode      = addSetting(new ModeSetting("Color Mode", "Altitude",
-            List.of("Altitude", "Biome Tinted")));
+    private final ModeSetting    colorMode      = addSetting(new ModeSetting("Color Mode", "Vanilla Map",
+            List.of("Vanilla Map", "Altitude", "Biome Tinted")));
     private final ModeSetting    shape          = addSetting(new ModeSetting("Shape", "Circle",
             List.of("Circle", "Square")));
     private final SliderSetting  rangeBlocks    = addSetting(new SliderSetting("Range (blocks)", 64, 16, 256, 8));
@@ -127,8 +127,14 @@ public class MinimapModule extends Module implements HudWidget {
     private List<RadarEntry> entityCache = new ArrayList<>();
     private int entityCacheTick = 0;
 
-    /** Heightmap-mode cache: chunk → 16×16 ARGB grid (surface OR cave cross-section). */
-    private final Map<ChunkPos, int[]> terrainCache = new HashMap<>();
+    /** GPU-side cache. Each chunk = one 16×16 DynamicTexture so the renderer
+     *  does one gfx.blit per chunk instead of 256 gfx.fill calls. Huge perf
+     *  win — the old per-pixel render was tanking frame times. */
+    private final dev.kitsune.client.worldmap.MapTextureCache terrainTextures =
+            new dev.kitsune.client.worldmap.MapTextureCache("kitsune_minimap");
+    /** Track which chunks we've computed this terrain pass for so retainAndCloseRest
+     *  can free GPU memory when the player moves out of an area. */
+    private final java.util.HashSet<ChunkPos> activeChunkSet = new java.util.HashSet<>();
     private long lastPlayerChunkX = Long.MIN_VALUE;
     private long lastPlayerChunkZ = Long.MIN_VALUE;
     private int  lastPlayerY      = Integer.MIN_VALUE;
@@ -197,7 +203,8 @@ public class MinimapModule extends Module implements HudWidget {
     @Override
     protected void onDisable() {
         entityCache.clear();
-        terrainCache.clear();
+        terrainTextures.closeAll();
+        activeChunkSet.clear();
         lastPlayerChunkX = Long.MIN_VALUE;
         lastPlayerChunkZ = Long.MIN_VALUE;
         lastPlayerY      = Integer.MIN_VALUE;
@@ -314,29 +321,38 @@ public class MinimapModule extends Module implements HudWidget {
         ClientLevel level = mc.level;
         if (level == null) return;
         int chunkRange = (int) Math.ceil(rangeBlocks.get() / 16.0) + 1;
-        java.util.HashSet<ChunkPos> needed = new java.util.HashSet<>();
+        activeChunkSet.clear();
         for (int dx = -chunkRange; dx <= chunkRange; dx++) {
             for (int dz = -chunkRange; dz <= chunkRange; dz++) {
-                needed.add(new ChunkPos((int)(playerCx + dx), (int)(playerCz + dz)));
+                activeChunkSet.add(new ChunkPos((int)(playerCx + dx), (int)(playerCz + dz)));
             }
         }
-        // Cave-mode tiles are slice-specific, so we evict EVERYTHING on a
-        // surface↔cave mode flip rather than try to mix the two in-cache.
-        terrainCache.keySet().removeIf(p -> !needed.contains(p));
-        boolean tinted = biomeTinted();
-        for (ChunkPos cp : needed) {
-            if (terrainCache.containsKey(cp)) continue;
+        // Evict GPU textures for chunks outside the new range.
+        terrainTextures.retainAndCloseRest(activeChunkSet);
+        dev.kitsune.client.worldmap.ChunkColorTile.ColorMode mode = currentColorMode();
+        for (ChunkPos cp : activeChunkSet) {
+            if (terrainTextures.contains(cp) && !cave) continue;
             int[] tile = cave
                     ? computeCaveTile(level, cp, playerY)
-                    : dev.kitsune.client.worldmap.ChunkColorTile.surface(level, cp, tinted);
-            if (tile != null) terrainCache.put(cp, tile);
+                    : dev.kitsune.client.worldmap.ChunkColorTile.surface(level, cp, mode);
+            if (tile != null) terrainTextures.upsert(cp, tile);
         }
     }
 
-    /** Public accessor so external callers (KitsuneClient, WorldMap) can ask
-     *  the active minimap if biome tinting is on. Falls back to false when
-     *  the module isn't enabled — keeps the WorldMap deterministic. */
-    public boolean biomeTinted() { return "Biome Tinted".equals(colorMode.get()); }
+    /** Public accessor so the WorldMap can read the same color mode the
+     *  minimap is using. Falls back to ALTITUDE when the mode string is
+     *  unrecognised so a malformed setting can't blank the tile compute. */
+    public dev.kitsune.client.worldmap.ChunkColorTile.ColorMode currentColorMode() {
+        String s = colorMode.get();
+        return switch (s) {
+            case "Vanilla Map"  -> dev.kitsune.client.worldmap.ChunkColorTile.ColorMode.VANILLA_MAP;
+            case "Biome Tinted" -> dev.kitsune.client.worldmap.ChunkColorTile.ColorMode.BIOME_TINTED;
+            default             -> dev.kitsune.client.worldmap.ChunkColorTile.ColorMode.ALTITUDE;
+        };
+    }
+
+    /** Back-compat for code that only cares about the boolean tint flag. */
+    public boolean biomeTinted() { return currentColorMode() == dev.kitsune.client.worldmap.ChunkColorTile.ColorMode.BIOME_TINTED; }
 
     // Surface heightmap tiles now go through ChunkColorTile.surface() (with
     // optional biome tinting). Local computeCaveTile stays — cave mode is
@@ -480,32 +496,48 @@ public class MinimapModule extends Module implements HudWidget {
 
     // ---- terrain / overlay render passes ----------------------------------
 
+    /** Fast terrain pass — one gfx.blit per chunk. Uses the pose stack to
+     *  scale + rotate the entire view so the per-chunk blits stay axis-aligned
+     *  in world space. Scissor clips to the minimap's bounding rect; the
+     *  circular border drawn afterwards hides the corner overflow.
+     *
+     *  Replaces the old per-pixel render that did 4000+ gfx.fill calls per
+     *  frame at the default range — the cause of the framerate tank. */
     private void drawTerrain(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {
         LocalPlayer p = mc.player;
-        if (p == null || terrainCache.isEmpty()) return;
-        double scale = r / rangeBlocks.get();
-        int innerLim = r - 2;
-        double playerX = p.getX();
-        double playerZ = p.getZ();
+        if (p == null || activeChunkSet.isEmpty()) return;
+        float scale = (float)(r / rangeBlocks.get());
+        float playerX = (float) p.getX();
+        float playerZ = (float) p.getZ();
+        // Yaw used to rotate the pose. (cosY, sinY) is the standard
+        // 2D rotation matrix; reconstruct the angle for pose.rotate.
+        // Note: north-lock passes cosY=1, sinY=0 so this resolves to 0 rad.
+        float yaw = (float) Math.atan2(sinY, cosY);
 
-        for (var entry : terrainCache.entrySet()) {
-            ChunkPos cp = entry.getKey();
-            int[] tile = entry.getValue();
+        // Clip to the minimap's axis-aligned bounding box. The circular border
+        // overlays the corners so any rotated terrain that spills slightly
+        // outside the circle isn't visible to the user.
+        gfx.enableScissor(cx - r, cy - r, cx + r, cy + r);
+        gfx.pose().pushMatrix();
+        // Center the rotation around the minimap centre, scale to map zoom,
+        // then translate world-coords so the player is at the centre.
+        gfx.pose().translate((float) cx, (float) cy);
+        gfx.pose().rotate(yaw);
+        gfx.pose().scale(scale, scale);
+        gfx.pose().translate(-playerX, -playerZ);
+
+        for (ChunkPos cp : activeChunkSet) {
+            net.minecraft.resources.Identifier id = terrainTextures.idFor(cp);
+            if (id == null) continue;
             int baseX = cp.getMinBlockX();
             int baseZ = cp.getMinBlockZ();
-            for (int lx = 0; lx < 16; lx++) {
-                for (int lz = 0; lz < 16; lz++) {
-                    double dx = (baseX + lx) - playerX;
-                    double dz = (baseZ + lz) - playerZ;
-                    double sx =  dx * cosY + dz * sinY;
-                    double sy =  dx * sinY - dz * cosY;
-                    int px = cx + (int)(sx * scale);
-                    int py = cy + (int)(sy * scale);
-                    if (!insideShape(px - cx, py - cy, innerLim, square)) continue;
-                    gfx.fill(px, py, px + 1, py + 1, tile[lz * 16 + lx]);
-                }
-            }
+            // Each chunk: one 16×16 blit in WORLD space. The pose transform
+            // handles all rotation/scale; we just give it world coords.
+            gfx.blit(id, baseX, baseZ, baseX + 16, baseZ + 16, 0f, 1f, 0f, 1f);
         }
+
+        gfx.pose().popMatrix();
+        gfx.disableScissor();
     }
 
     private void drawChunkGrid(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {

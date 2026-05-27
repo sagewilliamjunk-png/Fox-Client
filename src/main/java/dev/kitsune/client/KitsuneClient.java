@@ -276,22 +276,17 @@ public class KitsuneClient implements ClientModInitializer {
             // Drain any click queue so the editor doesn't process them.
             while (minimapEnlargeKey.consumeClick()) { /* noop */ }
         }
-        // Quick-create a waypoint at the player's current position.
+        // Open the name-input dialog at the player's current position so the
+        // user can type a meaningful label. Snapshot coords NOW — if the user
+        // is mid-jump or running, they want the waypoint where they pressed
+        // the key, not where they end up after typing.
         while (waypointCreateKey.consumeClick()) {
             if (client.player != null) {
-                String name = dev.kitsune.client.waypoint.WaypointManager.nextDefaultName();
-                String symbol = name.length() > 3
-                        ? name.substring(name.length() - 1)
-                        : name.substring(0, 1);
-                dev.kitsune.client.waypoint.Waypoint w = new dev.kitsune.client.waypoint.Waypoint(
-                        null, name,
-                        client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ(),
-                        dev.kitsune.client.waypoint.Waypoint.DEFAULT_COLOR,
-                        symbol, false, false);
-                dev.kitsune.client.waypoint.WaypointManager.addToCurrent(w);
-                dev.kitsune.client.hud.NotificationManager.show(
-                        "Waypoint created: " + name,
-                        dev.kitsune.client.hud.NotificationManager.Type.SUCCESS);
+                client.setScreen(new dev.kitsune.client.screen.WaypointCreateScreen(
+                        client.screen,
+                        client.player.getBlockX(),
+                        client.player.getBlockY(),
+                        client.player.getBlockZ()));
             }
         }
         // Open the waypoints list screen.

@@ -57,6 +57,12 @@ public final class WorldMapData {
     private volatile int minCx = Integer.MAX_VALUE, maxCx = Integer.MIN_VALUE;
     private volatile int minCz = Integer.MAX_VALUE, maxCz = Integer.MIN_VALUE;
 
+    /** GPU texture cache so the world-map screen blits one quad per chunk
+     *  instead of doing thousands of gfx.fill calls. Built lazily — the
+     *  textures are only allocated when the user opens the map screen
+     *  (or the persisted raw int[] data is loaded back from disk). */
+    public final MapTextureCache textures = new MapTextureCache("kitsune_worldmap");
+
     public WorldMapData(String subWorldId) {
         this.subWorldId = subWorldId;
         this.file = FabricLoader.getInstance().getConfigDir()
@@ -74,6 +80,8 @@ public final class WorldMapData {
     public void put(ChunkPos cp, int[] argb) {
         if (argb == null || argb.length != 256) return;
         tiles.put(cp, argb);
+        // Upload the same data to the GPU cache so the screen can blit it.
+        textures.upsert(cp, argb);
         if (cp.x() < minCx) minCx = cp.x();
         if (cp.x() > maxCx) maxCx = cp.x();
         if (cp.z() < minCz) minCz = cp.z();

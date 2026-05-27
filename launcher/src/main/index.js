@@ -112,7 +112,14 @@ function destroyTray() {
  */
 async function autoInstallRecommended() {
   let s = settings.load();
-  if (s.recommendedModsInstalledFull) return;
+  // v1.3+: we no longer short-circuit when the "installed-full" flag is set.
+  // recommendedMods.installAll already short-circuits per-mod via the
+  // version-aware manifest, so it's idempotent — running it every boot
+  // costs ~50 ms when everything's present and naturally picks up any new
+  // mods we add to the recommended list across releases. Users who want
+  // to skip a particular mod manually still can (delete the jar; the
+  // manifest entry stays so we don't re-fetch).
+  // The flag is preserved as historical state but no longer gates the run.
 
   let readiness;
   try { readiness = launcher.clientReadiness(); }

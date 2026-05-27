@@ -289,38 +289,35 @@ public class WorldMapScreen extends Screen {
         // Each chunk is 16 blocks wide.
         double chunkPx = 16 * scale;
 
+        // Fast terrain pass — one gfx.blit per visible chunk. Previously the
+        // world map ran 256 gfx.fill calls per chunk which froze the game for
+        // several seconds on open with even modest exploration. The pose-stack
+        // transform applies scale + center translate so each chunk's blit
+        // stays in world coordinates.
+        gfx.pose().pushMatrix();
+        gfx.pose().translate(halfW, halfH);
+        gfx.pose().scale((float) scale, (float) scale);
+        gfx.pose().translate(-(float) cxBlock, -(float) czBlock);
         for (var entry : data.tiles.entrySet()) {
             ChunkPos cp = entry.getKey();
-            int[] tile = entry.getValue();
-            double blockX = cp.x() << 4;
-            double blockZ = cp.z() << 4;
-            // Screen position of the chunk's top-left corner.
+            int blockX = cp.getMinBlockX();
+            int blockZ = cp.getMinBlockZ();
+            // Cull in screen space.
             double sx = halfW + (blockX - cxBlock) * scale;
             double sy = halfH + (blockZ - czBlock) * scale;
-            // Cull when fully off-screen.
             if (sx + chunkPx < 0 || sx > this.width || sy + chunkPx < 0 || sy > this.height) continue;
-            // Per-block draw — coarse at low zoom, sharp at high zoom.
-            if (scale >= 1.0) {
-                int pxPerBlock = (int) Math.ceil(scale);
-                for (int lx = 0; lx < 16; lx++) {
-                    for (int lz = 0; lz < 16; lz++) {
-                        int x0 = (int) Math.floor(sx + lx * scale);
-                        int y0 = (int) Math.floor(sy + lz * scale);
-                        gfx.fill(x0, y0, x0 + pxPerBlock, y0 + pxPerBlock, tile[lz * 16 + lx]);
-                    }
-                }
-            } else {
-                // Zoomed out — sample every Nth block to avoid pixel-thrash.
-                int step = Math.max(1, (int) Math.floor(1.0 / scale));
-                for (int lx = 0; lx < 16; lx += step) {
-                    for (int lz = 0; lz < 16; lz += step) {
-                        int x0 = (int) Math.floor(sx + lx * scale);
-                        int y0 = (int) Math.floor(sy + lz * scale);
-                        gfx.fill(x0, y0, x0 + 1, y0 + 1, tile[lz * 16 + lx]);
-                    }
-                }
+            net.minecraft.resources.Identifier id = data.textures.idFor(cp);
+            if (id == null) {
+                // Texture might not be uploaded yet (happens for chunks read
+                // off disk that haven't been touched since). Lazy-upload from
+                // the raw int[] and try again next frame.
+                int[] tile = entry.getValue();
+                data.textures.upsert(cp, tile);
+                continue;
             }
+            gfx.blit(id, blockX, blockZ, blockX + 16, blockZ + 16, 0f, 1f, 0f, 1f);
         }
+        gfx.pose().popMatrix();
 
         // Footsteps trail — render before waypoints so the markers sit on top.
         // Fade alpha from 0 (oldest) up to 255 (most recent) so the trail
