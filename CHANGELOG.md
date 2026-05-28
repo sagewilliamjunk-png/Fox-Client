@@ -3,6 +3,57 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] — 2026-05-28
+
+First public release since 1.0.0 — consolidates the 1.1–1.3 development line.
+
+### Added — Fox Launcher
+
+- **Command Generator** — MCStacker-style visual builder for 29 commands,
+  including an `/execute` chain builder, a full target-selector builder
+  (`@p/@a/@r/@e/@s` + ranges/sort/limit/gamemode/tags), item components
+  (custom name, enchantments, unbreakable), and saved commands.
+- **Modpack support** — import any Modrinth `.mrpack`, and export a profile to
+  a shareable `.mrpack` (dependency-free ZIP writer, SHA-512 verified import).
+- **In-launcher Modrinth marketplace** inside the Profiles tab, with
+  per-profile mod-update detection and one-click updates.
+- **First-run setup wizard**, a keyboard-shortcuts reference in Settings, a
+  screenshots gallery, minimize-to-tray, a visible multi-account switcher, a
+  live news feed, and an auto mod-update check on boot.
+- Expanded recommended-mod pack (Sodium, Lithium, Iris, EMI, Jade, voice chat,
+  and more) installed and version-managed automatically.
+
+### Added — Client (mod)
+
+- **Minimap + full-screen World Map** (`M`) — texture-based rendering, vanilla
+  `MapColor` terrain, biome-tinted mode, per-dimension caches, cave mode,
+  Tab-held mob heads (pixel-art icons for 17 vanilla mobs), and PNG export.
+- **Waypoint system** — deathpoints, sets/groups, per-waypoint editing
+  (name/color/symbol/scope), a cycle keybind, chat sharing, 3D in-world
+  billboards, and a footsteps trail.
+- **Mount HUD**, **Hotbar Scroll Lock**, **Chat Aliases** (replaces Quick
+  Commands), and an ephemeral **Loot History** with item icons.
+- Cape system rewrite with velocity-driven physics sway.
+- Ported the four legacy "FoxFeature" QoL features (Zoom, Shulker/Map Tooltip,
+  Adaptive FPS Limit) to native modules.
+
+### Changed
+
+- Toggle Sprint no longer flips state while you're typing in any screen.
+- HUD polish pass to close competitor feature gaps; expanded Dynamic Crosshair
+  color tiers; Chat Highlights pipe syntax.
+- Repo cleanup, README refresh, and a smaller launcher build (maximum
+  compression, Electron locales trimmed to en-US).
+
+### Fixed
+
+- Three pre-release audit rounds: critical bugs, memory leaks / races, and
+  security hardening across both the launcher and the mod.
+- Recommended mods now re-download when the Minecraft version changes, with
+  SHA-512 / SHA-1 verification.
+- Discord RPC re-sends activity after a pipe reconnect.
+- Profile edits are preserved across tab switches.
+
 ## [1.0.0] — 2026-04-20
 
 First stable release. Every feature in this changelog is implemented,
