@@ -34,9 +34,17 @@
     "directories": {
       "output": "dist"
     },
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ],
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map",
+      "!**/*.test.js",
+      "!**/*.md"
     ],
     "publish": {
       "provider": "github",

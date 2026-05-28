@@ -48,9 +48,19 @@ meteor-*.jar
 *-fabric-*.jar
 !build/libs/*.jar
 
-# Decompiled class files from auditing the cached MC jar
+# Decompiled / copied class & source files from auditing the cached MC jar.
+# These are Mojang-owned and must never be tracked.
 net/minecraft/**
+com/mojang/**
+com/google/**
 *.class
+
+# Local libs dropped in for ad-hoc builds (not part of the tracked source).
+kitsune-libs/
+
+# Malformed paths occasionally created on Windows when a literal absolute
+# path gets concatenated into a command (e.g. "C:devAllowedMod...").
+C:dev*
 
 # Stray Java files that ended up in the repo root from earlier
 # refactors — anything top-level is wrong (everything lives under src/).

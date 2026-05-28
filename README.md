@@ -5,7 +5,7 @@ A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 26.1.
 This was coded largely with claude, and I don't wish to decieve people into thinking I coded it myself.
 I don't plan on making money from this, I just wanted to make something for myself and some friends
 
-> **Status:** v1.1.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
+> **Status:** v1.3.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
 
 Fox Client is built around three hard rules:
 
@@ -23,24 +23,40 @@ Fox Client is built around three hard rules:
 
 ## Features
 
-Forty-one modules across nine categories. Everything is toggleable in the
-ClickGUI (default `Right Shift`).
+Fifty-plus modules across eight categories (Combat, Movement, Player, Render,
+HUD, Chat, Misc, Cosmetic). Everything is toggleable in the ClickGUI
+(default `Right Shift`).
 
-| Category  | Count | Notable modules |
-|-----------|------:|-----------------|
-| Combat    | 4 | Dynamic Crosshair, Damage Indicator, Weapon Swap Reminder, Reach Display |
-| Movement  | 3 | Toggle Sprint, Free Look, Anti-AFK |
-| Render    | 9 | Hitbox (F3+B), Chunk Borders (F3+G), Block Overlay, Menu Blur, Light Level, Hit Flash, Smooth Scroll, Weather Time |
-| HUD       | 10 | Coords, FPS Graph, Potion Timers, Paper Doll, Shield Status, Kill/Death Tracker, Session Stats, Server Info, Armor Durability, Reach/Cooldown |
-| Chat      | 3 | Chat Highlights, Chat Logger, Transparent Chat |
-| Misc      | 5 | Loot History, Death Screen, Quick Commands, Disconnect Confirm, Capitalized Font |
-| QoL       | 6+ | Zoom, Full Brightness, Armor Trims, Container Recolor, Chat Heads, Map Tooltip, Shulker Tooltip |
-| Optimisation | 2 | Adaptive FPS Limit (on unfocus), Particle Cull |
-| Cosmetic  | — | Fox-themed title screen, idle mascot, procedural starry sky |
+| Category  | Notable modules |
+|-----------|-----------------|
+| Combat    | Dynamic Crosshair, Crosshair Damage Indicator, Weapon Swap Reminder |
+| Movement  | Toggle Sprint, Free Look, Anti-AFK |
+| Render    | Hitbox (F3+B), Chunk Borders, Block Overlay, Menu Blur, Light Level, Hit Flash, Smooth Scroll, Weather Time, 3D Waypoint markers |
+| HUD       | **Minimap** (Xaero-style terrain + mob heads), Coords, FPS Graph, Potion Timers, Paper Doll, Shield Status, Kill/Death Tracker, Session Stats, Server Info / TPS, **Mount HUD**, Keystrokes, CPS, Totem counter |
+| Chat      | Chat Highlights, Chat Logger, Chat Aliases, Transparent Chat |
+| Misc      | Loot History, Death Screen, Disconnect Confirm, Memory Cleaner, **Hotbar Scroll Lock**, Zoom, Shulker / Map Tooltip, Adaptive FPS Limit, Deathpoint waypoints |
+| Cosmetic  | Custom capes, fox-themed title screen, idle mascot, procedural starry sky |
 
 Plus a full **HUD editor** (drag-and-drop with vanilla-proxy widgets for
-hotbar / health / food / air / xp) and a 4-profile system for one-key
-swapping between PvP, Survival, Vanilla, and Custom layouts.
+hotbar / health / food / air / xp), an **in-world / world-map waypoint
+system**, and a profile system for one-key swapping between PvP, Survival,
+Vanilla, and Custom layouts.
+
+## Fox Launcher
+
+The bundled desktop launcher ([`launcher/`](launcher/)) is a standalone
+Electron app that does more than start the game:
+
+- **One-click setup** — installs Java, Minecraft, Fabric, and mods for you.
+- **Microsoft + multi-account** sign-in with a quick account switcher, plus an
+  offline guest mode for singleplayer/LAN.
+- **Isolated profiles** — each with its own mods, config, and saves.
+- **Modpack import _and_ export** — install any Modrinth `.mrpack`, or bundle
+  your own profile into a shareable `.mrpack`.
+- **Command Generator** — an MCStacker-style visual builder for `/give`,
+  `/summon`, `/execute` chains, and 25-plus more commands (modern 1.21.x
+  syntax) with a target-selector builder and saved commands.
+- **Screenshots gallery**, recommended-mod installer, and minimize-to-tray.
 
 ## Install (recommended)
 
@@ -53,13 +69,13 @@ swapping between PvP, Survival, Vanilla, and Custom layouts.
 ## Manual install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.x or newer for Minecraft 26.1.2.
-2. Drop `kitsune-client-1.1.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
+2. Drop `kitsune-client-1.3.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
 3. Launch.
 
 ## Build from source
 
 ```bash
-./gradlew build          # produces build/libs/kitsune-client-1.1.0.jar
+./gradlew build          # produces build/libs/kitsune-client-1.3.0.jar
 ./gradlew runClient      # launches a dev client
 ```
 
@@ -108,22 +124,33 @@ starting point, not a guarantee — read [SAFETY.md](SAFETY.md).**
 
 ## Project layout
 
+This repository is a monorepo with two deliverables: the Fabric **mod** (at the
+root) and the Electron **launcher** (in `launcher/`).
+
 ```
-src/main/java/dev/kitsune/client/
-├── KitsuneClient.java              ← ClientModInitializer entrypoint
-├── PreLaunchBootstrap.java         ← PreLaunchEntrypoint (mod-jar swaps)
-├── core/                           ← Config, profiles, profile IO
-├── module/                         ← 41 modules across 9 categories
-│   ├── combat/  movement/  render/ hud/  chat/
-│   └── misc/    cosmetic/  optimisation/
-├── features/                       ← Legacy "FoxFeature" QoL layer (wrapped as modules)
-├── hud/                            ← HudManager + widgets + editor
-├── gui/clickgui/                   ← ClickGUI screen + panels
-├── setting/                        ← Boolean/Slider/Color/Mode/Keybind/String
-├── server/                         ← Per-server rules + auto-reconnect
-├── event/                          ← Internal pub/sub bus
-├── screen/                         ← Fox menu, starry sky, mascot
-└── mixin/                          ← Minecraft integration
+Fox-Client/
+├── src/main/java/dev/kitsune/client/   ← the Fabric mod
+│   ├── KitsuneClient.java                  ← ClientModInitializer entrypoint
+│   ├── core/                               ← config, profiles, profile IO
+│   ├── module/                             ← 50+ modules across 8 categories
+│   │   ├── combat/  movement/  render/  hud/
+│   │   └── chat/    misc/      cosmetic/
+│   ├── hud/                                ← HudManager + widgets + editor
+│   ├── worldmap/                           ← minimap / world-map + waypoints
+│   ├── gui/clickgui/                       ← ClickGUI screen + panels
+│   ├── setting/                            ← Boolean/Slider/Color/Mode/Keybind/String
+│   ├── server/                             ← per-server rules + auto-reconnect
+│   ├── event/                              ← internal pub/sub bus
+│   ├── screen/                             ← Fox menu, starry sky, mascot
+│   └── mixin/                              ← Minecraft integration
+├── src/main/resources/                 ← fabric.mod.json, mixins, assets
+├── build.gradle / gradlew              ← mod build (JDK 21, Fabric Loom)
+│
+└── launcher/                           ← the Electron desktop launcher
+    ├── src/main/                           ← main process (IPC, auth, installers)
+    ├── src/preload/                        ← context-bridge surface
+    ├── src/renderer/                       ← UI (screens, styles, assets)
+    └── tests/                              ← Jest suite
 ```
 
 ## License
