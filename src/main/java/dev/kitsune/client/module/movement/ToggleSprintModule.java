@@ -81,6 +81,15 @@ public class ToggleSprintModule extends Module implements HudWidget {
         LocalPlayer player = mc.player;
         if (player == null) return;
 
+        // Bail entirely when a screen with input focus is open — chat, sign
+        // edit, anvil rename, etc. Without this guard, toggle-sprint would
+        // keep flipping isSprinting on every tick while the user typed,
+        // producing audible footstep + camera-bob desync. mc.screen != null
+        // is the cheapest broad check; the additional doesn't-consume-typing
+        // exception list isn't worth chasing — better to be conservative
+        // and not run movement automation while any modal is open.
+        if (mc.screen != null) return;
+
         if (sprintToggle.get()) {
             boolean hungry = requireFood.get() && player.getFoodData().getFoodLevel() <= 6;
             if (!hungry && !player.isUsingItem() && !player.isCrouching()) {

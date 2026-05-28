@@ -14,6 +14,7 @@ import dev.kitsune.client.module.hud.CpsHudModule;
 import dev.kitsune.client.module.hud.DeathCoordsHudModule;
 import dev.kitsune.client.module.hud.EntityCountHudModule;
 import dev.kitsune.client.module.hud.MinimapModule;
+import dev.kitsune.client.module.hud.MountHudModule;
 import dev.kitsune.client.module.hud.TargetHudModule;
 import dev.kitsune.client.module.hud.PerfDashboardModule;
 import dev.kitsune.client.module.hud.XpHudModule;
@@ -38,6 +39,7 @@ import dev.kitsune.client.module.chat.ChatLoggerModule;
 import dev.kitsune.client.module.chat.TransparentChatModule;
 import dev.kitsune.client.module.misc.DeathScreenModule;
 import dev.kitsune.client.module.misc.DisconnectConfirmModule;
+import dev.kitsune.client.module.misc.HotbarScrollLockModule;
 import dev.kitsune.client.module.misc.LootHistoryModule;
 import dev.kitsune.client.module.misc.MemoryCleanerModule;
 import dev.kitsune.client.module.chat.ChatAliasModule;
@@ -122,6 +124,7 @@ public final class ModuleManager {
         register(new ChatLoggerModule());
         register(new DeathScreenModule());
         register(new LootHistoryModule());
+        register(new HotbarScrollLockModule());
 
         // v1.2: legacy FoxFeature ports — Zoom, ShulkerTooltip, MapTooltip,
         // AdaptiveFpsLimit. The classes in client/features/ are no longer
@@ -175,6 +178,7 @@ public final class ModuleManager {
         // the old radar behaviour). Old "entity_radar" widget id will not exist
         // in saved profiles; the new "minimap" id starts fresh on first launch.
         register(new MinimapModule());
+        register(new MountHudModule());
         register(new TargetHudModule());
 
         // ---- Performance ----
