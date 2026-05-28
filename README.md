@@ -79,7 +79,7 @@ Electron app that does more than start the game:
 ./gradlew runClient      # launches a dev client
 ```
 
-Requires **JDK 21**.
+Requires **JDK 25** (Minecraft 26.1.2 compiles to release 25).
 
 Recommended companion mods (not bundled — drop them in yourself):
 
