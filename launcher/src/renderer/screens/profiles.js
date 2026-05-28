@@ -115,6 +115,9 @@ export async function renderProfiles(mount) {
           <button class="btn" id="btn-import-mrpack" style="margin-top:6px;width:100%;" title="Modrinth modpack — fetches every mod listed in the .mrpack, hash-verifies, and creates a fresh isolated profile.">
             🧩 Import Modrinth modpack…
           </button>
+          <button class="btn" id="btn-export-mrpack" style="margin-top:6px;width:100%;" title="Bundle this profile's mods + config into a shareable .mrpack file.">
+            📦 Export selected as .mrpack…
+          </button>
           <div id="mrpack-progress" style="display:none;margin-top:6px;font-size:11px;font-family:ui-monospace,monospace;max-height:150px;overflow-y:auto;background:var(--surface-2);border-radius:4px;padding:6px;color:var(--text-2);"></div>
         </div>
       </div>
@@ -179,6 +182,51 @@ export async function renderProfiles(mount) {
       profilesCache = refreshed.profiles;
       selectedId = result.profileId;
       rerender();
+    }
+  });
+
+  // Modrinth .mrpack exporter — bundles the selected profile's mods + config
+  // into a .mrpack via a Save dialog, live-logging progress into the same box.
+  document.getElementById('btn-export-mrpack').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-export-mrpack');
+    const log = document.getElementById('mrpack-progress');
+    const prof = profilesCache.find(p => p.id === selectedId);
+    btn.disabled = true;
+    btn.textContent = '⬆ Exporting…';
+    log.style.display = '';
+    log.innerHTML = '';
+    const appendLine = (msg) => {
+      const div = document.createElement('div');
+      div.textContent = msg;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    };
+    // Offer to include resource/shader packs (they can be large).
+    const includePacks = confirm(
+      'Include resource packs and shader packs?\n\n' +
+      'OK = bundle them too (larger file).\nCancel = mods + config only.'
+    );
+    const unsub = window.fox.onModpackProgress(({ message }) => appendLine(message));
+    let result;
+    try {
+      result = await window.fox.modpackExport({
+        profileId: selectedId,
+        name: prof ? prof.name : undefined,
+        includePacks,
+      });
+    } catch (err) { result = { ok: false, error: err.message || String(err) }; }
+    if (typeof unsub === 'function') unsub();
+    btn.disabled = false;
+    btn.textContent = '📦 Export selected as .mrpack…';
+    if (!result.ok) {
+      if (result.error && result.error !== 'Cancelled') appendLine('❌ ' + result.error);
+      else log.style.display = 'none';
+    } else {
+      const mb = (result.zipBytes / 1048576).toFixed(1);
+      appendLine(`✅ Exported ${result.modCount} mod(s), ${result.configCount} config file(s)`
+              + (result.packCount ? `, ${result.packCount} pack file(s)` : '')
+              + ` → ${mb} MB`
+              + (result.loader ? ` (Fabric ${result.loader})` : ''));
     }
   });
 

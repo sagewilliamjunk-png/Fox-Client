@@ -93,6 +93,9 @@ contextBridge.exposeInMainWorld('fox', {
   // download + extract pipeline. Subscribe via onModpackProgress for the
   // live log lines (one per file).
   modpackImport: () => invoke('modpack:import'),
+  // Export a profile's mods + config to a shareable .mrpack. Pass
+  // { profileId?, name?, versionId?, summary?, includePacks? }.
+  modpackExport: (opts) => invoke('modpack:export', opts || {}),
   onModpackProgress: (fn) => on('modpack:progress', fn),
 
   // Mods (jars in <gameDir>/mods)

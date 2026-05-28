@@ -22,6 +22,7 @@ const recommendedMods = require('./recommendedMods');
 const modrinthBrowser = require('./modrinthBrowser');
 const modUpdates      = require('./modUpdates');
 const modpackImport   = require('./modpackImport');
+const modpackExport   = require('./modpackExport');
 const profiles = require('./profiles');
 const resourcepacks = require('./resourcepacks');
 const skins = require('./skins');
@@ -965,6 +966,48 @@ function register(getWindow) {
           return null;
         }
       },
+      onProgress: send,
+    });
+  });
+
+  // ---- Modpack (.mrpack) export ----
+  //
+  // Bundles a profile's mods + config (and optionally resource/shader packs)
+  // into a shareable .mrpack. Everything ships inside overrides/, so the
+  // result round-trips with our own importer and any Modrinth-format client.
+  ipcMain.handle('modpack:export', async (_e, payload) => {
+    const { dialog } = require('electron');
+    const win = getWindow();
+    const opts = payload || {};
+
+    const profileId = opts.profileId || settings.load().selectedProfile;
+    const profile   = profileId ? profiles.find(profileId) : null;
+    const gameDir   = gameDirForProfile(profileId);
+    const packName  = (opts.name && opts.name.trim())
+      || (profile && profile.name)
+      || 'Fox Modpack';
+
+    const safeFile = packName.replace(/[^a-z0-9._-]+/gi, '_').replace(/^_+|_+$/g, '') || 'modpack';
+    const picked = await dialog.showSaveDialog(win || undefined, {
+      title: 'Export modpack as .mrpack',
+      defaultPath: `${safeFile}.mrpack`,
+      filters: [{ name: 'Modrinth modpack', extensions: ['mrpack'] }],
+    });
+    if (picked.canceled || !picked.filePath) return { ok: false, error: 'Cancelled' };
+
+    const send = (msg) => {
+      const w = getWindow();
+      if (w && !w.isDestroyed()) w.webContents.send('modpack:progress', { message: msg });
+    };
+
+    return modpackExport.exportMrpack({
+      gameDir,
+      destPath: picked.filePath,
+      name: packName,
+      versionId: (opts.versionId && String(opts.versionId).trim()) || '1.0.0',
+      summary: opts.summary,
+      mcVersion: launcher.TARGET_MC_VERSION,
+      includePacks: !!opts.includePacks,
       onProgress: send,
     });
   });
