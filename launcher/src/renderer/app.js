@@ -258,7 +258,10 @@ function profileColor(id) {
 }
 
 function showUser(status) {
-  const nameEl    = el('user-name');
+  // user-name now wraps a text span + chevron — write into the text span
+  // when present so we don't blow away the affordance. Fall back to the
+  // whole user-name node for back-compat with older HTML.
+  const nameEl    = el('user-name-text') || el('user-name');
   const avatarEl  = el('user-avatar');
   const statusDot = el('user-avatar-status');
   const wrapEl    = el('user-avatar-wrap');

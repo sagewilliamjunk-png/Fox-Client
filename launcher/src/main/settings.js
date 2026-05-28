@@ -52,6 +52,11 @@ const DEFAULTS = {
    *  Implemented via Electron's app.setLoginItemSettings(). Defaults off so
    *  the launcher doesn't silently add itself to startup on fresh installs. */
   launchOnStartup: false,
+  /** When true, clicking the window close button (X) hides to the system
+   *  tray instead of quitting. Useful for users who keep the launcher open
+   *  during long Minecraft sessions for Modrinth browsing / Discord status.
+   *  False keeps the conventional "X = quit" behavior. */
+  minimizeToTray: false,
 };
 
 // Hard floors/ceilings. RAM bounds in GB; window bounds in pixels. Anything
@@ -114,6 +119,7 @@ function validate(raw) {
     recommendedModsInstalled:     asBool(merged.recommendedModsInstalled,     DEFAULTS.recommendedModsInstalled),
     recommendedModsInstalledFull: asBool(merged.recommendedModsInstalledFull, DEFAULTS.recommendedModsInstalledFull),
     firstRunComplete:             asBool(merged.firstRunComplete,             DEFAULTS.firstRunComplete),
+    minimizeToTray:               asBool(merged.minimizeToTray,               DEFAULTS.minimizeToTray),
     launchOnStartup:   asBool(merged.launchOnStartup, DEFAULTS.launchOnStartup),
   };
 }

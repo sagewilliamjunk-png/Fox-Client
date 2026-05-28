@@ -33,13 +33,16 @@
         <button class="nav-btn" data-route="settings">   <span class="nav-ico">⚙</span> Settings    </button>
       </nav>
       <div class="sidebar-footer">
-        <div class="user-card" id="user-card">
+        <div class="user-card" id="user-card" title="Click to switch accounts">
           <div class="avatar-wrap" id="user-avatar-wrap">
             <div class="avatar" id="user-avatar">?</div>
             <span class="avatar-status" id="user-avatar-status"></span>
           </div>
           <div class="user-meta">
-            <div class="user-name" id="user-name">Not signed in</div>
+            <div class="user-name" id="user-name">
+              <span id="user-name-text">Not signed in</span>
+              <span class="user-switch-chevron" aria-hidden="true" title="Switch accounts">▾</span>
+            </div>
             <div class="user-profile muted" id="user-profile-line"></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <button class="link" id="sign-out">Sign out</button>

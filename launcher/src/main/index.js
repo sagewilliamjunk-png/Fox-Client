@@ -41,6 +41,9 @@ const notifications = require('./notifications');
 let mainWindow = null;
 let autoUpdateTimer = null;
 let tray = null;
+/** Set to true when the user picks Quit from the tray menu — bypasses the
+ *  close handler's hide-to-tray interception so the app actually exits. */
+let _quitting = false;
 
 // ---- System tray ----
 
@@ -63,8 +66,8 @@ function buildTrayMenu() {
   }
   items.push({ type: 'separator' });
   items.push({
-    label: 'Quit',
-    click: () => app.quit(),
+    label: 'Quit Fox Launcher',
+    click: () => { _quitting = true; app.quit(); },
   });
   return Menu.buildFromTemplate(items);
 }
@@ -285,11 +288,16 @@ function createWindow() {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
-  // Intercept the window-close button when a game is running — hide to tray
-  // instead of destroying the window so the user can still reach the launcher
-  // while they play. On a normal (no game) close we let it through.
+  // Intercept the window close button:
+  //   - When a game is running, always hide to tray (preserves the launcher
+  //     so the user can reach Modrinth / settings / Discord status mid-play).
+  //   - When the user has enabled "Minimize to tray" in settings, always
+  //     hide instead of quitting — they have to use Quit from the tray.
+  //   - Otherwise vanilla "X = quit" behaviour.
   mainWindow.on('close', (event) => {
-    if (launcher.isRunning()) {
+    if (_quitting) return; // explicit app.quit() — let it through
+    const s = settings.load();
+    if (launcher.isRunning() || s.minimizeToTray) {
       event.preventDefault();
       mainWindow.hide();
       createTray();

@@ -46,6 +46,7 @@ export async function renderSettings(mount) {
     keepLauncherOpen:  !!s.keepLauncherOpen,
     autoUpdate:        !!s.autoUpdate,
     launchOnStartup:   !!s.launchOnStartup,
+    minimizeToTray:    !!s.minimizeToTray,
     theme:             s.theme || 'fox',
     discordRpcEnabled: s.discordRpcEnabled !== false,
   };
@@ -115,6 +116,10 @@ export async function renderSettings(mount) {
         <label class="checkbox" style="margin-top:8px;">
           <input type="checkbox" id="f-launchOnStartup" ${state.launchOnStartup ? 'checked' : ''} />
           Launch Fox Launcher when you log in to Windows
+        </label>
+        <label class="checkbox" style="margin-top:8px;">
+          <input type="checkbox" id="f-minimizeToTray" ${state.minimizeToTray ? 'checked' : ''} />
+          Close button minimizes to system tray (Quit from tray to fully exit)
         </label>
         <label class="checkbox" style="margin-top:8px;">
           <input type="checkbox" id="f-discord-on" ${state.discordRpcEnabled ? 'checked' : ''} />
@@ -384,6 +389,7 @@ export async function renderSettings(mount) {
     state.keepLauncherOpen  = $('f-keepOpen').checked;
     state.autoUpdate        = $('f-autoUpdate').checked;
     state.launchOnStartup   = $('f-launchOnStartup').checked;
+    state.minimizeToTray    = $('f-minimizeToTray').checked;
     state.javaPath          = $('f-javaPath').value.trim();
 
     if (state.minRam > state.maxRam) {
