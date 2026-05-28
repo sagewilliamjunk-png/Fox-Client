@@ -6,6 +6,7 @@ import { renderSettings }    from './screens/settings.js';
 import { renderProfiles }    from './screens/profiles.js';
 import { renderLogs }        from './screens/logs.js';
 import { renderScreenshots } from './screens/screenshots.js';
+import { renderCommands }    from './screens/commands.js';
 
 const ROUTES = {
   home:        renderHome,
@@ -17,6 +18,7 @@ const ROUTES = {
   profiles:    renderProfiles,
   logs:        renderLogs,
   screenshots: renderScreenshots,
+  commands:    renderCommands,
 };
 
 const el = (id) => document.getElementById(id);

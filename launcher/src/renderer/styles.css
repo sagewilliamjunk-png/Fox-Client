@@ -2235,3 +2235,294 @@ a:hover { color: var(--fox-warm); }
 @media (max-width: 720px) {
   .shortcut-row { grid-template-columns: 1fr; gap: 4px; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Command Generator
+   ────────────────────────────────────────────────────────────────────────── */
+
+.cmd-header { margin-bottom: 16px; }
+.cmd-sub { font-size: 13px; margin-top: 4px; }
+
+.cmd-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Left rail — command picker */
+.cmd-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  position: sticky;
+  top: 8px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+.cmd-pick-btn {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--text-1);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.cmd-pick-btn:hover { background: var(--bg-2); color: var(--text-0); }
+.cmd-pick-btn.active {
+  background: var(--bg-2);
+  border-color: var(--fox-orange);
+  color: var(--text-0);
+}
+.cmd-pick-name { font-family: var(--mono); font-weight: 600; }
+.cmd-pick-btn.active .cmd-pick-name { color: var(--fox-orange); }
+.cmd-pick-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Right pane — the form + output */
+.cmd-pane {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px 20px;
+  min-width: 0;
+}
+.cmd-pane-head { margin-bottom: 14px; }
+.cmd-pane-title {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--fox-orange);
+}
+.cmd-pane-desc { font-size: 13px; margin-top: 2px; }
+
+/* Form grid */
+.cmd-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-bottom: 20px;
+}
+.cmd-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cmd-field-wide { grid-column: 1 / -1; }
+.cmd-field-bool { justify-content: flex-end; }
+.cmd-field-label { font-size: 12px; font-weight: 600; color: var(--text-1); }
+.cmd-req { color: var(--fox-orange); }
+.cmd-field-hint { font-size: 11px; line-height: 1.35; }
+.cmd-input { width: 100%; }
+
+/* Checkbox field */
+.cmd-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-1);
+  cursor: pointer;
+  padding: 7px 0;
+}
+.cmd-check input { width: 15px; height: 15px; accent-color: var(--fox-orange); cursor: pointer; }
+
+/* Coordinate triple */
+.cmd-coords { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cmd-coord { width: 100%; font-family: var(--mono); }
+
+/* Target selector */
+.cmd-target-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cmd-target-var { flex: 1; min-width: 150px; }
+.cmd-target-name { flex: 1; min-width: 120px; }
+.cmd-target-toggle { white-space: nowrap; }
+.cmd-target-args {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+  padding: 12px;
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cmd-targ-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cmd-targ-cell label { font-size: 11px; color: var(--text-2); font-family: var(--mono); }
+.cmd-targ { font-size: 12px; padding: 5px 7px; }
+
+/* Repeatable pair rows (enchantments / scores) */
+.cmd-pairs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+.cmd-pair-row { display: grid; grid-template-columns: 1fr 90px 30px; gap: 6px; align-items: center; }
+.cmd-pair-del {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-2);
+  cursor: pointer;
+  height: 30px;
+  font-size: 12px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.cmd-pair-del:hover { color: var(--danger); border-color: var(--danger); }
+
+/* Output box */
+.cmd-output-wrap {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.cmd-output-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+.cmd-output-hint { font-size: 11px; font-weight: 400; }
+.cmd-output-hint.cmd-warn { color: var(--danger); font-weight: 600; }
+.cmd-output-row { display: flex; gap: 8px; align-items: stretch; }
+.cmd-output {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--fox-warm);
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+  min-height: 44px;
+}
+.cmd-output:empty::before {
+  content: 'Fill the form above…';
+  color: var(--text-3);
+  font-style: italic;
+}
+.cmd-copy-btn { white-space: nowrap; align-self: stretch; }
+.cmd-copy-btn.cmd-copied { background: var(--success); border-color: var(--success); color: #fff; }
+.cmd-output-note { font-size: 11px; margin-top: 8px; }
+
+/* Picker search */
+.cmd-picker-wrap {
+  position: sticky;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - 40px);
+  min-height: 0;
+}
+.cmd-search { flex: 0 0 auto; font-size: 13px; }
+.cmd-picker-wrap .cmd-picker {
+  position: static;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Save button + saved commands list */
+.cmd-save-btn { white-space: nowrap; }
+.cmd-save-btn.cmd-copied { background: var(--success); border-color: var(--success); color: #fff; }
+.cmd-saved {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.cmd-saved-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 8px;
+}
+.cmd-saved-clear { font-size: 11px; }
+.cmd-saved-list { display: flex; flex-direction: column; gap: 6px; }
+.cmd-saved-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 8px 6px 10px;
+}
+.cmd-saved-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmd-saved-del {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+.cmd-saved-del:hover { color: var(--danger); background: var(--bg-2); }
+
+/* /execute subcommand chain */
+.cmd-exec-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.cmd-exec-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.cmd-exec-type { flex: 0 0 200px; font-family: var(--mono); font-size: 12px; }
+.cmd-exec-inputs { flex: 1; display: flex; gap: 6px; align-items: center; min-width: 0; }
+.cmd-exec-inputs .cmd-exec-in { flex: 1; min-width: 0; font-size: 12px; }
+.cmd-exec-inputs .cmd-exec-cmd { font-family: var(--mono); }
+.cmd-exec-coords { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.cmd-exec-coords .cmd-exec-in { font-family: var(--mono); }
+.cmd-exec-del {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-2);
+  cursor: pointer;
+  height: 30px;
+  width: 30px;
+  font-size: 12px;
+}
+.cmd-exec-del:hover { color: var(--danger); border-color: var(--danger); }
+
+@media (max-width: 860px) {
+  .cmd-layout { grid-template-columns: 1fr; }
+  .cmd-picker-wrap { position: static; max-height: none; }
+  .cmd-picker {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+  }
+  .cmd-pick-btn { flex-direction: column; gap: 0; align-items: flex-start; }
+  .cmd-form { grid-template-columns: 1fr; }
+  .cmd-target-args { grid-template-columns: repeat(2, 1fr); }
+  .cmd-exec-row { flex-wrap: wrap; }
+  .cmd-exec-type { flex-basis: 100%; }
+}
