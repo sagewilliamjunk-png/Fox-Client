@@ -666,10 +666,31 @@ public class MinimapModule extends Module implements HudWidget {
 
             if (tabHeld) {
                 if (e.kind() == EntityKind.PLAYER && drawPlayerHead(gfx, mc, e.uuid(), dotX, dotY)) continue;
-                // Mob / item icon via spawn egg or fallback item.
-                if (e.kind() != EntityKind.PLAYER && drawSpawnEggIcon(gfx, e.entityType(), dotX, dotY)) continue;
+                // Mob icon: first try the pixel-art registry (Xaero-style
+                // recognisable faces for 16 vanilla mobs), then fall back
+                // to the spawn-egg sprite for anything else.
+                if (e.kind() != EntityKind.PLAYER) {
+                    if (drawMobIcon(gfx, e.entityType(), dotX, dotY)) continue;
+                    if (drawSpawnEggIcon(gfx, e.entityType(), dotX, dotY)) continue;
+                }
             }
             gfx.fill(dotX - 1, dotY - 1, dotX + 1, dotY + 1, colorFor(e.kind()));
+        }
+    }
+
+    /** Pixel-art mob icon from {@link dev.kitsune.client.worldmap.MobIconRegistry}.
+     *  Returns false when no sketch is registered for this type so the caller
+     *  can fall back to the spawn-egg path. */
+    private static boolean drawMobIcon(GuiGraphicsExtractor gfx, net.minecraft.world.entity.EntityType<?> type, int px, int py) {
+        if (type == null) return false;
+        net.minecraft.resources.Identifier id = dev.kitsune.client.worldmap.MobIconRegistry.iconFor(type);
+        if (id == null) return false;
+        try {
+            int half = 5; // 10×10 — slightly bigger than spawn-egg fallback so heads stand out
+            gfx.blit(id, px - half, py - half, px - half + 10, py - half + 10, 0f, 1f, 0f, 1f);
+            return true;
+        } catch (Throwable t) {
+            return false;
         }
     }
 
