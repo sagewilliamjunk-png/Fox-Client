@@ -33,8 +33,8 @@ const RECOMMENDED = [
     description: 'Game-logic optimization without behaviour changes.' },
   { slug: 'ferrite-core',    displayName: 'FerriteCore',      essential: true,
     description: 'Cuts memory use of block models (~20–40% less RAM).' },
-  { slug: 'memoryleakfix',   displayName: 'MemoryLeakFix',    essential: true,
-    description: 'Patches several long-running JVM memory leaks.' },
+  // MemoryLeakFix: no Minecraft 26.x build on Modrinth yet — removed so it
+  // stops failing on every auto-install. Re-add when a 26.x version ships.
   { slug: 'immediatelyfast', displayName: 'ImmediatelyFast',  essential: true,
     description: 'Optimizes immediate-mode rendering (GUI, particles).' },
   { slug: 'entityculling',   displayName: 'EntityCulling',    essential: true,
@@ -64,16 +64,16 @@ const RECOMMENDED = [
   // first-launch user gets the same experience without hunting for
   // each one individually on Modrinth.
   // ----------------------------------------------------------------
-  { slug: 'emi',                   displayName: 'EMI',         essential: true,
-    description: 'Recipe browser + ingredient lookup. Smaller and faster than JEI/REI; the standard recipe viewer.' },
+  // EMI (recipe viewer): no Minecraft 26.x build on Modrinth yet — removed so
+  // it stops failing on every auto-install. Re-add when a 26.x version ships.
   { slug: 'mouse-tweaks',          displayName: 'Mouse Tweaks', essential: true,
     description: 'Drag-and-distribute mouse controls for inventories. The "wait, vanilla doesn\'t do this?" mod.' },
   { slug: 'no-chat-reports',       displayName: 'No Chat Reports', essential: false,
     description: 'Removes the Mojang chat-report system. Privacy-first chat for multiplayer.' },
   { slug: 'visuality',             displayName: 'Visuality',   essential: false,
     description: 'Extra particle effects (water ripples, leaf falls, ender block ambient particles).' },
-  { slug: 'world-host',            displayName: 'World Host',  essential: false,
-    description: 'Open your singleplayer world to friends without port forwarding. P2P relay built in.' },
+  // World Host: no Minecraft 26.x build on Modrinth yet — removed so it stops
+  // failing on every auto-install. Re-add when a 26.x version ships.
   { slug: '3dskinlayers',          displayName: '3D Skin Layers', essential: false,
     description: 'Renders the second skin layer in proper 3D — gives every player a bit more presence.' },
   { slug: 'continuity',            displayName: 'Continuity',  essential: false,
@@ -249,6 +249,17 @@ async function installOne(slug, gameDir, mcVersion, opts = {}) {
   // Prefer the file flagged primary; fall back to the first.
   const file = version.files.find(f => f.primary) || version.files[0];
   const target = path.join(modsDir, file.filename);
+
+  // Remove the previously-installed jar for this slug if the filename changed
+  // (e.g. a version bump renamed voicechat-2.6.17 → 2.6.18). findInstalledJar
+  // matches by slug prefix and misses mods whose jar name differs from the
+  // slug (simple-voice-chat → voicechat-*.jar), which is exactly how a
+  // duplicate slipped through. The manifest records the real filename, so use
+  // it. Skip when the name is unchanged (writeAtomic overwrites in place).
+  const prevEntry = readManifest(gameDir)[slug];
+  if (prevEntry && prevEntry.filename && prevEntry.filename !== file.filename) {
+    try { fs.unlinkSync(path.join(modsDir, prevEntry.filename)); } catch (_) {}
+  }
 
   onProgress(`Downloading ${file.filename}…`);
   let buf;

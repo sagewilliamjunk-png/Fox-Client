@@ -3,6 +3,25 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.1] — 2026-05-29
+
+Post-release fixes from a live shakedown of v1.3.0.
+
+### Fixed
+
+- **Client jar showed "none" / wouldn't auto-update.** Settings from before the
+  repo move kept the stale `Kitsune/Fox-Client` value, which 404'd the client
+  jar download. `settings.js` now migrates that legacy value to the real repo.
+- **Duplicate mod jars after a version bump.** The recommended-mod installer
+  matched existing jars by slug prefix, which missed mods whose jar name
+  differs from the slug (e.g. `simple-voice-chat` → `voicechat-*.jar`), leaving
+  two versions side-by-side — which stops Fabric from launching. Install now
+  removes the previously-recorded jar (tracked in the manifest) when the
+  filename changes.
+- **Recurring "failed N" auto-install toast.** Removed EMI, MemoryLeakFix, and
+  World Host from the recommended set — none have a Minecraft 26.x build yet, so
+  they failed on every boot. They'll be re-added when 26.x versions ship.
+
 ## [1.3.0] — 2026-05-28
 
 First public release since 1.0.0 — consolidates the 1.1–1.3 development line.

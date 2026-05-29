@@ -94,6 +94,15 @@ function validate(raw) {
   let maxRam = clamp(Math.floor(merged.maxRam), BOUNDS.maxRam.min, BOUNDS.maxRam.max);
   if (maxRam < minRam) maxRam = minRam;
 
+  // Migration: the repo moved from the old "Kitsune/Fox-Client" placeholder to
+  // the real "sagewilliamjunk-png/Fox-Client". Users with a settings.json from
+  // before the move kept the stale value, which 404s the client-jar download
+  // and shows "Client jar: none". Rewrite any known-legacy value to the default.
+  const LEGACY_REPOS = ['Kitsune/Fox-Client', 'kitsune/Fox-Client'];
+  if (LEGACY_REPOS.includes(merged.githubRepo)) {
+    merged.githubRepo = DEFAULTS.githubRepo;
+  }
+
   return {
     javaPath:         asString(merged.javaPath, ''),
     minRam,
