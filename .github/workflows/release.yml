@@ -81,7 +81,19 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${{ github.ref_name }}" --draft=false --latest
+        shell: pwsh
+        run: |
+          $tag  = "${{ github.ref_name }}"
+          $ver  = $tag -replace '^v',''
+          $repo = "${{ github.repository }}"
+          # Fill the download-guidance template so users know to click the .exe
+          # (GitHub can't reorder/hide the asset list, so the notes do the work).
+          $notes = (Get-Content ".github/RELEASE_TEMPLATE.md" -Raw) `
+                     -replace '\{\{VERSION\}\}', $ver `
+                     -replace '\{\{TAG\}\}',     $tag `
+                     -replace '\{\{REPO\}\}',    $repo
+          $notes | Out-File -FilePath notes.md -Encoding utf8
+          gh release edit "$tag" --draft=false --latest --notes-file notes.md
 
       # ── 6. Delete old releases ─────────────────────────────────────────────
       # Only the latest release matters — new users always get the newest, and
