@@ -74,10 +74,24 @@ jobs:
           Write-Host "Uploading $($jar.Name)"
           gh release upload "${{ github.ref_name }}" "$($jar.FullName)" --clobber
 
-      # ── 5. Delete old releases ─────────────────────────────────────────────
+      # ── 5. Publish the release ─────────────────────────────────────────────
+      # electron-builder creates the GitHub Release as a DRAFT, so once both
+      # artifacts (.exe + latest.yml and the mod jar) are attached we flip it
+      # public and mark it latest. Auto-update only sees published releases.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --latest
+
+      # ── 6. Delete old releases ─────────────────────────────────────────────
       # Only the latest release matters — new users always get the newest, and
       # existing users auto-update. Old releases just create confusion.
+      #
+      # Tolerant by design: a missing release or an already-deleted tag ref
+      # must NOT fail the job (that aborted the first v1.3.0 cleanup). We delete
+      # the release, then best-effort the tag, and always exit 0.
       - name: Delete old releases
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
@@ -88,5 +102,8 @@ jobs:
                    Where-Object { $_.tagName -ne $current }
           foreach ($r in $old) {
             Write-Host "Removing old release $($r.tagName)"
-            gh release delete $r.tagName --yes --cleanup-tag
+            gh release delete $r.tagName --yes 2>&1 | Out-Null
+            # Best-effort tag cleanup — ignore "Reference does not exist".
+            git push origin ":refs/tags/$($r.tagName)" 2>&1 | Out-Null
           }
+          exit 0
