@@ -3,6 +3,24 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.2] — 2026-05-29
+
+### Added — Command Generator
+
+- **35 new commands**: clone, fillbiome, place, locate, forceload, data, item,
+  loot, bossbar, advancement, recipe, team, trigger, function, schedule,
+  datapack, spreadplayers, rotate, spectate, defaultgamemode, tick, random,
+  msg, me, teammsg, op/deop, kick, ban / pardon / ban-ip, whitelist, publish,
+  setidletimeout, save-all, list, seed, stop. **64 commands total.**
+- **/give can finally do the cool stuff**: lore (pipe-separated lines), full
+  **attribute modifiers** (attribute · amount · operation · slot, repeatable),
+  dyed color (accepts `#FF0000` / `255,0,0` / decimal int), rarity, max stack
+  size, damage, and a raw-components passthrough for anything else.
+- **/attribute** now handles `base set/get`, `get`, `modifier add/remove`, and
+  `modifier value get`.
+- New autocomplete lists: structures, biomes, loot tables, item slots,
+  damage types.
+
 ## [1.3.1] — 2026-05-29
 
 Post-release fixes from a live shakedown of v1.3.0.
