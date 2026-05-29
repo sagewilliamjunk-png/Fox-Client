@@ -134,6 +134,55 @@ const GAMERULES = [
   'doWardenSpawning','universalAnger','forgiveDeadPlayers','spectatorsGenerateChunks',
 ];
 
+const STRUCTURES = [
+  'village_plains','village_desert','village_savanna','village_snowy','village_taiga',
+  'fortress','bastion_remnant','end_city','stronghold','mineshaft','mineshaft_mesa',
+  'monument','mansion','ancient_city','trial_chambers','ruined_portal','ruined_portal_nether',
+  'shipwreck','shipwreck_beached','buried_treasure','pillager_outpost','ocean_ruin_cold',
+  'ocean_ruin_warm','swamp_hut','desert_pyramid','jungle_pyramid','igloo','nether_fossil',
+  'trail_ruins','trial_chambers',
+];
+
+const BIOMES = [
+  'plains','sunflower_plains','desert','forest','flower_forest','birch_forest','dark_forest',
+  'jungle','sparse_jungle','bamboo_jungle','taiga','snowy_taiga','old_growth_pine_taiga',
+  'savanna','savanna_plateau','badlands','swamp','mangrove_swamp','beach','snowy_beach',
+  'ocean','deep_ocean','warm_ocean','lukewarm_ocean','cold_ocean','frozen_ocean','river',
+  'frozen_river','snowy_plains','ice_spikes','mushroom_fields','meadow','cherry_grove',
+  'grove','snowy_slopes','jagged_peaks','frozen_peaks','stony_peaks','dripstone_caves',
+  'lush_caves','deep_dark','nether_wastes','soul_sand_valley','crimson_forest','warped_forest',
+  'basalt_deltas','the_end','end_highlands','end_midlands','small_end_islands','end_barrens',
+];
+
+const LOOT_TABLES = [
+  'minecraft:chests/simple_dungeon','minecraft:chests/abandoned_mineshaft',
+  'minecraft:chests/desert_pyramid','minecraft:chests/jungle_temple','minecraft:chests/igloo_chest',
+  'minecraft:chests/stronghold_corridor','minecraft:chests/end_city_treasure',
+  'minecraft:chests/nether_bridge','minecraft:chests/bastion_treasure','minecraft:chests/woodland_mansion',
+  'minecraft:chests/buried_treasure','minecraft:chests/shipwreck_treasure','minecraft:chests/village/village_weaponsmith',
+  'minecraft:chests/ancient_city','minecraft:chests/trial_chambers/reward','minecraft:entities/zombie',
+  'minecraft:entities/skeleton','minecraft:entities/creeper','minecraft:entities/ender_dragon',
+  'minecraft:entities/wither','minecraft:entities/sheep','minecraft:gameplay/fishing',
+  'minecraft:gameplay/fishing/treasure',
+];
+
+const ITEM_SLOTS = [
+  'weapon.mainhand','weapon.offhand','armor.head','armor.chest','armor.legs','armor.feet',
+  'horse.saddle','horse.chest','horse.armor','hotbar.0','hotbar.1','hotbar.2','hotbar.3',
+  'hotbar.4','hotbar.5','hotbar.6','hotbar.7','hotbar.8','inventory.0','inventory.1',
+  'container.0','container.1','container.2','enderchest.0','villager.0',
+];
+
+const DAMAGE_TYPES = [
+  'generic','generic_kill','in_fire','on_fire','lava','hot_floor','in_wall','cramming',
+  'drown','starve','cactus','fall','fly_into_wall','out_of_world','magic','wither','anvil',
+  'falling_block','dragon_breath','sweet_berry_bush','freeze','sting','mob_attack','player_attack',
+  'arrow','trident','fireball','thrown','explosion','player_explosion','sonic_boom','lightning_bolt',
+];
+
+const MOD_OPERATIONS = ['add_value', 'add_multiplied_base', 'add_multiplied_total'];
+const EQUIP_SLOT_ENUM = ['any', 'mainhand', 'offhand', 'hand', 'head', 'chest', 'legs', 'feet', 'armor', 'body'];
+
 // ── module state ──────────────────────────────────────────────────────────────
 
 let currentCmd = 'give';
@@ -206,6 +255,11 @@ export async function renderCommands(mount) {
     ${datalist('dl-sounds', SOUNDS, /*raw*/ true)}
     ${datalist('dl-gamerules', GAMERULES, /*raw*/ true)}
     ${datalist('dl-attributes', ATTRIBUTES)}
+    ${datalist('dl-structures', STRUCTURES)}
+    ${datalist('dl-biomes', BIOMES)}
+    ${datalist('dl-loot', LOOT_TABLES, /*raw*/ true)}
+    ${datalist('dl-slots', ITEM_SLOTS, /*raw*/ true)}
+    ${datalist('dl-damagetypes', DAMAGE_TYPES)}
     ${datalist('dl-selectors', ['@s', '@p', '@a', '@r', '@e'], /*raw*/ true)}
     ${datalist('dl-dimensions', ['minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'], /*raw*/ true)}
   `;
@@ -368,6 +422,14 @@ function fieldHtml(f) {
         <div class="cmd-pairs" data-key="${esc(f.key)}" data-kind="score"></div>
         <button type="button" class="btn btn-sm cmd-pair-add">+ Add score</button>
         ${hint}
+      `);
+    }
+    case 'modifiers': {
+      return wrap(f, `
+        ${label}
+        <div class="cmd-pairs" data-key="${esc(f.key)}" data-kind="modifier"></div>
+        <button type="button" class="btn btn-sm cmd-pair-add">+ Add attribute modifier</button>
+        ${hint || '<span class="cmd-field-hint muted">Each modifier: attribute · amount · operation · equipment slot.</span>'}
       `);
     }
     case 'execute': {
@@ -628,6 +690,15 @@ function addPairRow(container) {
       <input class="input cmd-input cmd-pair-v" type="number" min="1" max="255" placeholder="lvl" value="1" />
       <button type="button" class="cmd-pair-del" title="Remove">✕</button>
     `;
+  } else if (kind === 'modifier') {
+    row.classList.add('cmd-pair-row-mod');
+    row.innerHTML = `
+      <input class="input cmd-input cmd-pair-k" type="text" list="dl-attributes" placeholder="attack_damage" />
+      <input class="input cmd-input cmd-pair-v" type="number" step="0.1" placeholder="amount" value="1" />
+      <select class="select cmd-input cmd-pair-op">${MOD_OPERATIONS.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>
+      <select class="select cmd-input cmd-pair-slot">${EQUIP_SLOT_ENUM.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>
+      <button type="button" class="cmd-pair-del" title="Remove">✕</button>
+    `;
   } else {
     row.innerHTML = `
       <input class="input cmd-input cmd-pair-k" type="text" placeholder="objective" />
@@ -674,14 +745,21 @@ function readField(form, f) {
       return { variable, name: name ? name.value.trim() : '', args };
     }
     case 'enchantments':
-    case 'scores': {
+    case 'scores':
+    case 'modifiers': {
       const container = form.querySelector(`.cmd-pairs[data-key="${cssEsc(f.key)}"]`);
       const out = [];
       if (container) {
         for (const row of container.querySelectorAll('.cmd-pair-row')) {
           const k = row.querySelector('.cmd-pair-k').value.trim();
           const val = row.querySelector('.cmd-pair-v').value.trim();
-          if (k) out.push({ k, v: val });
+          if (!k) continue;
+          const entry = { k, v: val };
+          const opEl   = row.querySelector('.cmd-pair-op');
+          const slotEl = row.querySelector('.cmd-pair-slot');
+          if (opEl)   entry.op = opEl.value;
+          if (slotEl) entry.slot = slotEl.value;
+          out.push(entry);
         }
       }
       return out;
@@ -823,23 +901,65 @@ function quoteIfNeeded(s) {
   return /^[A-Za-z0-9_.+-]+$/.test(s) ? s : `"${s.replace(/"/g, '\\"')}"`;
 }
 
-// Assemble the [components] suffix for /give items.
+// A single-quoted SNBT string holding a JSON text component, with single
+// quotes inside escaped so a value like "Bob's" stays valid.
+function textArg(text, extra = {}) {
+  const json = JSON.stringify({ text, italic: false, ...extra }).replace(/'/g, "\\'");
+  return `'${json}'`;
+}
+
+// Assemble the [components] suffix for /give items. Targets modern (1.21.x)
+// data-component syntax. Stable components are surfaced as fields; the raw
+// passthrough covers anything else (and version-volatile components).
 function itemComponents(values) {
   const parts = [];
-  if (values.name) {
-    // SNBT single-quoted string holding a JSON text component. Single quotes
-    // inside the JSON are escaped so a name like "Bob's" stays valid.
-    const json = JSON.stringify({ text: values.name, italic: false }).replace(/'/g, "\\'");
-    parts.push(`minecraft:custom_name='${json}'`);
+
+  if (values.name) parts.push(`minecraft:custom_name=${textArg(values.name)}`);
+
+  if (values.lore) {
+    const lines = String(values.lore).split('|').map(s => s.trim()).filter(Boolean);
+    if (lines.length) {
+      parts.push(`minecraft:lore=[${lines.map(l => textArg(l, { color: 'gray' })).join(',')}]`);
+    }
   }
+
   const ench = values.enchantments || [];
   if (ench.length) {
-    const levels = ench.map(e => `"${ns(e.k)}":${e.v || 1}`).join(',');
-    parts.push(`minecraft:enchantments={${levels}}`);
+    parts.push(`minecraft:enchantments={${ench.map(e => `"${ns(e.k)}":${e.v || 1}`).join(',')}}`);
   }
+
+  const mods = values.attribute_modifiers || [];
+  if (mods.length) {
+    const arr = mods.map((m, i) => {
+      const id = m.id || `fox:modifier_${i}`;
+      return `{type:"${ns(m.k)}",amount:${m.v || 0},operation:"${m.op || 'add_value'}",slot:"${m.slot || 'any'}",id:"${id}"}`;
+    }).join(',');
+    parts.push(`minecraft:attribute_modifiers=[${arr}]`);
+  }
+
+  if (values.dyed)  parts.push(`minecraft:dyed_color=${parseColor(values.dyed)}`);
+  if (values.rarity && values.rarity !== 'common') parts.push(`minecraft:rarity="${values.rarity}"`);
+  if (values.maxStack && String(values.maxStack) !== '') parts.push(`minecraft:max_stack_size=${values.maxStack}`);
+  if (values.itemDamage && String(values.itemDamage) !== '') parts.push(`minecraft:damage=${values.itemDamage}`);
   if (values.unbreakable) parts.push('minecraft:unbreakable={}');
   if (values.glint)       parts.push('minecraft:enchantment_glint_override=true');
+
+  if (values.rawComponents) {
+    const raw = String(values.rawComponents).trim().replace(/^\[|\]$/g, '').trim();
+    if (raw) parts.push(raw);
+  }
+
   return parts.length ? `[${parts.join(',')}]` : '';
+}
+
+// Accept "#RRGGBB", "RRGGBB", a decimal int, or "r,g,b" → decimal int string.
+function parseColor(s) {
+  s = String(s).trim();
+  if (/^#?[0-9a-fA-F]{6}$/.test(s)) return String(parseInt(s.replace('#', ''), 16));
+  const rgb = s.split(',').map(n => parseInt(n.trim(), 10));
+  if (rgb.length === 3 && rgb.every(n => !isNaN(n))) return String((rgb[0] << 16) | (rgb[1] << 8) | rgb[2]);
+  const n = parseInt(s, 10);
+  return isNaN(n) ? '16777215' : String(n);
 }
 
 // ── command registry ─────────────────────────────────────────────────────────
@@ -858,15 +978,25 @@ const COMMANDS = {
   },
 
   give: {
-    name: 'give', tag: 'items', desc: 'Give an item (with optional name, enchantments) to players.',
+    name: 'give', tag: 'items', desc: 'Give a fully-customised item — name, lore, enchantments, attribute modifiers, and more.',
     fields: [
       { key: 't', type: 'target', label: 'Target', default: '@p', required: true },
       { key: 'item', type: 'suggest', label: 'Item', list: 'dl-items', placeholder: 'diamond_sword', default: 'diamond_sword', required: true },
       { key: 'count', type: 'number', label: 'Count', min: 1, max: 6400, default: 1 },
       { key: 'name', type: 'text', label: 'Custom name', placeholder: 'Excalibur' },
+      { key: 'lore', type: 'text', label: 'Lore', wide: true, placeholder: 'Line one | Line two',
+        hint: 'Separate multiple lines with | (pipe).' },
       { key: 'enchantments', type: 'enchantments', label: 'Enchantments', wide: true },
+      { key: 'attribute_modifiers', type: 'modifiers', label: 'Attribute modifiers', wide: true },
+      { key: 'rarity', type: 'select', label: 'Rarity (name color)', options: ['common', 'uncommon', 'rare', 'epic'], default: 'common' },
+      { key: 'dyed', type: 'text', label: 'Dye color (leather)', placeholder: '#FF0000 or 255,0,0' },
+      { key: 'maxStack', type: 'number', label: 'Max stack size', min: 1, max: 99, placeholder: 'default' },
+      { key: 'itemDamage', type: 'number', label: 'Damage (durability used)', min: 0, placeholder: '0' },
       { key: 'unbreakable', type: 'bool', label: 'Unbreakable' },
       { key: 'glint', type: 'bool', label: 'Force enchant glint' },
+      { key: 'rawComponents', type: 'text', label: 'Extra components (raw)', wide: true,
+        placeholder: 'minecraft:food={nutrition:4},minecraft:max_damage=200',
+        hint: 'Advanced: any extra components, comma-separated. Inserted verbatim.' },
     ],
     build: (v) => {
       const item = ns(v.item || 'stone') + itemComponents(v);
@@ -1212,19 +1342,37 @@ const COMMANDS = {
   },
 
   attribute: {
-    name: 'attribute', tag: 'entities', desc: 'Set or modify an entity attribute base value.',
+    name: 'attribute', tag: 'entities', desc: 'Get/set an attribute base value, or add/remove temporary modifiers.',
     fields: [
       { key: 't', type: 'target', label: 'Target', default: '@s', required: true },
       { key: 'attr', type: 'suggest', label: 'Attribute', list: 'dl-attributes', placeholder: 'max_health',
         default: 'max_health', required: true },
       { key: 'op', type: 'select', label: 'Action', options: [
-        { value: 'base set', label: 'base set' }, { value: 'base get', label: 'base get' }, { value: 'get', label: 'get (total)' }], default: 'base set' },
-      { key: 'value', type: 'number', label: 'Value', step: 0.1, default: 20 },
+        { value: 'base set', label: 'base set' },
+        { value: 'base get', label: 'base get' },
+        { value: 'get', label: 'get (total)' },
+        { value: 'modifier add', label: 'modifier add' },
+        { value: 'modifier remove', label: 'modifier remove' },
+        { value: 'modifier value get', label: 'modifier value get' }], default: 'base set' },
+      { key: 'value', type: 'number', label: 'Value', step: 0.1, default: 20,
+        hint: 'For base set and modifier add.' },
+      { key: 'modId', type: 'text', label: 'Modifier id', placeholder: 'fox:my_bonus',
+        hint: 'For modifier add/remove/get.' },
+      { key: 'modOp', type: 'select', label: 'Modifier operation', options: MOD_OPERATIONS, default: 'add_value' },
     ],
     build: (v) => {
       const attr = ns(v.attr || 'max_health');
-      if (v.op === 'base set') return `attribute ${selector(v.t)} ${attr} base set ${v.value !== '' ? v.value : 0}`;
-      return `attribute ${selector(v.t)} ${attr} ${v.op || 'base get'}`;
+      const sel = selector(v.t);
+      const val = v.value !== '' ? v.value : 0;
+      const id = v.modId ? ns(v.modId) : 'fox:modifier';
+      switch (v.op) {
+        case 'base set':           return `attribute ${sel} ${attr} base set ${val}`;
+        case 'get':                return `attribute ${sel} ${attr} get`;
+        case 'modifier add':       return `attribute ${sel} ${attr} modifier add ${id} ${val} ${v.modOp || 'add_value'}`;
+        case 'modifier remove':    return `attribute ${sel} ${attr} modifier remove ${id}`;
+        case 'modifier value get': return `attribute ${sel} ${attr} modifier value get ${id}`;
+        default:                   return `attribute ${sel} ${attr} base get`;
+      }
     },
   },
 
@@ -1324,6 +1472,498 @@ const COMMANDS = {
       { key: 'msg', type: 'text', label: 'Message', wide: true, placeholder: 'Hello everyone!', required: true },
     ],
     build: (v) => `say ${v.msg || ''}`.trimEnd(),
+  },
+
+  // ── world editing ──────────────────────────────────────────────────────────
+  clone: {
+    name: 'clone', tag: 'world', desc: 'Copy a region of blocks from one place to another.',
+    fields: [
+      { key: 'begin', type: 'coords', label: 'Source corner 1', required: true },
+      { key: 'end', type: 'coords', label: 'Source corner 2', required: true },
+      { key: 'dest', type: 'coords', label: 'Destination (lowest corner)', required: true },
+      { key: 'mask', type: 'select', label: 'Mask', options: ['replace', 'masked', 'filtered'], default: 'replace' },
+      { key: 'filter', type: 'suggest', label: 'Filter block', list: 'dl-blocks', placeholder: 'stone',
+        hint: 'Only when mask = filtered.' },
+      { key: 'mode', type: 'select', label: 'Mode', options: ['normal', 'force', 'move'], default: 'normal' },
+    ],
+    build: (v) => {
+      let s = `clone ${coords(v.begin)} ${coords(v.end)} ${coords(v.dest)}`;
+      if (v.mask === 'filtered') s += ` filtered ${ns(v.filter || 'stone')}`;
+      else if (v.mask && v.mask !== 'replace') s += ' ' + v.mask;
+      if (v.mode && v.mode !== 'normal') s += (v.mask && v.mask !== 'replace' ? '' : ' replace') + ' ' + v.mode;
+      return s;
+    },
+  },
+
+  fillbiome: {
+    name: 'fillbiome', tag: 'world', desc: 'Change the biome within a region.',
+    fields: [
+      { key: 'from', type: 'coords', label: 'From', required: true },
+      { key: 'to', type: 'coords', label: 'To', required: true },
+      { key: 'biome', type: 'suggest', label: 'Biome', list: 'dl-biomes', placeholder: 'plains', default: 'plains', required: true },
+      { key: 'replace', type: 'suggest', label: 'Replace only (filter)', list: 'dl-biomes', placeholder: 'desert' },
+    ],
+    build: (v) => {
+      let s = `fillbiome ${coords(v.from)} ${coords(v.to)} ${ns(v.biome || 'plains')}`;
+      if (v.replace) s += ` replace ${ns(v.replace)}`;
+      return s;
+    },
+  },
+
+  place: {
+    name: 'place', tag: 'world', desc: 'Place a feature, structure, jigsaw, or template.',
+    fields: [
+      { key: 'type', type: 'select', label: 'Type', options: ['feature', 'structure', 'jigsaw', 'template'], default: 'structure' },
+      { key: 'id', type: 'suggest', label: 'Id', list: 'dl-structures', placeholder: 'village_plains', required: true },
+      { key: 'pos', type: 'coords', label: 'Position' },
+    ],
+    build: (v) => {
+      const pos = coords(v.pos);
+      return `place ${v.type || 'structure'} ${ns(v.id || 'village_plains')}${pos !== '~ ~ ~' ? ' ' + pos : ''}`;
+    },
+  },
+
+  locate: {
+    name: 'locate', tag: 'world', desc: 'Find the nearest structure, biome, or point of interest.',
+    fields: [
+      { key: 'type', type: 'select', label: 'Type', options: ['structure', 'biome', 'poi'], default: 'structure' },
+      { key: 'id', type: 'suggest', label: 'Id', list: 'dl-structures', placeholder: 'fortress', required: true },
+    ],
+    build: (v) => `locate ${v.type || 'structure'} ${ns(v.id || 'village_plains')}`,
+  },
+
+  forceload: {
+    name: 'forceload', tag: 'world', desc: 'Keep chunks loaded even when no player is nearby.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['add', 'remove', 'remove all', 'query'], default: 'add' },
+      { key: 'from', type: 'coords', label: 'From (chunk block pos)' },
+      { key: 'to', type: 'coords', label: 'To (optional)' },
+    ],
+    build: (v) => {
+      if (v.action === 'remove all') return 'forceload remove all';
+      const from = coords(v.from);
+      const to = coords(v.to);
+      let s = `forceload ${v.action || 'add'} ${from}`;
+      if (v.action !== 'query' && to !== '~ ~ ~' && to !== from) s += ' ' + to;
+      return s;
+    },
+  },
+
+  // ── data / NBT ──────────────────────────────────────────────────────────────
+  data: {
+    name: 'data', tag: 'data', desc: 'Get, merge, modify, or remove NBT on an entity, block, or storage.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['get', 'merge', 'modify', 'remove'], default: 'get' },
+      { key: 'holder', type: 'select', label: 'Holder', options: ['entity', 'block', 'storage'], default: 'entity' },
+      { key: 'sel', type: 'text', label: 'Entity / storage id', list: 'dl-selectors', placeholder: '@s   or   my:storage' },
+      { key: 'pos', type: 'coords', label: 'Block position' },
+      { key: 'path', type: 'text', label: 'NBT path', placeholder: 'Health' },
+      { key: 'data', type: 'text', wide: true, label: 'NBT / modify source',
+        placeholder: '{Health:20f}    or    set value 5    or    set from entity @p Pos[0]' },
+    ],
+    build: (v) => {
+      const holder = v.holder === 'block' ? `block ${coords(v.pos)}`
+                   : v.holder === 'storage' ? `storage ${v.sel || 'minecraft:my_storage'}`
+                   : `entity ${v.sel || '@s'}`;
+      switch (v.action) {
+        case 'merge':  return `data merge ${holder} ${v.data || '{}'}`;
+        case 'remove': return `data remove ${holder} ${v.path || ''}`.trimEnd();
+        case 'modify': return `data modify ${holder} ${v.path || ''} ${v.data || 'set value 0'}`.replace(/\s+/g, ' ').trimEnd();
+        default:       return `data get ${holder}${v.path ? ' ' + v.path : ''}`;
+      }
+    },
+  },
+
+  item: {
+    name: 'item', tag: 'items', desc: 'Replace or modify an item in a specific inventory slot.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['replace', 'modify'], default: 'replace' },
+      { key: 'holder', type: 'select', label: 'Holder', options: ['entity', 'block'], default: 'entity' },
+      { key: 'sel', type: 'text', label: 'Entity', list: 'dl-selectors', placeholder: '@s' },
+      { key: 'pos', type: 'coords', label: 'Block position' },
+      { key: 'slot', type: 'suggest', label: 'Slot', list: 'dl-slots', placeholder: 'weapon.mainhand', default: 'weapon.mainhand', required: true },
+      { key: 'item', type: 'suggest', label: 'Item (replace)', list: 'dl-items', placeholder: 'diamond' },
+      { key: 'count', type: 'number', label: 'Count', min: 1, placeholder: '1' },
+      { key: 'modifier', type: 'text', label: 'Modifier id (modify)', placeholder: 'my:modifier' },
+    ],
+    build: (v) => {
+      const holder = v.holder === 'block' ? `block ${coords(v.pos)}` : `entity ${v.sel || '@s'}`;
+      const slot = v.slot || 'weapon.mainhand';
+      if (v.action === 'modify') return `item modify ${holder} ${slot} ${v.modifier || 'my:modifier'}`;
+      const count = v.count && String(v.count) !== '1' ? ' ' + v.count : '';
+      return `item replace ${holder} ${slot} with ${ns(v.item || 'stone')}${count}`;
+    },
+  },
+
+  loot: {
+    name: 'loot', tag: 'items', desc: 'Generate items from a loot table — give, spawn, or insert them.',
+    fields: [
+      { key: 'method', type: 'select', label: 'Destination', options: [
+        { value: 'give', label: 'give → players' },
+        { value: 'spawn', label: 'spawn → position' },
+        { value: 'insert', label: 'insert → container' }], default: 'give' },
+      { key: 't', type: 'target', label: 'Players (give)', default: '@p' },
+      { key: 'pos', type: 'coords', label: 'Position (spawn / insert)' },
+      { key: 'source', type: 'select', label: 'Source', options: [
+        { value: 'loot', label: 'loot table' }, { value: 'kill', label: 'kill (entity drops)' }, { value: 'mine', label: 'mine (block drops)' }], default: 'loot' },
+      { key: 'table', type: 'suggest', label: 'Loot table', list: 'dl-loot', placeholder: 'minecraft:chests/simple_dungeon' },
+      { key: 'killEntity', type: 'text', label: 'Entity (kill)', list: 'dl-selectors', placeholder: '@e[type=zombie,limit=1]' },
+      { key: 'minePos', type: 'coords', label: 'Block (mine)' },
+    ],
+    build: (v) => {
+      const dest = v.method === 'spawn' ? `spawn ${coords(v.pos)}`
+                 : v.method === 'insert' ? `insert ${coords(v.pos)}`
+                 : `give ${selector(v.t)}`;
+      const source = v.source === 'kill' ? `kill ${v.killEntity || '@e[limit=1]'}`
+                   : v.source === 'mine' ? `mine ${coords(v.minePos)}`
+                   : `loot ${v.table || 'minecraft:chests/simple_dungeon'}`;
+      return `loot ${dest} ${source}`;
+    },
+  },
+
+  // ── scoreboard / progression ─────────────────────────────────────────────────
+  bossbar: {
+    name: 'bossbar', tag: 'data', desc: 'Create and control custom boss bars.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['add', 'set', 'remove', 'list', 'get'], default: 'add' },
+      { key: 'id', type: 'text', label: 'Bar id', placeholder: 'fox:my_bar' },
+      { key: 'prop', type: 'select', label: 'Property (set/get)', options: [
+        'name', 'color', 'style', 'value', 'max', 'visible', 'players'], default: 'value' },
+      { key: 'value', type: 'text', label: 'Value', placeholder: '50  /  red  /  "Title"  /  true' },
+    ],
+    build: (v) => {
+      const id = v.id || 'fox:my_bar';
+      switch (v.action) {
+        case 'add':    return `bossbar add ${id} ${textArg(v.value || 'Boss Bar')}`;
+        case 'remove': return `bossbar remove ${id}`;
+        case 'list':   return 'bossbar list';
+        case 'get':    return `bossbar get ${id} ${v.prop || 'value'}`;
+        default: {
+          let val = v.value || '';
+          if (v.prop === 'name') val = textArg(val || 'Boss Bar');
+          return `bossbar set ${id} ${v.prop || 'value'} ${val}`.trimEnd();
+        }
+      }
+    },
+  },
+
+  advancement: {
+    name: 'advancement', tag: 'players', desc: 'Grant or revoke advancements.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['grant', 'revoke'], default: 'grant' },
+      { key: 't', type: 'target', label: 'Target', default: '@s', required: true },
+      { key: 'scope', type: 'select', label: 'Scope', options: ['everything', 'only', 'from', 'through', 'until'], default: 'everything' },
+      { key: 'advancement', type: 'text', label: 'Advancement', placeholder: 'minecraft:story/mine_diamond' },
+      { key: 'criterion', type: 'text', label: 'Criterion (optional)', placeholder: '' },
+    ],
+    build: (v) => {
+      let s = `advancement ${v.action || 'grant'} ${selector(v.t)} ${v.scope || 'everything'}`;
+      if (v.scope !== 'everything' && v.advancement) {
+        s += ' ' + ns(v.advancement);
+        if (v.scope === 'only' && v.criterion) s += ' ' + v.criterion;
+      }
+      return s;
+    },
+  },
+
+  recipe: {
+    name: 'recipe', tag: 'players', desc: 'Unlock or remove crafting recipes for players.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['give', 'take'], default: 'give' },
+      { key: 't', type: 'target', label: 'Target', default: '@s', required: true },
+      { key: 'recipe', type: 'text', label: 'Recipe', placeholder: '* (all) or minecraft:diamond_sword', default: '*' },
+    ],
+    build: (v) => {
+      const r = v.recipe && v.recipe !== '*' ? ns(v.recipe) : '*';
+      return `recipe ${v.action || 'give'} ${selector(v.t)} ${r}`;
+    },
+  },
+
+  team: {
+    name: 'team', tag: 'data', desc: 'Create and manage teams (colors, collision, friendly fire…).',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['add', 'join', 'leave', 'modify', 'empty', 'remove', 'list'], default: 'add' },
+      { key: 'team', type: 'text', label: 'Team name', placeholder: 'red' },
+      { key: 'members', type: 'text', label: 'Members (join)', list: 'dl-selectors', placeholder: '@a' },
+      { key: 'display', type: 'text', label: 'Display name (add)', placeholder: 'Red Team' },
+      { key: 'key', type: 'select', label: 'Option (modify)', options: [
+        'color', 'friendlyFire', 'seeFriendlyInvisibles', 'nametagVisibility', 'collisionRule', 'deathMessageVisibility', 'prefix', 'suffix'], default: 'color' },
+      { key: 'val', type: 'text', label: 'Value (modify)', placeholder: 'red / true / always' },
+    ],
+    build: (v) => {
+      const team = v.team || 'team';
+      switch (v.action) {
+        case 'join':   return `team join ${team} ${v.members || '@s'}`;
+        case 'leave':  return `team leave ${v.members || '@s'}`;
+        case 'empty':  return `team empty ${team}`;
+        case 'remove': return `team remove ${team}`;
+        case 'list':   return v.team ? `team list ${team}` : 'team list';
+        case 'modify': {
+          let val = v.val || '';
+          if (v.key === 'prefix' || v.key === 'suffix') val = textArg(val);
+          return `team modify ${team} ${v.key || 'color'} ${val}`.trimEnd();
+        }
+        default:       return v.display ? `team add ${team} ${textArg(v.display)}` : `team add ${team}`;
+      }
+    },
+  },
+
+  trigger: {
+    name: 'trigger', tag: 'data', desc: 'Activate a trigger objective (usable by non-op players).',
+    fields: [
+      { key: 'objective', type: 'text', label: 'Objective', placeholder: 'myTrigger', required: true },
+      { key: 'mode', type: 'select', label: 'Mode', options: ['(simple)', 'add', 'set'], default: '(simple)' },
+      { key: 'value', type: 'number', label: 'Value', default: 1 },
+    ],
+    build: (v) => {
+      const obj = v.objective || 'myTrigger';
+      if (v.mode === 'add') return `trigger ${obj} add ${v.value !== '' ? v.value : 1}`;
+      if (v.mode === 'set') return `trigger ${obj} set ${v.value !== '' ? v.value : 1}`;
+      return `trigger ${obj}`;
+    },
+  },
+
+  // ── functions / datapacks ──────────────────────────────────────────────────
+  function: {
+    name: 'function', tag: 'control', desc: 'Run a datapack function (optionally with arguments).',
+    fields: [
+      { key: 'id', type: 'text', label: 'Function', placeholder: 'my_pack:my_function', required: true },
+      { key: 'args', type: 'text', label: 'Arguments (NBT)', wide: true, placeholder: '{count:5,name:"Bob"}' },
+    ],
+    build: (v) => `function ${v.id || 'my_pack:my_function'}${v.args ? ' ' + v.args : ''}`,
+  },
+
+  schedule: {
+    name: 'schedule', tag: 'control', desc: 'Run a function after a delay, or clear a scheduled one.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['function', 'clear'], default: 'function' },
+      { key: 'id', type: 'text', label: 'Function', placeholder: 'my_pack:my_function', required: true },
+      { key: 'time', type: 'text', label: 'Delay', placeholder: '10s / 200t / 1d', default: '1t' },
+      { key: 'mode', type: 'select', label: 'Mode', options: ['replace', 'append'], default: 'replace' },
+    ],
+    build: (v) => {
+      if (v.action === 'clear') return `schedule clear ${v.id || 'my_pack:my_function'}`;
+      const mode = v.mode && v.mode !== 'replace' ? ' ' + v.mode : '';
+      return `schedule function ${v.id || 'my_pack:my_function'} ${v.time || '1t'}${mode}`;
+    },
+  },
+
+  datapack: {
+    name: 'datapack', tag: 'control', desc: 'Enable, disable, or list datapacks.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['enable', 'disable', 'list'], default: 'list' },
+      { key: 'name', type: 'text', label: 'Pack name', placeholder: '"file/my_pack"' },
+      { key: 'listKind', type: 'select', label: 'List', options: ['', 'available', 'enabled'], default: '' },
+    ],
+    build: (v) => {
+      if (v.action === 'list') return `datapack list${v.listKind ? ' ' + v.listKind : ''}`;
+      return `datapack ${v.action} ${v.name || '"file/my_pack"'}`;
+    },
+  },
+
+  // ── players / movement ─────────────────────────────────────────────────────
+  spreadplayers: {
+    name: 'spreadplayers', tag: 'players', desc: 'Randomly teleport targets around a center point.',
+    fields: [
+      { key: 'cx', type: 'text', label: 'Center X', placeholder: '0', default: '~' },
+      { key: 'cz', type: 'text', label: 'Center Z', placeholder: '0', default: '~' },
+      { key: 'spread', type: 'number', label: 'Min spread distance', min: 0, step: 0.1, default: 5 },
+      { key: 'range', type: 'number', label: 'Max range', min: 1, step: 0.1, default: 50 },
+      { key: 'maxHeight', type: 'number', label: 'Max height (optional)', placeholder: 'top' },
+      { key: 'respectTeams', type: 'bool', label: 'Keep teams together' },
+      { key: 't', type: 'target', label: 'Targets', default: '@a', required: true },
+    ],
+    build: (v) => {
+      const h = v.maxHeight !== '' ? ` under ${v.maxHeight}` : '';
+      return `spreadplayers ${v.cx || '~'} ${v.cz || '~'} ${v.spread !== '' ? v.spread : 5} ${v.range !== '' ? v.range : 50}${h} ${v.respectTeams ? 'true' : 'false'} ${selector(v.t)}`;
+    },
+  },
+
+  rotate: {
+    name: 'rotate', tag: 'movement', desc: 'Rotate an entity to a yaw/pitch or to face a target.',
+    fields: [
+      { key: 't', type: 'target', label: 'Target', default: '@s', required: true },
+      { key: 'mode', type: 'select', label: 'Mode', options: [
+        { value: 'angle', label: 'to yaw/pitch' }, { value: 'facing', label: 'face position' }, { value: 'facing_entity', label: 'face entity' }], default: 'angle' },
+      { key: 'yaw', type: 'text', label: 'Yaw', placeholder: '~ / 90' },
+      { key: 'pitch', type: 'text', label: 'Pitch', placeholder: '~ / 0' },
+      { key: 'pos', type: 'coords', label: 'Position (face position)' },
+      { key: 'entity', type: 'text', label: 'Entity (face entity)', list: 'dl-selectors', placeholder: '@p' },
+    ],
+    build: (v) => {
+      const sel = selector(v.t);
+      if (v.mode === 'facing') return `rotate ${sel} facing ${coords(v.pos)}`;
+      if (v.mode === 'facing_entity') return `rotate ${sel} facing entity ${v.entity || '@p'}`;
+      return `rotate ${sel} ${v.yaw || '~'} ${v.pitch || '~'}`;
+    },
+  },
+
+  spectate: {
+    name: 'spectate', tag: 'players', desc: 'Make a spectator view another entity (or stop).',
+    fields: [
+      { key: 'target', type: 'text', label: 'Entity to spectate', list: 'dl-selectors', placeholder: '@p' },
+      { key: 'player', type: 'text', label: 'Spectator', list: 'dl-selectors', placeholder: '@s' },
+    ],
+    build: (v) => {
+      if (!v.target) return 'spectate';
+      return `spectate ${v.target}${v.player ? ' ' + v.player : ''}`;
+    },
+  },
+
+  defaultgamemode: {
+    name: 'defaultgamemode', tag: 'players', desc: 'Set the default game mode for new players.',
+    fields: [
+      { key: 'mode', type: 'select', label: 'Mode', options: ['survival', 'creative', 'adventure', 'spectator'], default: 'survival' },
+    ],
+    build: (v) => `defaultgamemode ${v.mode || 'survival'}`,
+  },
+
+  // ── tick / rng ──────────────────────────────────────────────────────────────
+  tick: {
+    name: 'tick', tag: 'control', desc: 'Control the game-tick rate — freeze, step, sprint, or set rate.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['query', 'rate', 'freeze', 'unfreeze', 'step', 'sprint'], default: 'query' },
+      { key: 'value', type: 'text', label: 'Value', placeholder: '20  /  100t  /  stop' },
+    ],
+    build: (v) => {
+      if (v.action === 'rate')   return `tick rate ${v.value || '20'}`;
+      if (v.action === 'step')   return `tick step ${v.value || '10'}`;
+      if (v.action === 'sprint') return `tick sprint ${v.value || '1000'}`;
+      return `tick ${v.action || 'query'}`;
+    },
+  },
+
+  random: {
+    name: 'random', tag: 'data', desc: 'Roll a random value within a range.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['value', 'roll'], default: 'value' },
+      { key: 'range', type: 'text', label: 'Range', placeholder: '1..6', default: '1..6', required: true },
+      { key: 'sequence', type: 'text', label: 'Sequence id (optional)', placeholder: 'my:sequence' },
+    ],
+    build: (v) => `random ${v.action || 'value'} ${v.range || '1..6'}${v.sequence ? ' ' + ns(v.sequence) : ''}`,
+  },
+
+  // ── messaging ────────────────────────────────────────────────────────────────
+  msg: {
+    name: 'msg', tag: 'text', desc: 'Send a private message (alias of /tell, /w).',
+    fields: [
+      { key: 't', type: 'target', label: 'Target', default: '@p', required: true },
+      { key: 'message', type: 'text', label: 'Message', wide: true, placeholder: 'psst…', required: true },
+    ],
+    build: (v) => `msg ${selector(v.t)} ${v.message || ''}`.trimEnd(),
+  },
+
+  me: {
+    name: 'me', tag: 'text', desc: 'Emote in third person ("* Steve waves").',
+    fields: [
+      { key: 'action', type: 'text', label: 'Action text', wide: true, placeholder: 'waves hello', required: true },
+    ],
+    build: (v) => `me ${v.action || ''}`.trimEnd(),
+  },
+
+  teammsg: {
+    name: 'teammsg', tag: 'text', desc: 'Message only your own team (alias /tm).',
+    fields: [
+      { key: 'message', type: 'text', label: 'Message', wide: true, placeholder: 'enemy at spawn!', required: true },
+    ],
+    build: (v) => `teammsg ${v.message || ''}`.trimEnd(),
+  },
+
+  // ── server admin ──────────────────────────────────────────────────────────────
+  op: {
+    name: 'op', tag: 'server', desc: 'Grant or revoke operator status.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['op', 'deop'], default: 'op' },
+      { key: 'player', type: 'text', label: 'Player', placeholder: 'Steve', required: true },
+    ],
+    build: (v) => `${v.action || 'op'} ${v.player || 'Player'}`,
+  },
+
+  kick: {
+    name: 'kick', tag: 'server', desc: 'Kick a player from the server.',
+    fields: [
+      { key: 'player', type: 'text', label: 'Player', list: 'dl-selectors', placeholder: 'Steve', required: true },
+      { key: 'reason', type: 'text', label: 'Reason (optional)', wide: true, placeholder: 'Bye!' },
+    ],
+    build: (v) => `kick ${v.player || 'Player'}${v.reason ? ' ' + v.reason : ''}`,
+  },
+
+  ban: {
+    name: 'ban', tag: 'server', desc: 'Ban / pardon players or IPs.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['ban', 'pardon', 'ban-ip', 'pardon-ip'], default: 'ban' },
+      { key: 'target', type: 'text', label: 'Player / IP', placeholder: 'Steve', required: true },
+      { key: 'reason', type: 'text', label: 'Reason (ban only)', wide: true, placeholder: 'Griefing' },
+    ],
+    build: (v) => {
+      const a = v.action || 'ban';
+      const r = (a === 'ban' || a === 'ban-ip') && v.reason ? ' ' + v.reason : '';
+      return `${a} ${v.target || 'Player'}${r}`;
+    },
+  },
+
+  whitelist: {
+    name: 'whitelist', tag: 'server', desc: 'Manage the server whitelist.',
+    fields: [
+      { key: 'action', type: 'select', label: 'Action', options: ['on', 'off', 'add', 'remove', 'list', 'reload'], default: 'list' },
+      { key: 'player', type: 'text', label: 'Player (add/remove)', placeholder: 'Steve' },
+    ],
+    build: (v) => {
+      const a = v.action || 'list';
+      if (a === 'add' || a === 'remove') return `whitelist ${a} ${v.player || 'Player'}`;
+      return `whitelist ${a}`;
+    },
+  },
+
+  publish: {
+    name: 'publish', tag: 'server', desc: 'Open the current singleplayer world to LAN.',
+    fields: [
+      { key: 'allow', type: 'bool', label: 'Allow cheats' },
+      { key: 'mode', type: 'select', label: 'Game mode', options: ['survival', 'creative', 'adventure', 'spectator'], default: 'survival' },
+      { key: 'port', type: 'number', label: 'Port', min: 1, max: 65535, placeholder: 'auto' },
+    ],
+    build: (v) => {
+      // publish [allowCommands] [gamemode] [port]
+      if (v.port !== '') return `publish ${v.allow ? 'true' : 'false'} ${v.mode || 'survival'} ${v.port}`;
+      if (v.allow || (v.mode && v.mode !== 'survival')) return `publish ${v.allow ? 'true' : 'false'} ${v.mode || 'survival'}`;
+      return 'publish';
+    },
+  },
+
+  setidletimeout: {
+    name: 'setidletimeout', tag: 'server', desc: 'Auto-kick players idle for N minutes (0 = never).',
+    fields: [
+      { key: 'minutes', type: 'number', label: 'Minutes', min: 0, default: 0 },
+    ],
+    build: (v) => `setidletimeout ${v.minutes !== '' ? v.minutes : 0}`,
+  },
+
+  'save-all': {
+    name: 'save-all', tag: 'server', desc: 'Save the world to disk.',
+    fields: [
+      { key: 'flush', type: 'bool', label: 'Flush (force immediate)' },
+    ],
+    build: (v) => `save-all${v.flush ? ' flush' : ''}`,
+  },
+
+  list: {
+    name: 'list', tag: 'server', desc: 'List online players.',
+    fields: [
+      { key: 'uuids', type: 'bool', label: 'Show UUIDs' },
+    ],
+    build: (v) => `list${v.uuids ? ' uuids' : ''}`,
+  },
+
+  seed: {
+    name: 'seed', tag: 'server', desc: 'Show the world seed.',
+    fields: [],
+    build: () => 'seed',
+  },
+
+  stop: {
+    name: 'stop', tag: 'server', desc: 'Stop the server (saves first).',
+    fields: [],
+    build: () => 'stop',
   },
 };
 
