@@ -200,6 +200,21 @@ function isCurrentVersionInstalled(slug, modsDir, gameDir, mcVersion) {
   return m[slug] && m[slug].mcVersion === mcVersion;
 }
 
+/** Transitive dependencies live under a sibling `deps:` map keyed by Modrinth
+ *  project_id. Lazy-create so old manifests stay readable. */
+function depsBucket(mf) {
+  if (!mf.deps || typeof mf.deps !== 'object') mf.deps = {};
+  return mf.deps;
+}
+
+/** True only when the dep's recorded jar exists on disk for this mcVersion. */
+function isDepInstalled(projectId, modsDir, gameDir, mcVersion) {
+  const rec = depsBucket(readManifest(gameDir))[projectId];
+  if (!rec || rec.mcVersion !== mcVersion || !rec.filename) return false;
+  try { return fs.existsSync(path.join(modsDir, rec.filename)); }
+  catch (_) { return false; }
+}
+
 /** Remove any on-disk jar matching this slug (old MC-version build). */
 function removeStaleJar(slug, modsDir) {
   const jarPath = findInstalledJar(slug, modsDir);
@@ -223,21 +238,57 @@ function writeAtomic(target, contents) {
  * @returns {Promise<{slug, status: 'installed'|'skipped'|'no-version'|'error', file?, error?}>}
  */
 async function installOne(slug, gameDir, mcVersion, opts = {}) {
-  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : () => {};
   const modsDir = path.join(gameDir, 'mods');
   fs.mkdirSync(modsDir, { recursive: true });
 
+  // Build a per-call context unless one was threaded in by installAll. The ctx
+  // carries the cycle-guard set, the deps-installed buffer, and overridable
+  // network calls so tests can mock fetches without hitting Modrinth.
+  const ctx = opts.ctx || {
+    visited: new Set(),
+    deps: [],
+    modsDir,
+    onProgress: typeof opts.onProgress === 'function' ? opts.onProgress : () => {},
+    fetchJson: opts.fetchJson || fetchJson,
+    fetchVersion: opts.fetchVersion || ((vid) => fetchJson(`${MODRINTH_BASE}/version/${vid}`)),
+    fetchBuffer: opts.fetchBuffer || fetchWithRetry,
+  };
+  const onProgress = ctx.onProgress;
+
+  // Already installed for this MC version? Even so, fetch the recorded
+  // version's dependencies and walk them — that's how existing-but-broken
+  // installs (Visuality without cloth-config etc.) self-heal next boot.
   if (isCurrentVersionInstalled(slug, modsDir, gameDir, mcVersion)) {
+    try {
+      const versions = await ctx.fetchJson(`${MODRINTH_BASE}/project/${encodeURIComponent(slug)}/version`);
+      const mf = readManifest(gameDir);
+      const rec = mf[slug] || {};
+      const version =
+        (rec.versionId && versions.find(v => v.id === rec.versionId)) ||
+        pickVersion(versions, mcVersion);
+      if (version) {
+        // Back-fill projectId/versionId so future runs skip this lookup.
+        mf[slug] = {
+          mcVersion,
+          filename: rec.filename || ((version.files.find(f => f.primary) || version.files[0]) || {}).filename,
+          installedAt: rec.installedAt || Date.now(),
+          projectId: version.project_id,
+          versionId: version.id,
+        };
+        writeManifest(gameDir, mf);
+        await resolveAndInstallDeps(version, slug, gameDir, mcVersion, ctx);
+      }
+    } catch (_) { /* best-effort dep heal */ }
     return { slug, status: 'skipped' };
   }
-  // Jar exists but was built for a different MC version — remove it before
-  // downloading the correct one so we don't end up with two copies.
+
+  // Jar exists but was built for a different MC version — clear before download.
   removeStaleJar(slug, modsDir);
 
   onProgress(`Looking up ${slug}…`);
   let versions;
   try {
-    versions = await fetchJson(`${MODRINTH_BASE}/project/${encodeURIComponent(slug)}/version`);
+    versions = await ctx.fetchJson(`${MODRINTH_BASE}/project/${encodeURIComponent(slug)}/version`);
   } catch (err) {
     return { slug, status: 'error', error: err.message };
   }
@@ -246,49 +297,136 @@ async function installOne(slug, gameDir, mcVersion, opts = {}) {
   if (!version || !Array.isArray(version.files) || !version.files.length) {
     return { slug, status: 'no-version' };
   }
-  // Prefer the file flagged primary; fall back to the first.
+  return await installResolved(slug, version, gameDir, mcVersion, ctx, /*isDep*/ false);
+}
+
+/**
+ * Download + install a fully-resolved Modrinth version. Reused by installOne
+ * (top-level mods) and resolveAndInstallDeps (transitive required deps).
+ *
+ * For dep installs, idKey is the project_id and the manifest record lands in
+ * the `deps:` bucket; for top-level installs idKey is the slug.
+ */
+async function installResolved(idKey, version, gameDir, mcVersion, ctx, isDep) {
+  const modsDir = ctx.modsDir;
+  const onProgress = ctx.onProgress;
   const file = version.files.find(f => f.primary) || version.files[0];
   const target = path.join(modsDir, file.filename);
 
-  // Remove the previously-installed jar for this slug if the filename changed
-  // (e.g. a version bump renamed voicechat-2.6.17 → 2.6.18). findInstalledJar
-  // matches by slug prefix and misses mods whose jar name differs from the
-  // slug (simple-voice-chat → voicechat-*.jar), which is exactly how a
-  // duplicate slipped through. The manifest records the real filename, so use
-  // it. Skip when the name is unchanged (writeAtomic overwrites in place).
-  const prevEntry = readManifest(gameDir)[slug];
+  // Filename-renamed dedup (e.g. simple-voice-chat 2.6.17 → 2.6.18). The
+  // manifest records the real filename, so use it directly. Skip when the
+  // name is unchanged (writeAtomic overwrites in place).
+  const mfPre = readManifest(gameDir);
+  const prevEntry = isDep ? depsBucket(mfPre)[idKey] : mfPre[idKey];
   if (prevEntry && prevEntry.filename && prevEntry.filename !== file.filename) {
     try { fs.unlinkSync(path.join(modsDir, prevEntry.filename)); } catch (_) {}
   }
 
   onProgress(`Downloading ${file.filename}…`);
   let buf;
-  try { buf = await fetchWithRetry(file.url); }
-  catch (err) { return { slug, status: 'error', error: err.message }; }
+  try { buf = await ctx.fetchBuffer(file.url); }
+  catch (err) { return { slug: idKey, status: 'error', error: err.message, dep: isDep }; }
 
-  // Verify integrity using the hash Modrinth provides (prefer sha512, fall back to sha1).
+  // Hash verify (prefer sha512, fall back to sha1).
   const hashes = file.hashes || {};
   if (hashes.sha512) {
     const actual = crypto.createHash('sha512').update(buf).digest('hex');
     if (actual !== hashes.sha512) {
-      return { slug, status: 'error', error: `Hash mismatch for ${file.filename} (expected ${hashes.sha512.slice(0, 16)}…, got ${actual.slice(0, 16)}…)` };
+      return { slug: idKey, status: 'error',
+        error: `Hash mismatch for ${file.filename} (expected ${hashes.sha512.slice(0, 16)}…, got ${actual.slice(0, 16)}…)`,
+        dep: isDep };
     }
   } else if (hashes.sha1) {
     const actual = crypto.createHash('sha1').update(buf).digest('hex');
     if (actual !== hashes.sha1) {
-      return { slug, status: 'error', error: `Hash mismatch for ${file.filename}` };
+      return { slug: idKey, status: 'error', error: `Hash mismatch for ${file.filename}`, dep: isDep };
     }
   }
 
   try { await writeAtomic(target, buf); }
-  catch (err) { return { slug, status: 'error', error: err.message }; }
+  catch (err) { return { slug: idKey, status: 'error', error: err.message, dep: isDep }; }
 
-  // Record what MC version this jar was built for so future runs can detect stale installs.
+  // Record in the manifest. Top-level idKey lives at root; deps live under `deps:`.
   const mf = readManifest(gameDir);
-  mf[slug] = { mcVersion, filename: file.filename, installedAt: Date.now() };
+  const record = {
+    mcVersion,
+    filename: file.filename,
+    installedAt: Date.now(),
+    projectId: version.project_id,
+    versionId: version.id,
+  };
+  if (isDep) depsBucket(mf)[idKey] = record;
+  else       mf[idKey] = record;
   writeManifest(gameDir, mf);
 
-  return { slug, status: 'installed', file: file.filename };
+  // Now resolve this version's required dependencies, transitively.
+  await resolveAndInstallDeps(version, idKey, gameDir, mcVersion, ctx);
+
+  return { slug: idKey, status: 'installed', file: file.filename, dep: isDep };
+}
+
+/**
+ * Walk `version.dependencies` and install every `required` entry the user
+ * doesn't already have. Pushes a result row per dep into ctx.deps so the
+ * caller can append them to its top-level results list.
+ */
+async function resolveAndInstallDeps(version, parentKey, gameDir, mcVersion, ctx) {
+  const modsDir = ctx.modsDir;
+  const deps = Array.isArray(version.dependencies) ? version.dependencies : [];
+  for (const dep of deps) {
+    // Only `required` matters — optional/incompatible/embedded are not installed.
+    if (dep.dependency_type !== 'required') continue;
+    const pid = dep.project_id;
+    if (!pid) continue;
+    if (ctx.visited.has(pid)) continue;
+    ctx.visited.add(pid);
+
+    // Already recorded as installed for this MC version → skip without fetch.
+    if (isDepInstalled(pid, modsDir, gameDir, mcVersion)) {
+      ctx.deps.push({ slug: pid, displayName: '(dependency)', status: 'skipped', dep: true });
+      continue;
+    }
+
+    // If the parent pinned a specific version, fetch it directly; otherwise
+    // list project versions and pickVersion against our MC target.
+    let depVersion;
+    try {
+      if (dep.version_id) depVersion = await ctx.fetchVersion(dep.version_id);
+      else {
+        const list = await ctx.fetchJson(`${MODRINTH_BASE}/project/${encodeURIComponent(pid)}/version`);
+        depVersion = pickVersion(list, mcVersion);
+      }
+    } catch (err) {
+      ctx.deps.push({ slug: pid, displayName: '(dependency)', status: 'error', error: err.message, dep: true });
+      continue;
+    }
+    if (!depVersion || !Array.isArray(depVersion.files) || !depVersion.files.length) {
+      ctx.deps.push({ slug: pid, displayName: '(dependency)', status: 'no-version', dep: true });
+      continue;
+    }
+
+    // Shortcut: the file is already on disk (e.g. previously installed by hand
+    // or carried over from before this code existed). Record it and move on.
+    const file = depVersion.files.find(f => f.primary) || depVersion.files[0];
+    if (fs.existsSync(path.join(modsDir, file.filename))) {
+      const mf = readManifest(gameDir);
+      depsBucket(mf)[pid] = {
+        mcVersion, filename: file.filename, installedAt: Date.now(),
+        projectId: pid, versionId: depVersion.id, parentSlug: parentKey,
+      };
+      writeManifest(gameDir, mf);
+      ctx.deps.push({ slug: pid, displayName: '(dependency)', status: 'skipped', dep: true });
+      continue;
+    }
+
+    const r = await installResolved(pid, depVersion, gameDir, mcVersion, ctx, /*isDep*/ true);
+    if (r.status === 'installed') {
+      const mf = readManifest(gameDir);
+      const rec = depsBucket(mf)[pid];
+      if (rec) { rec.parentSlug = parentKey; writeManifest(gameDir, mf); }
+    }
+    ctx.deps.push({ ...r, displayName: '(dependency)' });
+  }
 }
 
 /** Install every recommended mod that isn't already present. `essentialOnly`
@@ -299,14 +437,30 @@ async function installAll(gameDir, mcVersion, opts = {}) {
   const essentialOnly = opts.essentialOnly !== false;
 
   const list = RECOMMENDED.filter(m => !essentialOnly || m.essential);
+  const modsDir = path.join(gameDir, 'mods');
+  // One shared `visited` across the whole pass so fabric-api only resolves once
+  // even though half the recommended mods require it.
+  const sharedVisited = new Set();
   const results = [];
+
   for (let i = 0; i < list.length; i++) {
     const { slug, displayName } = list[i];
-    onProgress(`(${i + 1}/${list.length}) ${displayName}`, Math.round(((i) / list.length) * 100));
-    const r = await installOne(slug, gameDir, mcVersion, {
-      onProgress: (msg) => onProgress(`(${i + 1}/${list.length}) ${msg}`, Math.round(((i + 0.5) / list.length) * 100)),
-    });
+    const stepBase = Math.round((i / list.length) * 100);
+    const stepHalf = Math.round(((i + 0.5) / list.length) * 100);
+    onProgress(`(${i + 1}/${list.length}) ${displayName}`, stepBase);
+
+    const ctx = {
+      visited: sharedVisited,           // shared Set instance
+      deps: [],                         // fresh per call
+      modsDir,
+      onProgress: (msg) => onProgress(`(${i + 1}/${list.length}) ${msg}`, stepHalf),
+      fetchJson,
+      fetchVersion: (vid) => fetchJson(`${MODRINTH_BASE}/version/${vid}`),
+      fetchBuffer: fetchWithRetry,
+    };
+    const r = await installOne(slug, gameDir, mcVersion, { ctx });
     results.push({ ...r, displayName });
+    for (const d of ctx.deps) results.push(d);
   }
   onProgress('Done.', 100);
   return results;

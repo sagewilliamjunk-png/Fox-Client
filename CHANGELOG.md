@@ -3,6 +3,26 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.4] — 2026-05-29
+
+### Fixed
+
+- **Fabric "Incompatible mods found" crash on first launch.** The recommended-mod
+  installer downloaded the slugs in our curated list but never read Modrinth's
+  `dependencies` array, so mods like Visuality (needs `cloth-config`) and
+  Visual Workbench (needs `forge-config-api-port` + `puzzles-lib`) were installed
+  without their required libraries and Fabric Loader refused to launch. The
+  installer now walks every version's `required` dependencies transitively,
+  installs them by `project_id` (which is stable even when the dep's slug
+  differs from its mod id), and tracks them in a `deps:` block of the manifest.
+- **Existing broken installs self-heal.** When a mod is already on disk for the
+  current MC version the installer used to short-circuit immediately; now it
+  still resolves and downloads any missing required dependencies, so the next
+  launch of v1.3.4 fixes the user's `.minecraft/mods` without any manual step.
+- Cycle-safe and idempotent: a shared `visited` set means `fabric-api` is
+  resolved exactly once even though most recommended mods require it. Optional,
+  embedded, and incompatible deps are ignored.
+
 ## [1.3.3] — 2026-05-29
 
 ### Fixed
