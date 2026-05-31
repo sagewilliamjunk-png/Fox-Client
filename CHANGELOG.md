@@ -3,6 +3,15 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.5] — 2026-05-29
+
+### Added
+
+- **Save button in the Profiles editor header** next to *Set as active*, so you
+  can commit changes without scrolling to the bottom of the form. The existing
+  bottom Save button is unchanged; both fire the same handler and the new one
+  inherits the locked-profile disabled state.
+
 ## [1.3.4] — 2026-05-29
 
 ### Fixed

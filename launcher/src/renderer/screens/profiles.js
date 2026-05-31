@@ -414,6 +414,9 @@ function rerenderEditor() {
           ${profile.locked ? '<span class="badge badge-warn" style="font-size:10px;">LOCKED</span>' : ''}
         </div>
         <div class="profile-editor-actions">
+          <button class="btn btn-primary" id="btn-save-top"
+                  ${profile.locked ? 'disabled' : ''}
+                  title="${profile.locked ? 'Profile is locked' : 'Save changes (also at the bottom of the editor)'}">Save</button>
           ${isActive ? '' : '<button class="btn btn-primary" id="btn-activate">Set as active</button>'}
           <button class="btn" id="btn-clone">Clone</button>
           <button class="btn" id="btn-export">Export…</button>
@@ -493,6 +496,7 @@ function rerenderEditor() {
 
   // Wire Save once tab content is in DOM
   $('btn-save') && $('btn-save').addEventListener('click', () => saveCurrentEditor(profile));
+  $('btn-save-top') && $('btn-save-top').addEventListener('click', () => saveCurrentEditor(profile));
 }
 
 function tabBtn(id, label) {
