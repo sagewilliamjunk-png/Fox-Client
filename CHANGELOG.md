@@ -3,6 +3,17 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.3] — 2026-05-29
+
+### Fixed
+
+- **Sidebar avatar showed the letter initial instead of the player's skin head.**
+  Crafatar (the single avatar source) had gone down (Cloudflare HTTP 521) and the
+  handler swallowed the error. Replaced with an ordered fallback chain
+  (Crafatar → mc-heads.net → minotar.net) so the head appears as long as any
+  provider is reachable, plus an in-memory 10-minute cache so navigation /
+  account refreshes don't re-hit the network on every render.
+
 ## [1.3.2] — 2026-05-29
 
 ### Added — Command Generator

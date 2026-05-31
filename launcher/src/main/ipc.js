@@ -1091,21 +1091,40 @@ function register(getWindow) {
     };
   });
 
-  // ---- Minecraft skin avatar (Crafatar) ----
+  // ---- Minecraft skin avatar (provider fallback chain) ----
   // Fetched in the main process so the renderer's strict CSP (img-src 'self' data:)
   // is satisfied — we return a base64 data URI the renderer can use directly.
+  //
+  // Crafatar has gone down repeatedly (e.g. Cloudflare 521s), which silently
+  // killed the avatar without warning. The chain falls through to mc-heads /
+  // minotar so the head still appears as long as any provider is reachable.
   ipcMain.handle('avatar:fetch', async (_e, uuid) => {
     if (!uuid || typeof uuid !== 'string') return null;
     // Sanitise — Minecraft UUIDs are 32 hex chars optionally with hyphens.
     if (!/^[0-9a-f-]{32,36}$/i.test(uuid)) return null;
-    const url = `https://crafatar.com/avatars/${uuid}?size=32&overlay=true`;
-    // Crafatar requires a User-Agent header; requests without one are blocked.
-    const ua = 'FoxLauncher/1.0 (Electron; Minecraft launcher; crafatar contact: https://crafatar.com)';
-    try {
-      return await _fetchBase64(url, 3, { 'User-Agent': ua });
-    } catch (_) {
-      return null; // renderer falls back to letter-initial
+
+    // Cache hit — avoid re-hitting the network on every nav/account refresh.
+    const cached = _avatarCache.get(uuid);
+    if (cached && cached.expiresAt > Date.now()) return cached.dataUri;
+
+    // Crafatar requires a User-Agent header; the others ignore it.
+    const ua = 'FoxLauncher/1.0 (Electron; Minecraft launcher)';
+    const providers = [
+      `https://crafatar.com/avatars/${uuid}?size=32&overlay=true`,
+      `https://mc-heads.net/avatar/${uuid}/32`,
+      `https://minotar.net/avatar/${uuid}/32.png`,
+    ];
+
+    for (const url of providers) {
+      try {
+        const dataUri = await _fetchBase64(url, 3, { 'User-Agent': ua });
+        _avatarCache.set(uuid, { dataUri, expiresAt: Date.now() + AVATAR_TTL_MS });
+        return dataUri;
+      } catch (_) {
+        // try the next provider
+      }
     }
+    return null; // every provider failed — renderer keeps the letter-initial
   });
 
   // ---- skin manager ----
@@ -1160,6 +1179,12 @@ function register(getWindow) {
  * data URI string. Follows up to `maxRedirects` HTTP 3xx redirects.
  * Rejects on non-200 status or network error.
  */
+// In-memory cache for avatar data URIs. `showUser` fires on every navigation
+// and on account/profile changes, so without this the main process re-hits the
+// network — including any slow/dead providers — many times per session.
+const _avatarCache = new Map(); // uuid -> { dataUri, expiresAt }
+const AVATAR_TTL_MS = 10 * 60 * 1000;
+
 function _fetchBase64(url, maxRedirects = 3, reqHeaders = {}) {
   return new Promise((resolve, reject) => {
     const https = require('https');
