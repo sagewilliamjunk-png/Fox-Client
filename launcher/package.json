@@ -1,6 +1,6 @@
 {
   "name": "fox-launcher",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "Fox Launcher — desktop launcher for the Kitsune Minecraft client",
   "main": "src/main/index.js",
   "author": "Kitsune / Fox Client",

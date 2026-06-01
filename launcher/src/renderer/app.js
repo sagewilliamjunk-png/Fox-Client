@@ -393,11 +393,44 @@ function initNav() {
   window.fox.onGameExit(() => setRunningDot(false));
   window.fox.onGameStart(() => setRunningDot(true));
 
-  // Launcher self-update: show a persistent toast when a new version has been
-  // downloaded and is waiting to be installed on the next quit.
+  // Launcher self-update: when electron-updater finishes downloading a new
+  // version, show the persistent pill in the sidebar (above nav). Clicking it
+  // fires `installLauncherUpdate` which calls quitAndInstall on the main
+  // process — that bypasses minimize-to-tray and actually applies the update.
+  // (The old toast version would auto-dismiss in 9 seconds and users who only
+  // click the X button would never quit, so the pending update used to sit on
+  // disk for releases at a time.)
   if (window.fox.onLauncherUpdateReady) {
-    window.fox.onLauncherUpdateReady(() => {
-      showToast('A launcher update is ready — restart to apply it.', 'info', 0 /* no auto-dismiss */);
+    window.fox.onLauncherUpdateReady((info) => {
+      const banner = el('update-banner');
+      const ver    = el('update-banner-version');
+      if (!banner) return;
+      if (ver && info && info.version) ver.textContent = `v${info.version} ready`;
+      banner.classList.remove('hidden');
+      const trigger = async () => {
+        banner.classList.add('update-banner-pressed');
+        try {
+          const r = await window.fox.installLauncherUpdate();
+          if (r && !r.ok) {
+            banner.classList.remove('update-banner-pressed');
+            showToast('Could not install update: ' + (r.error || 'unknown'), 'warn', 7000);
+          }
+          // On success the app is restarting — no UI feedback needed.
+        } catch (err) {
+          banner.classList.remove('update-banner-pressed');
+          showToast('Could not install update: ' + err.message, 'warn', 7000);
+        }
+      };
+      banner.addEventListener('click', trigger);
+      banner.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger(); }
+      });
+    });
+  }
+  // Surface electron-updater errors instead of swallowing them silently.
+  if (window.fox.onLauncherUpdateError) {
+    window.fox.onLauncherUpdateError(({ message }) => {
+      showToast('Auto-update failed: ' + (message || 'unknown'), 'warn', 7000);
     });
   }
 

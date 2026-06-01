@@ -217,6 +217,39 @@ html, body {
 .brand-title { font-weight: 600; font-size: 15px; color: var(--fox-orange); }
 .brand-ver { font-size: 11px; color: var(--text-3); }
 
+/* Sidebar "Update v1.3.x ready" pill — shown above the nav when
+   electron-updater has finished downloading a launcher update. Pulses gently
+   to draw the eye; click to fire quitAndInstall. */
+.update-banner {
+  margin: 4px 10px 8px;
+  padding: 9px 12px;
+  background: linear-gradient(135deg, var(--fox-orange), var(--fox-deep));
+  border-radius: 8px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 140, 66, 0.30);
+  user-select: none;
+  transition: transform 0.08s ease, box-shadow 0.25s ease;
+  animation: update-banner-pulse 2.4s ease-in-out infinite;
+}
+.update-banner:hover  { box-shadow: 0 3px 16px rgba(255, 140, 66, 0.60); }
+.update-banner:active,
+.update-banner.update-banner-pressed { transform: translateY(1px); animation: none; }
+.update-banner-msg    { display: flex; align-items: center; gap: 6px; }
+.update-banner-arrow  { font-size: 14px; line-height: 1; }
+.update-banner-text   { letter-spacing: 0.01em; }
+.update-banner-cta    { font-size: 11px; opacity: 0.92; }
+@keyframes update-banner-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(255, 140, 66, 0.30); }
+  50%      { box-shadow: 0 2px 16px rgba(255, 140, 66, 0.55); }
+}
+
 .nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; }
 .nav-btn {
   display: flex;

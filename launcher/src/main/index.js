@@ -7,7 +7,7 @@
 //     left with an orphan Java process unless they chose "keep open"
 //   - Apply a minimal OS-level title "Fox Launcher"
 
-const { app, BrowserWindow, shell, dialog, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, shell, dialog, Tray, Menu, nativeImage, ipcMain } = require('electron');
 
 // ---- startup helper ----
 
@@ -44,6 +44,10 @@ let tray = null;
 /** Set to true when the user picks Quit from the tray menu — bypasses the
  *  close handler's hide-to-tray interception so the app actually exits. */
 let _quitting = false;
+/** Set when electron-updater has finished downloading a launcher update —
+ *  used by the close handler to offer "Install update now?" before silently
+ *  hiding to tray (which is how pending updates kept getting stranded). */
+let _pendingUpdate = null;
 
 // ---- System tray ----
 
@@ -297,6 +301,40 @@ function createWindow() {
   mainWindow.on('close', (event) => {
     if (_quitting) return; // explicit app.quit() — let it through
     const s = settings.load();
+
+    // If a launcher update finished downloading, ask before stranding it in
+    // pending/ — that's exactly how releases used to disappear for the user
+    // who only ever clicks X.
+    if (_pendingUpdate && !launcher.isRunning()) {
+      event.preventDefault();
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'question',
+        buttons: ['Install & restart', 'Not now', 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        title: 'Fox Launcher update ready',
+        message: `Update v${_pendingUpdate.version} is downloaded.`,
+        detail: 'Install it now? The launcher will restart on the new version.',
+      });
+      if (choice === 0) {
+        try {
+          _quitting = true;
+          const { autoUpdater } = require('electron-updater');
+          autoUpdater.quitAndInstall(false, true);
+        } catch (err) {
+          _quitting = false;
+          dialog.showErrorBox('Update failed', err.message || String(err));
+        }
+        return;
+      }
+      if (choice === 1) {
+        // User chose "Not now" — fall through to the normal close path
+        // (hide-to-tray or quit) so they aren't forced to install.
+      } else {
+        return; // Cancel — keep the window open
+      }
+    }
+
     if (launcher.isRunning() || s.minimizeToTray) {
       event.preventDefault();
       mainWindow.hide();
@@ -371,17 +409,44 @@ app.whenReady().then(() => {
       autoUpdater.autoInstallOnAppQuit = true; // install when user quits
 
       autoUpdater.on('update-downloaded', (info) => {
+        // Remember it so the close handler can prompt instead of hiding-to-tray.
+        _pendingUpdate = (info && info.version) ? { version: info.version } : { version: '?' };
         // OS notification so the user knows even if the launcher is minimised.
-        notifications.updateAvailable(info && info.version ? `v${info.version}` : null);
-        // Notify the renderer so it can show a "Restart to update" banner.
+        notifications.updateAvailable(`v${_pendingUpdate.version}`);
+        // Tell the renderer to surface the persistent install pill.
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('launcher:update-ready');
+          mainWindow.webContents.send('launcher:update-ready', _pendingUpdate);
         }
+      });
+
+      // Surface errors instead of swallowing them — the silent .catch on
+      // checkForUpdates() had been hiding every failure for four releases
+      // straight, so we never noticed when something was off.
+      autoUpdater.on('error', (err) => {
+        const msg = (err && (err.message || err.toString())) || 'unknown error';
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('launcher:update-error', { message: msg });
+        }
+        try { console.error('[Fox] autoUpdater error:', msg); } catch (_) {}
       });
 
       // Check on boot (5 s delay so the window is ready) and every 4 hours.
       setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5_000);
       setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
+
+      // Renderer-triggered install: the "↻ Restart to install vX" pill calls
+      // this. quitAndInstall forces a real quit even if minimize-to-tray is
+      // on — that's the whole point of this handler.
+      ipcMain.handle('updater:install', () => {
+        try {
+          _quitting = true;                          // bypass close-to-tray
+          autoUpdater.quitAndInstall(false, true);   // notSilent=false, forceRunAfter=true
+          return { ok: true };
+        } catch (err) {
+          _quitting = false;
+          return { ok: false, error: err.message };
+        }
+      });
     } catch (_) {
       // electron-updater not installed or not configured — silently skip.
     }

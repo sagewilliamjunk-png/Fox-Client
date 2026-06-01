@@ -25,6 +25,15 @@
           <div class="brand-ver" id="brand-version"></div>
         </div>
       </div>
+      <!-- Persistent "update ready" pill — shown by app.js when electron-updater
+           has finished downloading a launcher update. Click to install. -->
+      <div id="update-banner" class="update-banner hidden" role="button" tabindex="0" aria-label="Restart to install update">
+        <div class="update-banner-msg">
+          <span class="update-banner-arrow">↻</span>
+          <span class="update-banner-text">Update <span id="update-banner-version">ready</span></span>
+        </div>
+        <span class="update-banner-cta">Restart →</span>
+      </div>
       <nav class="nav" id="nav">
         <button class="nav-btn" data-route="home">        <span class="nav-ico">⌂</span> Home        </button>
         <button class="nav-btn" data-route="profiles">   <span class="nav-ico">☰</span> Profiles    </button>

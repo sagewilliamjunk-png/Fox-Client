@@ -3,6 +3,28 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.7] — 2026-06-01
+
+### Fixed
+
+- **Launcher updates getting stuck in `pending/`.** When electron-updater
+  finished downloading a release, the renderer showed a toast that
+  auto-dismissed after 9 seconds and the update was meant to apply when the
+  app *quit* — but clicking the X button hides to tray, so for users who
+  never explicitly use Tray → Quit, releases would sit on disk indefinitely
+  and never install. Replaced the toast with a persistent **"↻ Update v1.3.x
+  ready — Restart →"** pill in the sidebar; clicking it calls
+  `autoUpdater.quitAndInstall(false, true)`, which forces a real quit and
+  applies the update.
+- **Close-with-pending-update prompt.** If you click X while an update is
+  downloaded and the game isn't running, the launcher now asks
+  "Install update v1.3.x now? [Install & restart] [Not now] [Cancel]"
+  instead of silently hiding to tray and stranding the install.
+- **Auto-update errors are no longer silent.** Added
+  `autoUpdater.on('error', …)` so failures surface as a toast ("Auto-update
+  failed: <message>") instead of vanishing into a `.catch(() => {})`. That
+  silent catch had been hiding every failure for four releases straight.
+
 ## [1.3.6] — 2026-06-01
 
 ### Added

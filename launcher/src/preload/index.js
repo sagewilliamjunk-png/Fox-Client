@@ -179,4 +179,6 @@ contextBridge.exposeInMainWorld('fox', {
 
   // Launcher self-update (electron-updater)
   onLauncherUpdateReady: (fn) => on('launcher:update-ready', fn),
+  onLauncherUpdateError: (fn) => on('launcher:update-error', fn),
+  installLauncherUpdate: () => invoke('updater:install'),
 });
