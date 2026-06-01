@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('fox', {
   recommendedList:    () => invoke('recommended:list'),
   recommendedInstall: (opts) => invoke('recommended:install', opts || {}),
   recommendedInstallOne: (slug) => invoke('recommended:installOne', slug),
+  recommendedReinstallAll: () => invoke('recommended:reinstallAll'),
   onRecommendedProgress: (fn) => on('recommended:progress', fn),
   onRecommendedAutoResult: (fn) => on('recommended:autoResult', fn),
 

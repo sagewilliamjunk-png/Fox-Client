@@ -837,6 +837,30 @@ function register(getWindow) {
     }
   });
 
+  // Full nuke + reinstall — used by the "Reinstall mods" button on Home.
+  // Wipes the manifest, removes every jar matching a recommended-slug prefix
+  // (plus any manifest-tracked dep), then runs installAll with the full
+  // dep-walking pack. The Fox client jar (kitsune-client.jar) is preserved.
+  ipcMain.handle('recommended:reinstallAll', async () => {
+    const s = settings.load();
+    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    if (!fs.existsSync(dir)) return { ok: false, error: 'Game directory does not exist.' };
+    const mc = launcher.TARGET_MC_VERSION;
+    try {
+      const r = await recommendedMods.reinstallAll(dir, mc, {
+        onProgress: (msg, pct) => {
+          const w = getWindow();
+          if (w && !w.isDestroyed()) {
+            w.webContents.send('recommended:progress', { message: msg, percent: pct });
+          }
+        },
+      });
+      return { ok: true, removed: r.removed, results: r.results };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // Single-mod install — used by the per-row "Install" button on the
   // recommended-mods list when the user wants Iris (non-essential) but not
   // the rest. Returns the same per-mod status shape installAll uses.

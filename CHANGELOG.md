@@ -3,6 +3,27 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.6] — 2026-06-01
+
+### Added
+
+- **"↻ Reinstall mods" button** in Home → Quick Actions. One click wipes the
+  recommended-mod manifest, deletes every recommended-mod jar in the mods
+  folder (your Fox client mod and any custom mods are kept), and runs a full
+  install pass with the dependency walker — fixing any duplicate-jar or
+  missing-dep situation in under a minute. Backed by a new `reinstallAll`
+  helper in `recommendedMods.js` and `recommended:reinstallAll` IPC.
+
+### Fixed
+
+- **Stronger duplicate-jar detection** when installing recommended mods. The
+  installer previously only removed the *manifest-recorded* previous filename
+  on a version bump; jars that pre-dated the manifest (e.g. `fabric-api-0.149`
+  alongside the new `fabric-api-0.150`) would slip through and crash Fabric
+  Loader with "duplicate mod" on launch. Every install now also purges any
+  on-disk jar that shares the new jar's prefix-stem — so old versions can't
+  pile up.
+
 ## [1.3.5] — 2026-05-29
 
 ### Added

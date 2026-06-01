@@ -5,7 +5,7 @@ A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 26.1.
 This was coded largely with claude, and I don't wish to decieve people into thinking I coded it myself.
 I don't plan on making money from this, I just wanted to make something for myself and some friends
 
-> **Status:** v1.3.5 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
+> **Status:** v1.3.6 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
 
 Fox Client is built around three hard rules:
 
@@ -69,13 +69,13 @@ Electron app that does more than start the game:
 ## Manual install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.x or newer for Minecraft 26.1.2.
-2. Drop `kitsune-client-1.3.5.jar` and the matching `fabric-api` jar into your `mods/` folder.
+2. Drop `kitsune-client-1.3.6.jar` and the matching `fabric-api` jar into your `mods/` folder.
 3. Launch.
 
 ## Build from source
 
 ```bash
-./gradlew build          # produces build/libs/kitsune-client-1.3.5.jar
+./gradlew build          # produces build/libs/kitsune-client-1.3.6.jar
 ./gradlew runClient      # launches a dev client
 ```
 

@@ -221,6 +221,37 @@ function removeStaleJar(slug, modsDir) {
   if (jarPath) try { fs.unlinkSync(jarPath); } catch (_) {}
 }
 
+/** Find every on-disk jar whose normalised name starts with the same stem as
+ *  `filename` (e.g. installing sodium-fabric-0.8.12.jar matches both
+ *  sodium-fabric-0.8.9.jar and sodium-fabric-0.8.12.jar). The "stem" is the
+ *  filename up to the first run of digits — that strips the version while
+ *  keeping the mod identity. */
+function findVersionSiblings(filename, modsDir) {
+  let stem = filename.toLowerCase().replace(/[-_.]/g, '');
+  const m = stem.match(/^([a-z]+(?:fabric|forge)?[a-z]*)/);
+  if (!m || m[1].length < 3) return [];                // too short to be safe
+  stem = m[1];
+  let entries;
+  try { entries = fs.readdirSync(modsDir); } catch (_) { return []; }
+  const out = [];
+  for (const f of entries) {
+    if (!/\.(jar|jar\.disabled)$/i.test(f)) continue;
+    if (f.toLowerCase().replace(/[-_.]/g, '').startsWith(stem)) out.push(f);
+  }
+  return out;
+}
+
+/** Remove every on-disk jar that shares a prefix-stem with `newFilename`
+ *  EXCEPT `newFilename` itself. Catches duplicate-version installs that
+ *  predate the manifest (e.g. fabric-api-0.149 left over when 0.150 is
+ *  being installed). Best-effort; failures are swallowed. */
+function purgeOldVersions(newFilename, modsDir) {
+  for (const f of findVersionSiblings(newFilename, modsDir)) {
+    if (f === newFilename) continue;
+    try { fs.unlinkSync(path.join(modsDir, f)); } catch (_) {}
+  }
+}
+
 function writeAtomic(target, contents) {
   return new Promise((resolve, reject) => {
     const tmp = target + '.tmp';
@@ -313,14 +344,18 @@ async function installResolved(idKey, version, gameDir, mcVersion, ctx, isDep) {
   const file = version.files.find(f => f.primary) || version.files[0];
   const target = path.join(modsDir, file.filename);
 
-  // Filename-renamed dedup (e.g. simple-voice-chat 2.6.17 → 2.6.18). The
-  // manifest records the real filename, so use it directly. Skip when the
-  // name is unchanged (writeAtomic overwrites in place).
+  // Two-pass dedup before we write the new jar:
+  //   1. The manifest-recorded previous filename, if different (catches a
+  //      version bump that renamed the jar — simple-voice-chat 2.6.17 → 2.6.18).
+  //   2. Any other on-disk jar that shares this jar's prefix-stem (catches a
+  //      stale install that pre-dates the manifest — fabric-api-0.149 left
+  //      over when 0.150 is being installed).
   const mfPre = readManifest(gameDir);
   const prevEntry = isDep ? depsBucket(mfPre)[idKey] : mfPre[idKey];
   if (prevEntry && prevEntry.filename && prevEntry.filename !== file.filename) {
     try { fs.unlinkSync(path.join(modsDir, prevEntry.filename)); } catch (_) {}
   }
+  purgeOldVersions(file.filename, modsDir);
 
   onProgress(`Downloading ${file.filename}…`);
   let buf;
@@ -470,6 +505,67 @@ function manifest() {
   return RECOMMENDED.map(m => ({ ...m }));
 }
 
+/**
+ * Nuke + reinstall every recommended mod (full pack) and re-walk their
+ * dependencies. Used by the "Reinstall mods" repair button.
+ *
+ * Removed before reinstall:
+ *   - the recommended-mods manifest (so every slug starts fresh)
+ *   - every jar matching a recommended slug prefix
+ *   - every jar matching a recorded dep filename in the existing manifest
+ * Never touched: kitsune-client.jar (the Fox client mod itself, managed
+ * by a separate updater) and anything not matching the rules above.
+ */
+async function reinstallAll(gameDir, mcVersion, opts = {}) {
+  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : () => {};
+  const modsDir = path.join(gameDir, 'mods');
+
+  onProgress('Removing existing recommended-mod jars…', 0);
+
+  // 1) Read the existing manifest so we know every dep jar that was tracked.
+  const existing = readManifest(gameDir);
+  const trackedFilenames = new Set();
+  for (const k of Object.keys(existing)) {
+    if (k === 'deps') continue;
+    const rec = existing[k];
+    if (rec && rec.filename) trackedFilenames.add(rec.filename);
+  }
+  for (const rec of Object.values(depsBucket(existing))) {
+    if (rec && rec.filename) trackedFilenames.add(rec.filename);
+  }
+
+  // 2) Remove every jar that matches either (a) a recommended slug's prefix
+  //    or (b) a manifest-tracked filename. Skip the Fox client jar.
+  let entries = [];
+  try { entries = fs.readdirSync(modsDir); } catch (_) {}
+  const slugs = RECOMMENDED.map(m => m.slug);
+  let removed = 0;
+  for (const f of entries) {
+    const lower = f.toLowerCase();
+    if (!/\.(jar|jar\.disabled)$/i.test(f)) continue;
+    if (lower.startsWith('kitsune-client')) continue;     // Fox client mod — preserve
+    const norm = lower.replace(/[-_.]/g, '');
+    const slugMatch = slugs.some(s => norm.startsWith(s.replace(/-/g, '')));
+    if (slugMatch || trackedFilenames.has(f)) {
+      try { fs.unlinkSync(path.join(modsDir, f)); removed++; } catch (_) {}
+    }
+  }
+  onProgress(`Removed ${removed} jar(s). Reinstalling…`, 5);
+
+  // 3) Wipe the manifest so installAll starts from a clean slate.
+  try { fs.unlinkSync(manifestPath(gameDir)); } catch (_) {}
+
+  // 4) Full install pass (essentialOnly=false) — pulls every recommended mod
+  //    and recursively walks their required dependencies.
+  const results = await installAll(gameDir, mcVersion, {
+    ...opts,
+    essentialOnly: false,
+    onProgress: (msg, pct) => onProgress(msg, Math.max(5, Math.min(99, pct || 5))),
+  });
+  onProgress('Done.', 100);
+  return { removed, results };
+}
+
 /** Back-compat: tests and external code may still want a simple "is the
  *  slug installed (any version)" check. Returns a boolean — the new
  *  internal logic uses findInstalledJar which returns a path. */
@@ -480,9 +576,11 @@ function isAlreadyInstalled(slug, modsDir) {
 module.exports = {
   installOne,
   installAll,
+  reinstallAll,
   manifest,
   RECOMMENDED,
   // helpers exposed for tests
   isAlreadyInstalled,
   findInstalledJar,
+  purgeOldVersions,
 };

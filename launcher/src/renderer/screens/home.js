@@ -165,7 +165,9 @@ export async function renderHome(mount) {
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn" id="btn-open-gamedir">Open game directory</button>
             <button class="btn" id="btn-open-screenshots">Open screenshots</button>
+            <button class="btn" id="btn-reinstall-mods" title="Delete every recommended-mod jar and reinstall the full pack with dependencies.">↻ Reinstall mods</button>
           </div>
+          <div id="reinstall-status" class="status muted" style="margin-top:6px;font-size:11px;"></div>
         </div>
       </div>
     </div>
@@ -341,6 +343,43 @@ export async function renderHome(mount) {
       const dir = (s.gameDir && s.gameDir.trim()) || (await window.fox.defaultGameDir());
       const sep = (dir.endsWith('/') || dir.endsWith('\\')) ? '' : '/';
       window.fox.openPath(dir + sep + 'screenshots');
+    });
+
+    const reBtn = document.getElementById('btn-reinstall-mods');
+    const reStatus = document.getElementById('reinstall-status');
+    if (reBtn) reBtn.addEventListener('click', async () => {
+      if (!confirm(
+        'Reinstall all recommended mods?\n\n' +
+        'This will delete every recommended-mod jar in your mods folder ' +
+        '(your Fox client mod and custom mods are kept), then download the ' +
+        'full pack fresh with all required dependencies.\n\nContinue?'
+      )) return;
+      reBtn.disabled = true;
+      const orig = reBtn.textContent;
+      reBtn.textContent = 'Reinstalling…';
+      reStatus.textContent = 'Starting…';
+      const unsub = window.fox.onRecommendedProgress((data) => {
+        if (data && data.message) reStatus.textContent = data.message;
+      });
+      try {
+        const r = await window.fox.recommendedReinstallAll();
+        if (r && r.ok) {
+          const results = r.results || [];
+          const tally = results.reduce((g, x) => { g[x.status] = (g[x.status] || 0) + 1; return g; }, {});
+          const installed = tally.installed || 0;
+          const errored   = (tally.error || 0) + (tally['no-version'] || 0);
+          reStatus.textContent = `Done — removed ${r.removed || 0}, installed ${installed}` +
+            (errored ? `, failed ${errored} (see Logs)` : '');
+        } else {
+          reStatus.textContent = 'Reinstall failed: ' + ((r && r.error) || 'unknown error');
+        }
+      } catch (err) {
+        reStatus.textContent = 'Reinstall failed: ' + err.message;
+      } finally {
+        try { unsub && unsub(); } catch (_) {}
+        reBtn.textContent = orig;
+        reBtn.disabled = false;
+      }
     });
   }
 
