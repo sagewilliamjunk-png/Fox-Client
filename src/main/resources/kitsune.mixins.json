@@ -27,7 +27,9 @@
         "AvatarRendererCapeMixin",
         "ScreenEffectRendererMixin",
         "ItemInHandRendererMixin",
-        "ItemTooltipImageMixin"
+        "ItemTooltipImageMixin",
+        "ScreenStickyShulkerMixin",
+        "GameRendererNoHurtCamMixin"
     ],
     "injectors": {
         "defaultRequire": 1

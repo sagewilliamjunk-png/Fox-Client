@@ -40,6 +40,10 @@ import dev.kitsune.client.module.chat.TransparentChatModule;
 import dev.kitsune.client.module.misc.DeathScreenModule;
 import dev.kitsune.client.module.misc.DisconnectConfirmModule;
 import dev.kitsune.client.module.misc.HotbarScrollLockModule;
+import dev.kitsune.client.module.movement.KeepSprintModule;
+import dev.kitsune.client.module.player.AutoEatModule;
+import dev.kitsune.client.module.player.AutoRespawnModule;
+import dev.kitsune.client.module.player.NoHurtCamModule;
 import dev.kitsune.client.module.misc.LootHistoryModule;
 import dev.kitsune.client.module.misc.MemoryCleanerModule;
 import dev.kitsune.client.module.chat.ChatAliasModule;
@@ -125,6 +129,13 @@ public final class ModuleManager {
         register(new DeathScreenModule());
         register(new LootHistoryModule());
         register(new HotbarScrollLockModule());
+
+        // v1.4.1: new modules across Player + Movement (server-safe — no
+        // packet manipulation, no behavioural anti-cheat triggers).
+        register(new AutoEatModule());
+        register(new AutoRespawnModule());
+        register(new NoHurtCamModule());
+        register(new KeepSprintModule());
 
         // v1.2: legacy FoxFeature ports — Zoom, ShulkerTooltip, MapTooltip,
         // AdaptiveFpsLimit. The classes in client/features/ are no longer

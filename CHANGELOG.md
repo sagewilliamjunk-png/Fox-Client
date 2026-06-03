@@ -3,6 +3,32 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.1] — 2026-06-03
+
+Finishes the requests deferred in 1.3.9.
+
+### Added — 4 new modules + Player category gets its first inhabitants
+
+- **Auto Eat** *(Player)* — when hunger drops at/below a threshold, switches
+  to the best food in the hotbar, holds right-click until full, restores the
+  original slot. Server-safe; just simulates the same input you'd give.
+- **Auto Respawn** *(Player)* — clicks Respawn for you after a short delay so
+  you can still read the death message but don't have to fiddle with the UI.
+- **No Hurt Cam** *(Player)* — at 0 strength, cancels the GameRenderer
+  `bobHurt` pass entirely so the screen doesn't tilt when you take damage.
+- **Keep Sprint** *(Movement)* — reasserts the sprint flag the same tick MC
+  drops it to damage, as long as forward is still held. Lunar/Badlion ship the
+  same feature; clean, no-mixin onTick implementation.
+
+### Changed — Shulker tooltip behaviour matches the spec exactly now
+
+- **Shift** alone now shows the visual 9×3 grid (was Alt+Shift). Cleaner
+  match to user expectation: "Shift → show what's inside."
+- **Alt+Shift** now *pins* the grid at the cursor position the moment you
+  press it and **keeps drawing it** there until you release the keys — even
+  if your mouse moves away from the shulker. New `ShulkerPinManager` +
+  `ScreenStickyShulkerMixin` handle the capture / lifecycle / overlay render.
+
 ## [1.4.0] — 2026-06-03
 
 ### Changed — Skin Editor is now 3D

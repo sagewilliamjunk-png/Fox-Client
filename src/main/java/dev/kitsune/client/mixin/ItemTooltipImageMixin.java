@@ -40,17 +40,27 @@ public class ItemTooltipImageMixin {
             if (cir.getReturnValue().isPresent()) return;
             // Feature must be enabled
             if (!ShulkerTooltipModule.isActive()) return;
-            // Visual grid only on Alt+Shift
+
+            // Per user spec: visual grid appears on Shift alone. (Alt+Shift
+            // adds the sticky/pin behaviour, drawn separately by
+            // ScreenStickyShulkerMixin; we still emit the tooltip path so the
+            // grid initially renders normally and gets its screen position.)
             com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
-            boolean altDown   = InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_ALT)   || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_ALT);
             boolean shiftDown = InputConstants.isKeyDown(w, GLFW.GLFW_KEY_LEFT_SHIFT) || InputConstants.isKeyDown(w, GLFW.GLFW_KEY_RIGHT_SHIFT);
-            if (!altDown || !shiftDown) return;
+            if (!shiftDown) return;
+
             // Must be a shulker box BlockItem
             if (!((Object) this instanceof BlockItem bi)) return;
             if (!(bi.getBlock() instanceof ShulkerBoxBlock)) return;
             // Must have stored contents
             ItemContainerContents contents = stack.get(DataComponents.CONTAINER);
             if (contents == null || contents.nonEmptyItemCopyStream().findAny().isEmpty()) return;
+
+            // Remember the contents so ScreenStickyShulkerMixin can pin them
+            // at the live mouse position when Alt+Shift is held. The mouse
+            // coordinates aren't reliably gui-scaled inside Item.getTooltipImage
+            // so the screen-render mixin handles that step.
+            dev.kitsune.client.tooltip.ShulkerPinManager.touch(contents);
 
             cir.setReturnValue(Optional.of(new ShulkerPreviewTooltip(contents)));
         } catch (Throwable ignored) {}
