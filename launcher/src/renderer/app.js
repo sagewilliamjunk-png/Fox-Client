@@ -6,7 +6,7 @@ import { renderSettings }    from './screens/settings.js';
 import { renderProfiles }    from './screens/profiles.js';
 import { renderLogs }        from './screens/logs.js';
 import { renderScreenshots } from './screens/screenshots.js';
-import { renderCommands }    from './screens/commands.js';
+import { renderResources }   from './screens/resources.js';
 
 const ROUTES = {
   home:        renderHome,
@@ -18,7 +18,8 @@ const ROUTES = {
   profiles:    renderProfiles,
   logs:        renderLogs,
   screenshots: renderScreenshots,
-  commands:    renderCommands,
+  resources:   renderResources,
+  commands:    renderResources, // back-compat: old #commands deep links land in Resources
 };
 
 const el = (id) => document.getElementById(id);

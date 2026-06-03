@@ -1169,6 +1169,41 @@ function register(getWindow) {
   });
 
   /** Open file picker for a PNG, then upload + activate the chosen skin. */
+  /** Fetch the signed-in player's current skin PNG and return it as base64.
+   *  Used by the skin editor's "Load current skin" so the renderer doesn't
+   *  need a CSP exception for textures.minecraft.net. */
+  ipcMain.handle('skins:fetchPng', async () => {
+    try {
+      const record = await auth.getValid();
+      if (!record || record.guest || !record.uuid) return { ok: false, error: 'Not signed in with a Microsoft account' };
+      const info = await skins.fetchSkinInfo(record.uuid, record.accessToken);
+      if (!info || !info.skinUrl) return { ok: false, error: 'You have the default skin — start from a blank canvas instead.' };
+      const buf = await skins.fetchPngBuffer(info.skinUrl);
+      return { ok: true, base64: buf.toString('base64'), variant: info.variant || 'classic' };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  /** Upload an in-memory PNG (base64-encoded) as the player's skin. The skin
+   *  editor calls this with `{ base64, variant }`. Same auth contract as
+   *  skins:upload (rejects guests + unsigned-in players). */
+  ipcMain.handle('skins:uploadBytes', async (_e, payload) => {
+    const { base64, variant } = payload || {};
+    try {
+      if (typeof base64 !== 'string' || !base64) return { ok: false, error: 'No PNG provided' };
+      const record = await auth.getValid();
+      if (!record || record.guest || !record.accessToken) {
+        return { ok: false, error: 'Not signed in with a Microsoft account' };
+      }
+      const safeVariant = (variant === 'slim') ? 'slim' : 'classic';
+      const buf = Buffer.from(base64, 'base64');
+      return await skins.uploadSkinBytes(record.accessToken, buf, safeVariant);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('skins:upload', async (_e, variant) => {
     const w = getWindow();
     const r = await dialog.showOpenDialog(w, {

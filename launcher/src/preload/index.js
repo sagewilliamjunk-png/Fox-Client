@@ -155,7 +155,9 @@ contextBridge.exposeInMainWorld('fox', {
 
   // Skin manager (Mojang API — main process only, token never crosses IPC)
   fetchSkin:  ()            => invoke('skins:fetch'),
+  fetchSkinPng: ()          => invoke('skins:fetchPng'),
   uploadSkin: (variant)     => invoke('skins:upload', variant),
+  uploadSkinBytes: (payload) => invoke('skins:uploadBytes', payload || {}),
 
   // Launch stage progress events
   onLaunchStage: (fn) => on('launch:stage', fn),

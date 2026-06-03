@@ -86,13 +86,18 @@ async function fetchSkinInfo(uuid, _accessToken) {
  * @returns {{ ok: boolean, error?: string }}
  */
 async function uploadSkin(accessToken, filePath, variant) {
-  if (!accessToken) throw new Error('Access token required');
   if (!filePath || !fs.existsSync(filePath)) throw new Error('Skin file not found');
+  return uploadSkinBytes(accessToken, fs.readFileSync(filePath), variant, path.basename(filePath));
+}
+
+/** Upload an in-memory PNG buffer as the player's skin. Used by the in-app
+ *  skin editor — same wire format as uploadSkin, no temp file needed. */
+async function uploadSkinBytes(accessToken, fileData, variant, filename = 'skin.png') {
+  if (!accessToken) throw new Error('Access token required');
+  if (!Buffer.isBuffer(fileData) || fileData.length === 0) throw new Error('Empty skin buffer');
   if (variant !== 'classic' && variant !== 'slim') variant = 'classic';
 
-  const fileData = fs.readFileSync(filePath);
   const boundary = `----FoxLauncherBoundary${Date.now().toString(16)}`;
-  const filename  = path.basename(filePath);
 
   // Build multipart/form-data body manually — no external dependencies.
   const parts = [
@@ -137,4 +142,22 @@ async function uploadSkin(accessToken, filePath, variant) {
   });
 }
 
-module.exports = { fetchSkinInfo, uploadSkin };
+/** Download a PNG over HTTPS into a Buffer. Used by the skin editor's
+ *  "Load current skin" so the renderer doesn't need a wide CSP — main fetches,
+ *  hands back base64. */
+function fetchPngBuffer(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'FoxLauncher/1.0 (skin editor)' }, timeout: 15000 }, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode} fetching skin PNG`));
+      }
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end',  () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject).on('timeout', function () { this.destroy(new Error('Skin PNG request timed out')); });
+  });
+}
+
+module.exports = { fetchSkinInfo, uploadSkin, uploadSkinBytes, fetchPngBuffer };

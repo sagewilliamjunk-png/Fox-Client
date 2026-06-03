@@ -3,6 +3,29 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.8] — 2026-06-01
+
+### Added
+
+- **Skin Editor** — a 64×64 pixel-art canvas built into the launcher.
+  Tools: pencil, eraser, eyedropper, flood-fill. Brush sizes 1–3 px,
+  undo/redo (Ctrl+Z / Ctrl+Shift+Z), keyboard shortcuts (B / E / I / G), an
+  8-swatch palette with recent-color memory, a toggleable UV overlay that
+  labels every body part, and a live 1× preview. Workflows: **Open PNG** /
+  **Save PNG** for round-tripping with disk, **Load current skin** to pull
+  your active Minecraft skin straight into the canvas, **Apply as my skin**
+  to upload the canvas as your new skin (classic/slim variant selector).
+- **Resources** tab in the sidebar — replaces the **Commands** entry and
+  hosts both the existing Command Generator and the new Skin Editor as
+  sub-tabs. The old `#commands` route still lands here for back-compat.
+
+### Plumbing
+
+- New main-process helpers `fetchPngBuffer` and `uploadSkinBytes` in
+  `skins.js`; new IPC handlers `skins:fetchPng` and `skins:uploadBytes`;
+  preload bindings `fetchSkinPng` and `uploadSkinBytes`. All Minecraft API
+  traffic stays in the main process — the renderer never gets a token.
+
 ## [1.3.7] — 2026-06-01
 
 ### Fixed
