@@ -3,6 +3,36 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] — 2026-06-03
+
+### Changed — Skin Editor is now 3D
+
+- The Skin Editor was a flat 64×64 PNG canvas — which the user pointed out is
+  nobody's idea of how to make a skin. **Rebuilt as a 3D paintable player
+  model** using Three.js (vendored, no runtime CDN dependency). Left-click
+  any face on the model to paint that pixel of the texture; right-drag to
+  orbit; mouse wheel to zoom; **R** to reset camera.
+- Full Minecraft body geometry — head, body, two arms, two legs — each with
+  the standard 64×64 UV layout per face. **Outer "layer 2"** boxes (hat,
+  jacket, sleeves, pants) render slightly larger over the inner ones; a
+  sidebar toggle hides them so you can paint through to the inner layer.
+- **Classic / Slim** variant selector rebuilds the arm geometry to 4-wide
+  (Steve) or 3-wide (Alex) on the fly.
+- All existing tools work in 3D — pencil, eraser, eyedropper, flood-fill,
+  brush sizes 1-3 px, undo/redo, B/E/I/G shortcuts.
+- A small **2D texture preview** in the sidebar shows the raw UV layout and
+  is also clickable for fine pixel-level work where the 3D view can't reach.
+- Load current skin / Save PNG / Apply as my skin all unchanged — the
+  upload path still goes through the main-process IPC so the access token
+  never touches the renderer.
+
+### Plumbing
+
+- Vendored Three.js (`launcher/src/renderer/vendor/three.module.js`, ~1.3 MB
+  raw; compresses to ~250 KB in the installer). No bare-specifier imports —
+  loaded by relative path so the renderer's CSP `script-src 'self'` is
+  satisfied without changes.
+
 ## [1.3.9] — 2026-06-03
 
 ### Fixed
