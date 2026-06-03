@@ -105,7 +105,11 @@ public class KitsuneClient implements ClientModInitializer {
         zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.kitsune.zoom",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_C,
+                // Default V — matches Lunar/Badlion conventions. C used to be
+                // the default but is taken on lots of setups (and the user
+                // reported it didn't fire). V is the safer default for
+                // hold-to-zoom; users can rebind in Options → Controls.
+                GLFW.GLFW_KEY_V,
                 FOX_CATEGORY
         ));
         // Default UNBOUND — G collides with vanilla Open Social Interactions.

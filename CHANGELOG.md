@@ -3,6 +3,28 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.9] — 2026-06-03
+
+### Fixed
+
+- **Capes rendered black/purple** ("missing-texture" pattern). The cape system
+  was passing the full resource path to `ClientAsset.ResourceTexture`'s
+  single-arg constructor, which internally does
+  `id.withPath(s -> "textures/" + s + ".png")` — turning
+  `kitsune:textures/cape/fox.png` into
+  `kitsune:textures/textures/cape/fox.png.png` (double prefix, no such file).
+  Now we pass the short logical id (`kitsune:cape/<id>`) and the constructor
+  resolves the right path. Owners' cape textures render again.
+- **Zoom didn't work on V**. Default keybind was `C`, which collides on
+  some setups. Changed default to `V` to match Lunar/Badlion conventions —
+  the user can still rebind in Options → Controls under "Fox Client".
+- **Shulker box tooltip — corrected modifier behavior** to match the design
+  spec: no modifier shows an item-by-item text summary of contents (the
+  "letters" — `8× Cobblestone`, `12× Iron`, …, truncated at 8 lines), Shift
+  passes through to the visual 9×3 grid (rendered by `ItemTooltipImageMixin`)
+  with no extra text cluttering the popup. Alt+Shift sticky behavior is a
+  TODO requiring a separate screen-overlay render hook.
+
 ## [1.3.8] — 2026-06-01
 
 ### Added

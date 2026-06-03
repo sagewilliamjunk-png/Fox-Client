@@ -70,15 +70,32 @@ public class ShulkerTooltipModule extends Module {
         List<ItemStack> nonEmpty = contents.nonEmptyItemCopyStream().collect(Collectors.toList());
         if (nonEmpty.isEmpty()) return;
 
-        // Alt+Shift → visual grid is showing; suppress text entirely.
-        if (isAltDown() && isShiftDown()) return;
+        // Per the user-spec controls:
+        //   • no modifier → text-list ("the letters") of every stack inside.
+        //   • Shift         → visual grid renders via ItemTooltipImageMixin; we
+        //     add no extra text so the popup stays clean.
+        //   • Alt+Shift     → same grid; the "sticky until released" behaviour
+        //     is a separate render hook (TODO — keep the grid drawn while the
+        //     mouse moves until Alt+Shift is released).
+        if (isShiftDown()) return;
 
-        if (isShiftDown()) {
-            lines.add(Component.literal("Contains " + nonEmpty.size() + " stack" + (nonEmpty.size() == 1 ? "" : "s"))
-                    .withStyle(ChatFormatting.GRAY));
-            lines.add(Component.literal("Alt+Shift: view full contents")
+        // Compact item-by-item summary. Long lists get truncated so the
+        // tooltip stays a sensible size; the user can still Shift for the grid.
+        lines.add(Component.literal("Contents:").withStyle(ChatFormatting.GRAY));
+        final int MAX_LINES = 8;
+        int shown = 0;
+        for (ItemStack s : nonEmpty) {
+            if (shown >= MAX_LINES) {
+                int remaining = nonEmpty.size() - shown;
+                lines.add(Component.literal("  …and " + remaining + " more stack" + (remaining == 1 ? "" : "s"))
+                        .withStyle(ChatFormatting.DARK_GRAY));
+                break;
+            }
+            lines.add(Component.literal("  " + s.getCount() + "× " + s.getHoverName().getString())
                     .withStyle(ChatFormatting.DARK_GRAY));
+            shown++;
         }
+        lines.add(Component.literal("[Shift] visual grid").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     private static boolean isShiftDown() {

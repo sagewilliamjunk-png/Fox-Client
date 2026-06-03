@@ -151,13 +151,23 @@ public final class CosmeticRegistry {
     }
 
     /**
-     * Resource location of a cape texture. The PNG must live at
-     * {@code assets/kitsune/textures/cape/<id>.png}; the format is the standard
-     * 64×32 Minecraft cape sheet.
+     * Logical id for a cape, intended for use as the argument to
+     * {@link net.minecraft.core.ClientAsset.ResourceTexture}'s single-arg
+     * constructor. That constructor derives the texture path via
+     * {@code id.withPath(s -> "textures/" + s + ".png")}, so we MUST pass the
+     * <em>short</em> id ({@code kitsune:cape/<capeId>}) — not the full path.
+     *
+     * <p>Passing the full path produced
+     * {@code kitsune:textures/textures/cape/<id>.png.png}, which doesn't exist
+     * in the jar, so MC fell back to the pink/black missing-texture pattern —
+     * that's the "cape renders as black and purple" bug.
+     *
+     * <p>The PNG must live at {@code assets/kitsune/textures/cape/<id>.png}
+     * and follow the standard 64×32 Minecraft cape layout (or any 2:1 HD
+     * multiple — 128×64, 256×128).
      */
     public static Identifier capeTexture(String capeId) {
-        return Identifier.fromNamespaceAndPath(
-                KitsuneClient.MOD_ID, "textures/cape/" + capeId + ".png");
+        return Identifier.fromNamespaceAndPath(KitsuneClient.MOD_ID, "cape/" + capeId);
     }
 
     /** Display name for a cape, or the id itself if unknown. */
