@@ -48,6 +48,11 @@ meteor-*.jar
 *-fabric-*.jar
 !build/libs/*.jar
 
+# Resource packs / images dropped into the root for testing — not part of
+# the project (same spirit as the root-jar rule above).
+/*.zip
+/potato.png
+
 # Decompiled / copied class & source files from auditing the cached MC jar.
 # These are Mojang-owned and must never be tracked.
 net/minecraft/**

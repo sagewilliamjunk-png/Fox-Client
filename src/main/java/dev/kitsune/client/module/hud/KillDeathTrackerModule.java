@@ -1,10 +1,8 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
+import dev.kitsune.client.util.Palette;
 import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
@@ -17,7 +15,7 @@ import java.util.List;
  * Draggable session K/D widget.
  * Tracks kills, deaths, kill streak, and a colour-coded K/D ratio.
  */
-public class KillDeathTrackerModule extends Module implements HudWidget {
+public class KillDeathTrackerModule extends BaseHudModule {
 
     private final BooleanSetting showStreak   = addSetting(new BooleanSetting("Show Kill Streak", true));
     private final BooleanSetting showRatio    = addSetting(new BooleanSetting("Show K/D Ratio",   true));
@@ -36,12 +34,13 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
     private int lastKillStat   = -1;
 
     public KillDeathTrackerModule() {
-        super("K/D Tracker", "Session kill/death counter with streak", Category.HUD);
-        HudManager.register(this);
+        super("K/D Tracker", "Session kill/death counter with streak", Category.HUD,
+                "kill_death", "K/D");
     }
 
-    @Override public String widgetId()    { return "kill_death"; }
-    @Override public String displayName() { return "K/D"; }
+    /** Bespoke appearance: pre-refactor hardcoded background + ModeSetting accent. */
+    @Override protected int bgArgb()     { return Palette.PANEL_BG_LEGACY; }
+    @Override protected int accentArgb() { return accentModeArgb(); }
 
     @Override
     public int widgetWidth() { return compactMode.get() ? 90 : 110; }
@@ -54,8 +53,6 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
         if (showBar.get() && showRatio.get()) rows++;
         return rows * 10 + 8;
     }
-
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
     protected void onEnable() {
@@ -102,11 +99,7 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
         int w = widgetWidth();
         int h = widgetHeight();
         double kd = deaths > 0 ? (double) kills / deaths : kills;
-        int accent = accentArgb();
-
-        // Background
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, 0x90000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent);
+        drawPanel(gfx, x, y, w, h);
 
         // Compact: single line
         if (compactMode.get()) {
@@ -158,7 +151,7 @@ public class KillDeathTrackerModule extends Module implements HudWidget {
 
     // ---- helpers ----
 
-    private int accentArgb() {
+    private int accentModeArgb() {
         return switch (accentColor.get()) {
             case "Red"   -> 0xFFFF4444;
             case "Blue"  -> 0xFF4488FF;

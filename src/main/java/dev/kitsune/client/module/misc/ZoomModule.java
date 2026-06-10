@@ -10,7 +10,7 @@ import net.minecraft.client.Minecraft;
  * Smooth hold-key zoom — Lunar/Feather style. Ported from the legacy
  * {@code ZoomFeature} into the proper module system in v1.2.
  *
- * <p>How it works: {@code GameRendererMixin} reads
+ * <p>How it works: {@code CameraZoomMixin} reads
  * {@link #getEffectiveZoomFactor()} every frame and divides the FOV by it.
  * Nothing in the user's saved options is mutated, so a crash mid-zoom cannot
  * poison their FOV slider. {@code currentFactor} smoothly lerps toward either
@@ -38,7 +38,7 @@ public class ZoomModule extends Module {
         INSTANCE = this;
     }
 
-    /** Read by {@link dev.kitsune.client.mixin.GameRendererMixin}. Returns 1.0
+    /** Read by {@link dev.kitsune.client.mixin.CameraZoomMixin}. Returns 1.0
      *  when the zoom is fully released — the mixin short-circuits in that case. */
     public static double getEffectiveZoomFactor() {
         return currentFactor;

@@ -79,6 +79,11 @@ public final class WorldMapData {
 
     public void put(ChunkPos cp, int[] argb) {
         if (argb == null || argb.length != 256) return;
+        // No-op when the recomputed tile is identical — lets the manager
+        // re-sweep near-player chunks for staleness without forcing a dirty
+        // flag (and the multi-MB save that follows) when nothing changed.
+        int[] prev = tiles.get(cp);
+        if (prev != null && java.util.Arrays.equals(prev, argb)) return;
         tiles.put(cp, argb);
         // Upload the same data to the GPU cache so the screen can blit it.
         textures.upsert(cp, argb);

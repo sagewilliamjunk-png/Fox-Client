@@ -11,7 +11,7 @@
         "ChatComponentMixin",
         "PauseScreenMixin",
         "CameraMixin",
-        "GameRendererMixin",
+        "CameraZoomMixin",
         "MouseHandlerMixin",
         "LevelRendererMixin",
         "ScreenScrollMixin",

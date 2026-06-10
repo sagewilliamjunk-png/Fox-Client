@@ -1,12 +1,8 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
-import dev.kitsune.client.setting.ColorSetting;
-import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -24,15 +20,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * <p>This is an <i>estimate</i> — real TPS can only be known by the server.
  * For Paper/Spigot, consider running {@code /tps} for authoritative numbers.
  */
-public class ServerTpsHudModule extends Module implements HudWidget {
+public class ServerTpsHudModule extends BaseHudModule {
 
     private static final int WINDOW = 40; // samples of tick gaps
 
     private final BooleanSetting showLabel  = addSetting(new BooleanSetting("Show Label", true));
     private final BooleanSetting colorize   = addSetting(new BooleanSetting("Colorize",   true));
     private final BooleanSetting showMspt   = addSetting(new BooleanSetting("Show MSPT",  false));
-    private final SliderSetting  bgOpacity  = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
-    private final ColorSetting   accent     = addSetting(new ColorSetting("Accent",     0xFF44CCCC));
 
     private final long[] gaps = new long[WINDOW];
     private int head = 0;
@@ -41,15 +35,13 @@ public class ServerTpsHudModule extends Module implements HudWidget {
     private long lastWallMs = 0;
 
     public ServerTpsHudModule() {
-        super("Server TPS", "Estimates server tick rate from game-time progression", Category.HUD);
-        HudManager.register(this);
+        super("Server TPS", "Estimates server tick rate from game-time progression", Category.HUD,
+                "server_tps", "TPS");
+        useStandardPanel(0.50, Palette.ACCENT_CYAN);
     }
 
-    @Override public String widgetId()    { return "server_tps"; }
-    @Override public String displayName() { return "TPS"; }
-    @Override public int widgetWidth()    { return showMspt.get() ? 80 : 56; }
-    @Override public int widgetHeight()   { return 14; }
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
+    @Override public int widgetWidth()  { return showMspt.get() ? 80 : 56; }
+    @Override public int widgetHeight() { return 14; }
 
     @Override
     protected void onDisable() {
@@ -93,20 +85,14 @@ public class ServerTpsHudModule extends Module implements HudWidget {
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        int w = widgetWidth();
-        int h = widgetHeight();
-        int bg = (int)(bgOpacity.get() * 255) << 24;
-
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg | 0x000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
+        drawPanel(gfx, x, y, widgetWidth(), widgetHeight());
 
         double mspt = averageMspt();
         double tps = Math.min(20.0, 1000.0 / Math.max(1.0, mspt));
-        int color = colorize.get() ? tpsColor(tps) : 0xFFFFFFFF;
+        int color = colorize.get() ? tpsColor(tps) : Palette.TEXT_WHITE;
         String s;
         if (showMspt.get()) {
-            s = String.format("%s%.1f TPS  %.0fms",
-                    showLabel.get() ? "" : "", tps, mspt);
+            s = String.format("%.1f TPS  %.0fms", tps, mspt);
         } else {
             s = showLabel.get() ? String.format("TPS %.1f", tps) : String.format("%.1f", tps);
         }

@@ -1,10 +1,8 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
+import dev.kitsune.client.util.Palette;
 import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
 import net.minecraft.client.Minecraft;
@@ -20,7 +18,7 @@ import java.util.List;
  * Draggable widget showing server name, ping, and estimated TPS.
  * Ping and TPS are visualised with colour-coded progress bars.
  */
-public class ServerInfoHudModule extends Module implements HudWidget {
+public class ServerInfoHudModule extends BaseHudModule {
 
     private final BooleanSetting showName        = addSetting(new BooleanSetting("Show Server Name", true));
     private final BooleanSetting showPingBar     = addSetting(new BooleanSetting("Show Ping Bar", true));
@@ -39,12 +37,14 @@ public class ServerInfoHudModule extends Module implements HudWidget {
     private double estimatedTps = 20.0;
 
     public ServerInfoHudModule() {
-        super("Server Info", "Shows server name, ping, and TPS", Category.HUD);
-        HudManager.register(this);
+        super("Server Info", "Shows server name, ping, and TPS", Category.HUD,
+                "server_info", "Server");
     }
 
-    @Override public String widgetId()    { return "server_info"; }
-    @Override public String displayName() { return "Server"; }
+    /** Bespoke appearance: keeps its pre-refactor hardcoded background and
+     *  ModeSetting accent so saved configs survive the migration. */
+    @Override protected int bgArgb()     { return Palette.PANEL_BG_LEGACY; }
+    @Override protected int accentArgb() { return accentModeArgb(); }
 
     @Override
     public int widgetWidth() { return compactMode.get() ? 100 : 130; }
@@ -61,8 +61,6 @@ public class ServerInfoHudModule extends Module implements HudWidget {
         if (showPlayerCount.get())              rows++;
         return rows * 10 + 8;
     }
-
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
     public void onTick() {
@@ -92,10 +90,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
         int w = widgetWidth();
         int h = widgetHeight();
         int accent = accentArgb();
-
-        // Background
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, 0x90000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent);
+        drawPanel(gfx, x, y, w, h);
 
         // Ping
         int ping = -1;
@@ -188,7 +183,7 @@ public class ServerInfoHudModule extends Module implements HudWidget {
         return 0xFFFF5555;
     }
 
-    private int accentArgb() {
+    private int accentModeArgb() {
         return switch (accentColor.get()) {
             case "Orange" -> 0xFFE87722;
             case "Green"  -> 0xFF44DD88;

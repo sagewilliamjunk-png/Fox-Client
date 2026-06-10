@@ -74,9 +74,9 @@ public class ShulkerTooltipModule extends Module {
         //   • no modifier → text-list ("the letters") of every stack inside.
         //   • Shift         → visual grid renders via ItemTooltipImageMixin; we
         //     add no extra text so the popup stays clean.
-        //   • Alt+Shift     → same grid; the "sticky until released" behaviour
-        //     is a separate render hook (TODO — keep the grid drawn while the
-        //     mouse moves until Alt+Shift is released).
+        //   • Alt+Shift     → same grid, pinned: ShulkerPinManager +
+        //     ScreenStickyShulkerMixin capture the tooltip at press time and
+        //     keep drawing it until the keys are released (shipped in 1.4.1).
         if (isShiftDown()) return;
 
         // Compact item-by-item summary. Long lists get truncated so the

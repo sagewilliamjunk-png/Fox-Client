@@ -379,13 +379,17 @@ function buildLaunchCommand(opts) {
     gameArgs.push('--fullscreen');
   }
 
-  // Auto-join a server on launch — vanilla supports `--server <host>` plus
-  // optional `--port <n>`. Profile sets these via opts.serverHost/Port.
-  if (opts.serverHost && !gameArgs.includes('--server')) {
-    gameArgs.push('--server', String(opts.serverHost));
-    if (opts.serverPort) {
-      gameArgs.push('--port', String(opts.serverPort));
-    }
+  // Auto-join a server on launch. The old `--server <host>` / `--port <n>`
+  // flags were REMOVED in Minecraft 1.20 (snapshot 23w14a) and are silently
+  // ignored on modern versions — which is why profile auto-join did nothing.
+  // The replacement is Quick Play: `--quickPlayMultiplayer <host[:port]>`.
+  // (Confirmed against 26.1.2's net.minecraft.client.main.Main option parser,
+  // which exposes quickPlayMultiplayer/Singleplayer/Realms and no server/port.)
+  if (opts.serverHost && !gameArgs.includes('--quickPlayMultiplayer')) {
+    const addr = opts.serverPort
+      ? `${opts.serverHost}:${opts.serverPort}`
+      : String(opts.serverHost);
+    gameArgs.push('--quickPlayMultiplayer', addr);
   }
 
   // Memory

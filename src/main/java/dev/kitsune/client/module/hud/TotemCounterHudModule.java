@@ -1,12 +1,10 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -19,26 +17,22 @@ import net.minecraft.world.item.Items;
  * hotbar, and both hands). Renders the item icon with a live count and turns
  * red when the total drops below a configurable warning threshold.
  */
-public class TotemCounterHudModule extends Module implements HudWidget {
+public class TotemCounterHudModule extends BaseHudModule {
 
     private final BooleanSetting showIcon      = addSetting(new BooleanSetting("Show Icon",   true));
     private final BooleanSetting warnLow       = addSetting(new BooleanSetting("Warn Low",    true));
     private final BooleanSetting hideWhenZero  = addSetting(new BooleanSetting("Hide at Zero", false));
     private final SliderSetting  warnThreshold = addSetting(new SliderSetting("Warn At", 2, 0, 16, 1));
-    private final SliderSetting  bgOpacity     = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
-    private final ColorSetting   accent        = addSetting(new ColorSetting("Accent",     0xFFFFAA33));
-    private final ColorSetting   textColor     = addSetting(new ColorSetting("Text Color", 0xFFFFFFFF));
     private final ColorSetting   warnColor     = addSetting(new ColorSetting("Warn Color", 0xFFFF4444));
 
     private int totalTotems = 0;
 
     public TotemCounterHudModule() {
-        super("Totem Counter", "Counts totems of undying in inventory", Category.HUD);
-        HudManager.register(this);
+        super("Totem Counter", "Counts totems of undying in inventory", Category.HUD,
+                "totem_counter", "Totems");
+        useStandardPanel(0.50, Palette.ACCENT_GOLD);
+        useTextColor();
     }
-
-    @Override public String widgetId()    { return "totem_counter"; }
-    @Override public String displayName() { return "Totems"; }
 
     @Override
     public int widgetWidth() {
@@ -55,6 +49,16 @@ public class TotemCounterHudModule extends Module implements HudWidget {
         if (!isEnabled()) return false;
         if (hideWhenZero.get() && totalTotems == 0) return false;
         return true;
+    }
+
+    private boolean low() {
+        return warnLow.get() && totalTotems <= warnThreshold.get().intValue();
+    }
+
+    /** Accent bar flips to the warn color when the count is low. */
+    @Override
+    protected int accentArgb() {
+        return low() ? warnColor.get() : super.accentArgb();
     }
 
     @Override
@@ -81,14 +85,7 @@ public class TotemCounterHudModule extends Module implements HudWidget {
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        int w = widgetWidth();
-        int h = widgetHeight();
-        int bg = (int)(bgOpacity.get() * 255) << 24;
-        boolean low = warnLow.get() && totalTotems <= warnThreshold.get().intValue();
-        int barColor = low ? warnColor.get() : accent.get();
-
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg | 0x000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, barColor);
+        drawPanel(gfx, x, y, widgetWidth(), widgetHeight());
 
         int textX = x + 2;
         if (showIcon.get()) {
@@ -97,7 +94,7 @@ public class TotemCounterHudModule extends Module implements HudWidget {
             textX = x + 22;
         }
 
-        int color = low ? warnColor.get() : textColor.get();
+        int color = low() ? warnColor.get() : textArgb();
         String label = String.valueOf(totalTotems);
         int ty = y + (showIcon.get() ? 6 : 3);
         gfx.text(font, label, textX, ty, color);

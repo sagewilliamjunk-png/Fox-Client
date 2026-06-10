@@ -200,6 +200,11 @@ public final class HudManager {
             case "xp_hud"         -> new Position(Anchor.BOTTOM_CENTER, 0, 60);
             case "entity_count"   -> new Position(Anchor.TOP_RIGHT, 4, 110);
             case "perf_dashboard" -> new Position(Anchor.TOP_LEFT, 4, 200);
+            // v1.5 widgets — spread so a fresh "enable everything" doesn't stack.
+            case "compass"           -> new Position(Anchor.TOP_CENTER, 0, 4);
+            case "combat_timer"      -> new Position(Anchor.BOTTOM_CENTER, 0, 80);
+            case "inventory_preview" -> new Position(Anchor.BOTTOM_RIGHT, 4, 150);
+            case "afk_timer"         -> new Position(Anchor.TOP_CENTER, 0, 24);
             // Vanilla HUD proxies — defaults match where vanilla draws them.
             // BOTTOM_CENTER means "centred horizontally, anchored to bottom";
             // offsets are relative to the centred reference rectangle.

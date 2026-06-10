@@ -47,10 +47,14 @@ public final class MapTextureCache {
         this.namespace = namespace;
     }
 
-    /** Insert or update a tile. Idempotent on identical data. */
+    /** Insert or update a tile. Idempotent on identical data — when the new
+     *  pixels match what's already uploaded, the GPU upload is skipped
+     *  entirely (the periodic minimap refresh recomputes tiles that usually
+     *  haven't changed, so this no-op path is the common case). */
     public synchronized void upsert(ChunkPos cp, int[] argb) {
         if (argb == null || argb.length != 256) return;
         Entry e = entries.get(cp);
+        if (e != null && java.util.Arrays.equals(e.lastArgb, argb)) return;
         if (e == null) {
             e = new Entry();
             e.image   = new NativeImage(16, 16, false);
@@ -60,6 +64,7 @@ public final class MapTextureCache {
             Minecraft.getInstance().getTextureManager().register(e.id, e.texture);
             entries.put(cp, e);
         }
+        e.lastArgb = argb.clone();
         // Write all 256 pixels into the NativeImage in ABGR.
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++) {
@@ -121,5 +126,7 @@ public final class MapTextureCache {
         NativeImage image;
         DynamicTexture texture;
         Identifier id;
+        /** Last uploaded pixels (1 KB) — lets upsert() skip identical re-uploads. */
+        int[] lastArgb;
     }
 }

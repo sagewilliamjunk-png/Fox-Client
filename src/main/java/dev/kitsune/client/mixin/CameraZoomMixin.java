@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * adjustments — their math sees vanilla, then ours scales the final result.
  */
 @Mixin(value = Camera.class, priority = 1100)
-public class GameRendererMixin {
+public class CameraZoomMixin {
 
     @Inject(method = "getFov()F",
             at = @At("RETURN"),

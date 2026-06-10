@@ -253,4 +253,4 @@ async function exportMrpack(opts) {
   };
 }
 
-module.exports = { exportMrpack, buildZip, crc32, detectLoaderVersion };
+module.exports = { exportMrpack, buildZip, crc32, detectLoaderVersion, walk };

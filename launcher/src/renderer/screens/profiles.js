@@ -17,6 +17,8 @@
 // All profile changes are saved on click, not on form blur — explicit Save
 // button at the bottom of the editor pane.
 
+import { escapeHtml, formatRelative, formatBytes } from '../util.js';
+
 let selectedId = null;
 let mods = [];
 let resourcePacksList = [];
@@ -1519,24 +1521,3 @@ function renderPackList(packs) {
   `).join('');
 }
 
-function formatBytes(b) {
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${Math.round(b / 1024)} KB`;
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatRelative(ts) {
-  if (!ts) return '—';
-  const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (diffSec < 60)   return `${diffSec}s ago`;
-  if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
-  if (diffSec < 7 * 86400) return `${Math.round(diffSec / 86400)}d ago`;
-  return new Date(ts).toLocaleDateString();
-}
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

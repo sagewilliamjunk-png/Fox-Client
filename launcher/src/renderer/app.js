@@ -24,14 +24,9 @@ const ROUTES = {
 
 const el = (id) => document.getElementById(id);
 
-/** Minimal HTML escaper for any text we splice into innerHTML. Defense in
- *  depth — even strings we believe are trusted (Microsoft error responses,
- *  Mojang usernames) get run through this. */
-function escapeForHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+// Shared HTML escaper (see util.js) — kept under the old local name so the
+// dozens of call sites below stay unchanged.
+import { escapeHtml as escapeForHtml } from './util.js';
 
 // ---- boot sequence ----
 

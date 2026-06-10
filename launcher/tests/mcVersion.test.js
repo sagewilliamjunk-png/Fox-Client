@@ -157,7 +157,7 @@ describe('substitute + buildLaunchCommand argument construction', () => {
     return full;
   }
 
-  it('includes --server and --port args when serverHost is set', () => {
+  it('uses --quickPlayMultiplayer host:port when serverHost is set', () => {
     const vId = 'test-1.21';
     writeVersionJson(vId, {
       id: vId,
@@ -178,13 +178,33 @@ describe('substitute + buildLaunchCommand argument construction', () => {
       serverHost: 'mc.2b2t.org',
       serverPort: 25565,
     });
-    expect(cmd.args).toContain('--server');
-    expect(cmd.args).toContain('mc.2b2t.org');
-    expect(cmd.args).toContain('--port');
-    expect(cmd.args).toContain('25565');
+    // Modern Quick Play arg — `--server`/`--port` were removed in MC 1.20.
+    expect(cmd.args).toContain('--quickPlayMultiplayer');
+    expect(cmd.args).toContain('mc.2b2t.org:25565');
+    expect(cmd.args).not.toContain('--server');
+    expect(cmd.args).not.toContain('--port');
   });
 
-  it('omits --server when serverHost is empty', () => {
+  it('uses bare host for --quickPlayMultiplayer when no port is set', () => {
+    const vId = 'test-1.21-noport';
+    writeVersionJson(vId, {
+      id: vId, type: 'release',
+      mainClass: 'net.minecraft.client.main.Main',
+      libraries: [], arguments: { jvm: [], game: [] },
+    });
+    touchClientJar(vId);
+    const cmd = mcVersion.buildLaunchCommand({
+      gameDir: tmpDir, versionId: vId,
+      auth: { username: 'T', uuid: 'u', accessToken: 't' },
+      javaPath: '/usr/bin/java', minRam: 2, maxRam: 4,
+      resolution: { width: 1280, height: 720, fullscreen: false },
+      serverHost: 'hypixel.net',
+    });
+    expect(cmd.args).toContain('--quickPlayMultiplayer');
+    expect(cmd.args).toContain('hypixel.net');
+  });
+
+  it('omits the quick-play arg when serverHost is empty', () => {
     const vId = 'test-1.21-noserver';
     writeVersionJson(vId, {
       id: vId, type: 'release',
@@ -198,6 +218,7 @@ describe('substitute + buildLaunchCommand argument construction', () => {
       javaPath: '/usr/bin/java', minRam: 2, maxRam: 4,
       resolution: { width: 1280, height: 720, fullscreen: false },
     });
+    expect(cmd.args).not.toContain('--quickPlayMultiplayer');
     expect(cmd.args).not.toContain('--server');
   });
 

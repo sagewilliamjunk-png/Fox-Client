@@ -40,7 +40,6 @@ import dev.kitsune.client.module.chat.TransparentChatModule;
 import dev.kitsune.client.module.misc.DeathScreenModule;
 import dev.kitsune.client.module.misc.DisconnectConfirmModule;
 import dev.kitsune.client.module.misc.HotbarScrollLockModule;
-import dev.kitsune.client.module.movement.KeepSprintModule;
 import dev.kitsune.client.module.player.AutoEatModule;
 import dev.kitsune.client.module.player.AutoRespawnModule;
 import dev.kitsune.client.module.player.NoHurtCamModule;
@@ -135,7 +134,9 @@ public final class ModuleManager {
         register(new AutoEatModule());
         register(new AutoRespawnModule());
         register(new NoHurtCamModule());
-        register(new KeepSprintModule());
+        // v1.5.0: KeepSprintModule removed — it contradicted SAFETY.md's
+        // "never ship" list (sprint-reset bypass is flagged by GrimAC-class
+        // anti-cheats). See CHANGELOG 1.5.0.
 
         // v1.2: legacy FoxFeature ports — Zoom, ShulkerTooltip, MapTooltip,
         // AdaptiveFpsLimit. The classes in client/features/ are no longer
@@ -168,6 +169,9 @@ public final class ModuleManager {
         // ---- Combat ----
         register(new CrosshairDamageIndicatorModule());
         register(new WeaponSwapReminderModule());
+        // v1.5: combat-info additions (display/alert only — see SAFETY.md).
+        register(new dev.kitsune.client.module.combat.CombatTimerModule());
+        register(new dev.kitsune.client.module.combat.LowDurabilityAlertModule());
 
         // ---- Client-tier HUD additions (keystrokes/cps/clock/speed/totems/tps) ----
         register(new KeystrokesHudModule());
@@ -177,6 +181,11 @@ public final class ModuleManager {
         register(new TotemCounterHudModule());
         register(new ServerTpsHudModule());
         register(new MemoryCleanerModule());
+        // v1.5: compass strip + screenshot-to-clipboard + inventory preview + AFK timer.
+        register(new dev.kitsune.client.module.hud.CompassHudModule());
+        register(new dev.kitsune.client.module.misc.ScreenshotClipboardModule());
+        register(new dev.kitsune.client.module.hud.InventoryPreviewHudModule());
+        register(new dev.kitsune.client.module.hud.AfkTimerHudModule());
 
         // ---- Quality-of-life HUDs ----
         register(new DeathCoordsHudModule());

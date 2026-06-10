@@ -4,6 +4,7 @@
 // everything atomically.
 
 import { applyTheme } from '../app.js';
+import { escapeHtml } from '../util.js';
 
 /** Render one row of the keyboard-shortcuts reference table. */
 function renderShortcut(action, keys, description) {
@@ -49,6 +50,8 @@ export async function renderSettings(mount) {
     minimizeToTray:    !!s.minimizeToTray,
     theme:             s.theme || 'fox',
     discordRpcEnabled: s.discordRpcEnabled !== false,
+    javaArgsPreset:    s.javaArgsPreset || 'default',
+    customJavaArgs:    s.customJavaArgs || '',
   };
 
   // Slider ceiling: respect both the OS recommendation AND settings.BOUNDS
@@ -162,6 +165,25 @@ export async function renderSettings(mount) {
             <button class="btn" id="btn-browse-java">Browse…</button>
             <button class="btn" id="btn-clear-java">Clear</button>
           </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">JVM arguments</div>
+        <div class="section-sub">Preset flags applied to every launch. Per-profile JVM args (Profiles → Performance) are added after these and win on conflict.</div>
+        <div class="field">
+          <label for="f-javaArgsPreset">Preset</label>
+          <select class="select" id="f-javaArgsPreset">
+            <option value="default"     ${state.javaArgsPreset === 'default' ? 'selected' : ''}>Default — no extra flags</option>
+            <option value="performance" ${state.javaArgsPreset === 'performance' ? 'selected' : ''}>Performance — G1 client tuning</option>
+            <option value="lowmem"      ${state.javaArgsPreset === 'lowmem' ? 'selected' : ''}>Low memory — smaller footprint</option>
+            <option value="custom"      ${state.javaArgsPreset === 'custom' ? 'selected' : ''}>Custom…</option>
+          </select>
+        </div>
+        <div class="field" id="custom-java-args-field" style="${state.javaArgsPreset === 'custom' ? '' : 'display:none;'}">
+          <label for="f-customJavaArgs">Custom flags (whitespace-separated)</label>
+          <textarea class="input" id="f-customJavaArgs" rows="3" maxlength="1000"
+            placeholder="-XX:+UseG1GC -XX:MaxGCPauseMillis=50">${escapeHtml(state.customJavaArgs)}</textarea>
         </div>
       </div>
     </div>
@@ -377,6 +399,13 @@ export async function renderSettings(mount) {
   });
   $('f-javaPath').addEventListener('input', (e) => { state.javaPath = e.target.value; });
 
+  $('f-javaArgsPreset').addEventListener('change', (e) => {
+    state.javaArgsPreset = e.target.value;
+    $('custom-java-args-field').style.display =
+        state.javaArgsPreset === 'custom' ? '' : 'none';
+  });
+  $('f-customJavaArgs').addEventListener('input', (e) => { state.customJavaArgs = e.target.value; });
+
   // ---- save ----
   $('btn-save').addEventListener('click', async () => {
     state.gameDir         = $('f-gameDir').value.trim();
@@ -391,6 +420,8 @@ export async function renderSettings(mount) {
     state.launchOnStartup   = $('f-launchOnStartup').checked;
     state.minimizeToTray    = $('f-minimizeToTray').checked;
     state.javaPath          = $('f-javaPath').value.trim();
+    state.javaArgsPreset    = $('f-javaArgsPreset').value;
+    state.customJavaArgs    = $('f-customJavaArgs').value.trim();
 
     if (state.minRam > state.maxRam) {
       showStatus('error', 'Minimum RAM cannot exceed maximum.');
@@ -454,8 +485,3 @@ export async function renderSettings(mount) {
   }
 }
 
-function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

@@ -22,8 +22,38 @@ Some servers consider these unfair even though they don't manipulate gameplay. F
 - **Zoom** — purely a camera FOV change. Banned by some PvP / hide-and-seek servers.
 - **Full Brightness** — gamma override. Banned by some hardcore / horror servers.
 - **Armor HUD** — visual overlay only. Banned by some competitive UHC events.
-- **Freecam** (NOT shipped in v1; would be subject to a default DISABLE rule on most major servers).
-- **Minimap** (NOT shipped in v1; same).
+- **Minimap** (shipped in v1.3) — renders only terrain and entities the client
+  already knows about; no chunk probing, no hidden-entity reveal. Some
+  competitive servers ban minimaps outright — use the per-server rules.
+- **Freecam** (NOT shipped; would be subject to a default DISABLE rule on most major servers).
+
+Four further modules are **addon-gated gray zone**: Free Look, Reach Display
+HUD, Hitboxes, and Anti-AFK. Each is gated behind a per-profile addon flag the
+launcher writes — when the flag is off the module is never even constructed.
+
+### Automation modules — where we draw the line
+
+Two shipped modules simulate player input, and the distinction from the
+banned list above matters:
+
+- **Auto Eat** *(Player)* — switches to a food slot and holds the vanilla
+  use key when hunger is low. It automates a non-combat maintenance chore at
+  vanilla speed; it cannot click faster than a human, gives no combat
+  advantage, and skips golden apples by default. This is materially different
+  from AutoSoup/AutoClicker (combat-speed advantages), which stay banned.
+  Some servers still consider any input automation unfair — disable it
+  per-server if in doubt.
+- **Anti-AFK** *(Movement, addon-gated)* — periodic camera nudge / jump /
+  sneak to defeat idle kicks. This is movement automation and several servers
+  explicitly ban it, which is why it is double-gated: the addon flag must be
+  on **and** the user must enable an explicit "I accept the risk" setting,
+  otherwise enabling it is a no-op with a warning toast.
+
+**KeepSprint was removed in v1.5.0.** It shipped briefly in v1.4.1 by
+mistake — it is on the never-ship list above (sprint-reset bypass is exactly
+the kind of mechanical advantage this document promises we don't ship, and
+GrimAC-class anti-cheats flag it). The module class was deleted, not
+disabled.
 
 The default `server_rules.json` ships with starter rules for the largest servers, but Fox Client makes **no guarantee** that the rules are complete or up to date with each server's current TOS. **You are responsible for verifying that your installed mods comply with each server's rules.** Fox Client is a tool to make compliance easier, not a substitute for reading the rules.
 
@@ -31,7 +61,7 @@ The default `server_rules.json` ships with starter rules for the largest servers
 
 When you click "Connect" on a server in the multiplayer list:
 
-1. Fox Client checks `config/foxclient/server_rules.json` for any rule whose host pattern matches the server.
+1. Fox Client checks `config/kitsune/server_rules.json` for any rule whose host pattern matches the server.
 2. For each rule with `action: DISABLE`:
    - Mod IDs in `modIds` are checked against currently-loaded Fabric mods.
    - Feature IDs in `featureIds` are added to a runtime override set (no restart needed for these).
@@ -49,7 +79,7 @@ To re-enable disabled mods, switch to a profile that doesn't disable them, or us
 
 Two options:
 
-1. **Add a rule yourself.** Open `config/foxclient/server_rules.json` and add an entry. The format is documented in `ServerRule.java`. Or use the in-game Server Rules editor when it lands in v0.2.
+1. **Add a rule yourself.** Open `config/kitsune/server_rules.json` and add an entry. The format is documented in `ServerRule.java`. Or use the in-game Server Rules editor when it lands in v0.2.
 2. **File an issue / PR** with the server name + their published mod policy. Default rules are kept conservative — if a major server publishes a clear ban list, we'll merge it.
 
 ## What if Fox Client gets me banned anyway?

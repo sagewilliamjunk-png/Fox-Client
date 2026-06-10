@@ -8,12 +8,14 @@
 // Each tool keeps its own state internally, so switching tabs and back
 // rebuilds it from scratch — clean and avoids stale-DOM bugs.
 
-import { renderCommands }   from './commands.js';
-import { renderSkinEditor } from './skinEditor.js';
+import { renderCommands }     from './commands.js';
+import { renderSkinEditor }   from './skinEditor.js';
+import { renderWorldBackups } from './worldBackups.js';
 
 const TABS = [
   { id: 'commands', label: '⌘ Command Generator', render: renderCommands },
   { id: 'skin',     label: '🎨 Skin Editor',       render: renderSkinEditor },
+  { id: 'backups',  label: '💾 World Backups',     render: renderWorldBackups },
 ];
 
 let activeTab = 'commands';
@@ -22,7 +24,7 @@ export async function renderResources(mount) {
   mount.innerHTML = `
     <div class="rsc-header">
       <h1 class="screen-title" style="margin:0;">Resources</h1>
-      <div class="rsc-sub muted">Side-tools — build Minecraft commands and paint your own skin.</div>
+      <div class="rsc-sub muted">Side-tools — build Minecraft commands, paint your own skin, and back up your worlds.</div>
     </div>
     <div class="rsc-tabs" role="tablist">
       ${TABS.map(t => `

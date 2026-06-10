@@ -309,3 +309,42 @@ describe('exportOne / importOne', () => {
     expect(() => p.importOne(null)).toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// patch hardening — unknown keys are stripped, wrong types coerced (v1.5.0)
+// ---------------------------------------------------------------------------
+describe('sanitize whitelist (patch hardening)', () => {
+  it('upsert drops unknown keys entirely', () => {
+    const p = getProfiles();
+    p.upsert({ id: 'evil', name: 'Evil', hackerFlag: true, polluted: { a: 1 } });
+    const saved = p.load().profiles.find(x => x.id === 'evil');
+    expect(saved).toBeDefined();
+    expect(saved).not.toHaveProperty('hackerFlag');
+    expect(saved).not.toHaveProperty('polluted');
+  });
+
+  it('patch with garbage keys/types leaves only whitelisted, coerced fields', () => {
+    const p = getProfiles();
+    p.upsert({ id: 'victim', name: 'Victim' });
+    p.patch('victim', {
+      injected: 'nope',
+      jvmArgs: 12345,            // wrong type → default ''
+      ramMin: 99999,             // out of range → clamped to 64
+      serverPort: 'not-a-port',  // unparseable → null
+      isolated: 'yes',           // wrong type → false
+    });
+    const saved = p.load().profiles.find(x => x.id === 'victim');
+    expect(saved).not.toHaveProperty('injected');
+    expect(saved.jvmArgs).toBe('');
+    expect(saved.ramMin).toBe(64);
+    expect(saved.serverPort).toBeNull();
+    expect(saved.isolated).toBe(false);
+  });
+
+  it('gameDirOverride rejects system paths', () => {
+    const p = getProfiles();
+    p.upsert({ id: 'sys', name: 'Sys', gameDirOverride: 'C:\\Windows\\System32' });
+    const saved = p.load().profiles.find(x => x.id === 'sys');
+    expect(saved.gameDirOverride).toBe('');
+  });
+});

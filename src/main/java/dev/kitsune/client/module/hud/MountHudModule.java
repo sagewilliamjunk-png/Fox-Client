@@ -1,12 +1,8 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
-import dev.kitsune.client.setting.ColorSetting;
-import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -24,13 +20,11 @@ import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
  * <p>Invisible when not riding. Auto-disables for boats (vanilla F1 / no
  * info to surface) unless the user explicitly enables "Show for boats".
  */
-public class MountHudModule extends Module implements HudWidget {
+public class MountHudModule extends BaseHudModule {
 
     private final BooleanSetting showBoats   = addSetting(new BooleanSetting("Show on Boats",  false));
     private final BooleanSetting showHorseStats = addSetting(new BooleanSetting("Horse Jump/Speed", true));
     private final BooleanSetting showName    = addSetting(new BooleanSetting("Show Mount Name",   true));
-    private final SliderSetting  bgOpacity   = addSetting(new SliderSetting("BG Opacity", 0.55, 0.0, 1.0, 0.05));
-    private final ColorSetting   accent      = addSetting(new ColorSetting("Accent", 0xFF44CC88));
 
     // Cached mount snapshot — updated each tick. Reading entity fields from
     // the render thread is dicey on bad servers, so we read once per tick.
@@ -44,14 +38,13 @@ public class MountHudModule extends Module implements HudWidget {
     private boolean isBoat  = false;
 
     public MountHudModule() {
-        super("Mount HUD", "When riding, shows mount name + HP + horse stats.", Category.HUD);
-        HudManager.register(this);
+        super("Mount HUD", "When riding, shows mount name + HP + horse stats.", Category.HUD,
+                "mount_hud", "Mount");
+        useStandardPanel(0.55, Palette.ACCENT_MINT);
     }
 
     // ---- HudWidget --------------------------------------------------------
 
-    @Override public String widgetId()    { return "mount_hud"; }
-    @Override public String displayName() { return "Mount"; }
     @Override public int widgetWidth()    { return 150; }
     @Override public int widgetHeight()   {
         int rows = 1;             // name
@@ -117,17 +110,13 @@ public class MountHudModule extends Module implements HudWidget {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         int w = widgetWidth();
-        int h = widgetHeight();
-        int bg = (int)(bgOpacity.get() * 255) << 24;
-
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
+        drawPanel(gfx, x, y, w, widgetHeight());
 
         int rowY = y + 2;
         // Name
         if (showName.get()) {
             String tagged = (isHorse ? "🐎 " : isBoat ? "⛵ " : "🪑 ") + truncate(font, mountName, w - 8);
-            gfx.text(font, tagged, x + 4, rowY, 0xFFFFFFFF);
+            gfx.text(font, tagged, x + 4, rowY, Palette.TEXT_WHITE);
             rowY += 11;
         }
         // HP bar
@@ -139,13 +128,13 @@ public class MountHudModule extends Module implements HudWidget {
             int hpColor = frac > 0.66 ? 0xFF55DD55 : frac > 0.33 ? 0xFFDDCC44 : 0xFFDD4444;
             if (filled > 0) gfx.fill(barLeft, rowY, barLeft + filled, rowY + barH, hpColor);
             String hpText = String.format("%.0f / %.0f", mountHp, mountMaxHp);
-            gfx.text(font, hpText, x + 4, rowY + 7, 0xFFCCCCCC);
+            gfx.text(font, hpText, x + 4, rowY + 7, Palette.TEXT_LIGHT);
             rowY += 18;
         }
         // Horse-only stats
         if (isHorse && showHorseStats.get()) {
-            gfx.text(font, String.format("Jump  %.1f blocks", mountJump),  x + 4, rowY, 0xFFCCCCCC); rowY += 11;
-            gfx.text(font, String.format("Speed  %.0f%%",     mountSpeed), x + 4, rowY, 0xFFCCCCCC);
+            gfx.text(font, String.format("Jump  %.1f blocks", mountJump),  x + 4, rowY, Palette.TEXT_LIGHT); rowY += 11;
+            gfx.text(font, String.format("Speed  %.0f%%",     mountSpeed), x + 4, rowY, Palette.TEXT_LIGHT);
         }
     }
 

@@ -12,6 +12,7 @@ const launcher = require('./launcher');
 const updater = require('./updater');
 const mcVersion = require('./mcVersion');
 const logs = require('./logs');
+const logsUpload = require('./logsUpload');
 const paths = require('./paths');
 const system = require('./system');
 const crashReports = require('./crashReports');
@@ -24,7 +25,9 @@ const modUpdates      = require('./modUpdates');
 const modpackImport   = require('./modpackImport');
 const modpackExport   = require('./modpackExport');
 const profiles = require('./profiles');
+const { resolveGameDir, gameDirForProfile } = require('./gameDirs');
 const resourcepacks = require('./resourcepacks');
+const worldBackups = require('./worldBackups');
 const skins = require('./skins');
 const javaDownloader = require('./javaDownloader');
 const mcInstaller = require('./mcInstaller');
@@ -204,7 +207,7 @@ function register(getWindow) {
   ipcMain.handle('mc:isInstalled', (_e, versionId) => {
     try {
       const s = settings.load();
-      const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+      const gameDir = resolveGameDir(s);
       return mcInstaller.isInstalled(gameDir, versionId);
     } catch (_) { return false; }
   });
@@ -224,7 +227,7 @@ function register(getWindow) {
     };
     try {
       const s = settings.load();
-      const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+      const gameDir = resolveGameDir(s);
       const result = await mcInstaller.installVersion(gameDir, versionId, {
         onProgress: ({ stage, message, percent }) => send({ stage, message, percent }),
       });
@@ -249,7 +252,7 @@ function register(getWindow) {
   // ---- versions ----
   ipcMain.handle('versions:list', () => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     if (!fs.existsSync(dir)) return { gameDir: dir, exists: false, versions: [] };
     return { gameDir: dir, exists: true, versions: mcVersion.listVersions(dir) };
   });
@@ -259,7 +262,7 @@ function register(getWindow) {
   // to newest) and by the Versions tab (show legacy/modern split).
   ipcMain.handle('versions:listEnriched', async () => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     if (!fs.existsSync(dir)) return { gameDir: dir, exists: false, versions: [], hostJavaMajor: 0 };
     let hostJavaMajor = 0;
     try {
@@ -422,7 +425,7 @@ function register(getWindow) {
   // profile editor to show toggle rows for everything currently installed.
   ipcMain.handle('mods:list', () => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     return profiles.listMods(dir);
   });
 
@@ -439,7 +442,7 @@ function register(getWindow) {
     if (r.canceled || !r.filePaths.length) return { ok: false, cancelled: true };
 
     const s = settings.load();
-    const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const gameDir = resolveGameDir(s);
     const modsDir = path.join(gameDir, 'mods');
     try { fs.mkdirSync(modsDir, { recursive: true }); }
     catch (err) { return { ok: false, error: `Couldn't create mods directory: ${err.message}` }; }
@@ -466,7 +469,7 @@ function register(getWindow) {
   // Reveal <gameDir>/mods in the OS file explorer.
   ipcMain.handle('mods:openFolder', () => {
     const s = settings.load();
-    const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const gameDir = resolveGameDir(s);
     const modsDir = path.join(gameDir, 'mods');
     try { fs.mkdirSync(modsDir, { recursive: true }); } catch (_) {}
     return shell.openPath(modsDir);
@@ -478,7 +481,7 @@ function register(getWindow) {
       return { ok: false, error: 'Invalid mod name' };
     }
     const s = settings.load();
-    const gameDir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const gameDir = resolveGameDir(s);
     const modsDir = path.resolve(path.join(gameDir, 'mods'));
     const candidates = [
       path.join(modsDir, baseName),
@@ -501,11 +504,6 @@ function register(getWindow) {
   // Both types share the same four operations (list / add / delete /
   // open-folder).  The `type` parameter is either 'resourcepacks' or
   // 'shaders' and maps to the correct sub-directory inside gameDir.
-
-  function resolveGameDir() {
-    const s = settings.load();
-    return (s.gameDir && s.gameDir.trim()) ? s.gameDir : paths.defaultMinecraft();
-  }
 
   ipcMain.handle('resourcepacks:list', () => {
     return resourcepacks.listPacks(resolveGameDir(), 'resourcepacks');
@@ -651,7 +649,7 @@ function register(getWindow) {
     const allowed = [
       paths.root,
       paths.defaultMinecraft(),
-      (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft(),
+      resolveGameDir(s),
     ];
     try {
       const doc = profiles.load();
@@ -669,18 +667,8 @@ function register(getWindow) {
   }
 
   function resolveScreenshotDir(profileId) {
-    const s = settings.load();
-    const id = profileId || s.selectedProfile;
-    const profile = id ? profiles.find(id) : null;
-    let gameDir;
-    if (profile && profile.isolated) {
-      gameDir = paths.instanceDir(id);
-    } else if (profile && profile.gameDirOverride && profile.gameDirOverride.trim()) {
-      gameDir = profile.gameDirOverride.trim();
-    } else {
-      gameDir = (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft();
-    }
-    return path.join(gameDir, 'screenshots');
+    // Same isolation/override/global resolution every other handler uses.
+    return path.join(gameDirForProfile(profileId || null), 'screenshots');
   }
 
   /** List screenshots for a profile. Returns sorted newest-first. */
@@ -722,7 +710,7 @@ function register(getWindow) {
     const resolved = path.resolve(filePath);
     // Build the set of allowed screenshot directories from every known profile.
     const s = settings.load();
-    const globalGameDir = (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft();
+    const globalGameDir = resolveGameDir(s);
     const allowedDirs = [ path.resolve(path.join(globalGameDir, 'screenshots')) ];
     try {
       const doc = profiles.load();
@@ -783,18 +771,18 @@ function register(getWindow) {
   ipcMain.handle('crash:findNewSince', (_e, sinceMs) => {
     try {
       const s = settings.load();
-      const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+      const dir = resolveGameDir(s);
       return crashReports.findNewSince(dir, Number(sinceMs) || 0);
     } catch (_) { return null; }
   });
   ipcMain.handle('crash:read', (_e, fullPath) => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     return crashReports.readReport(dir, fullPath);
   });
   ipcMain.handle('crash:openFolder', () => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     return shell.openPath(path.join(dir, 'crash-reports'));
   });
 
@@ -818,7 +806,7 @@ function register(getWindow) {
 
   ipcMain.handle('recommended:install', async (_e, opts) => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     if (!fs.existsSync(dir)) return { ok: false, error: 'Game directory does not exist.' };
     const mc = launcher.TARGET_MC_VERSION;
     try {
@@ -843,7 +831,7 @@ function register(getWindow) {
   // dep-walking pack. The Fox client jar (kitsune-client.jar) is preserved.
   ipcMain.handle('recommended:reinstallAll', async () => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     if (!fs.existsSync(dir)) return { ok: false, error: 'Game directory does not exist.' };
     const mc = launcher.TARGET_MC_VERSION;
     try {
@@ -866,7 +854,7 @@ function register(getWindow) {
   // the rest. Returns the same per-mod status shape installAll uses.
   ipcMain.handle('recommended:installOne', async (_e, slug) => {
     const s = settings.load();
-    const dir = s.gameDir && s.gameDir.trim() ? s.gameDir : paths.defaultMinecraft();
+    const dir = resolveGameDir(s);
     if (!fs.existsSync(dir)) return { slug, status: 'error', error: 'Game directory does not exist.' };
     const mc = launcher.TARGET_MC_VERSION;
     try {
@@ -880,16 +868,6 @@ function register(getWindow) {
   //
   // Each handler resolves the active-OR-specified profile's game directory so
   // installs land in the right mods folder for isolated/overridden profiles.
-
-  /** Resolve game directory for a profile id, or current active when null. */
-  function gameDirForProfile(profileId) {
-    const s = settings.load();
-    const id = profileId || s.selectedProfile;
-    const profile = id ? profiles.find(id) : null;
-    if (profile && profile.isolated) return paths.instanceDir(id);
-    if (profile && profile.gameDirOverride && profile.gameDirOverride.trim()) return profile.gameDirOverride.trim();
-    return (s.gameDir && s.gameDir.trim()) || paths.defaultMinecraft();
-  }
 
   ipcMain.handle('modrinth:search', async (_e, payload) => {
     const { query, mcVersion, sort, limit, offset } = payload || {};
@@ -1079,6 +1057,41 @@ function register(getWindow) {
       const lines = logs.all().map(l => `[${new Date(l.ts).toISOString()}] [${l.kind}] ${l.text}`).join('\n');
       fs.writeFileSync(r.filePath, lines);
       return { ok: true, path: r.filePath };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // ---- World backups ----
+  //
+  // All handlers take an optional profileId (null = active profile). World
+  // and backup-file names are validated inside worldBackups.js (no path
+  // separators, .zip-only deletes, ZIP-slip guard on restore).
+  ipcMain.handle('worlds:list', (_e, profileId) =>
+      worldBackups.listWorlds(profileId || null));
+  ipcMain.handle('worlds:listBackups', (_e, profileId) =>
+      worldBackups.listBackups(profileId || null));
+  ipcMain.handle('worlds:backup', (_e, payload) => {
+    const { profileId, world } = payload || {};
+    return worldBackups.createBackup(profileId || null, world);
+  });
+  ipcMain.handle('worlds:restoreBackup', (_e, payload) => {
+    const { profileId, file, overwrite, asName } = payload || {};
+    return worldBackups.restoreBackup(profileId || null, file, { overwrite: !!overwrite, asName });
+  });
+  ipcMain.handle('worlds:deleteBackup', (_e, payload) => {
+    const { profileId, file } = payload || {};
+    return worldBackups.deleteBackup(profileId || null, file);
+  });
+
+  // ---- Logs: upload the ring buffer to mclo.gs and return the share URL.
+  // The user's home directory is scrubbed before upload; mclo.gs redacts
+  // IP addresses server-side. The renderer asks for confirmation first —
+  // this publishes the log at a public URL.
+  ipcMain.handle('logs:upload', async () => {
+    try {
+      const payload = logsUpload.preparePayload(logs.all());
+      return await logsUpload.uploadText(payload);
     } catch (err) {
       return { ok: false, error: err.message };
     }

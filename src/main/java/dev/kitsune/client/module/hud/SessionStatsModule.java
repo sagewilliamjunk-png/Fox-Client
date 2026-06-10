@@ -1,11 +1,9 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ModeSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -17,7 +15,7 @@ import java.util.List;
  * Draggable session stats widget.
  * Tracks play time, distance walked, current speed, and XP level.
  */
-public class SessionStatsModule extends Module implements HudWidget {
+public class SessionStatsModule extends BaseHudModule {
 
     private final BooleanSetting showTime     = addSetting(new BooleanSetting("Show Time",      true));
     private final BooleanSetting showDistance = addSetting(new BooleanSetting("Show Distance",  true));
@@ -38,12 +36,13 @@ public class SessionStatsModule extends Module implements HudWidget {
     private int speedIdx = 0;
 
     public SessionStatsModule() {
-        super("Session Stats", "Tracks session play time, distance, and speed", Category.HUD);
-        HudManager.register(this);
+        super("Session Stats", "Tracks session play time, distance, and speed", Category.HUD,
+                "session_stats", "Session");
     }
 
-    @Override public String widgetId()    { return "session_stats"; }
-    @Override public String displayName() { return "Session"; }
+    /** Bespoke appearance: pre-refactor hardcoded background + blue accent. */
+    @Override protected int bgArgb()     { return Palette.PANEL_BG_LEGACY; }
+    @Override protected int accentArgb() { return Palette.ACCENT_BLUE; }
 
     @Override
     public int widgetWidth() { return compactMode.get() ? 100 : 120; }
@@ -58,8 +57,6 @@ public class SessionStatsModule extends Module implements HudWidget {
         if (showXp.get())       rows++;
         return Math.max(1, rows) * 10 + 8;
     }
-
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
     protected void onEnable() {
@@ -100,12 +97,7 @@ public class SessionStatsModule extends Module implements HudWidget {
         if (mc.player == null) return;
         Font font = mc.font;
 
-        int w = widgetWidth();
-        int h = widgetHeight();
-
-        // Background
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, 0x90000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, 0xFF44AAFF); // blue accent
+        drawPanel(gfx, x, y, widgetWidth(), widgetHeight());
 
         long elapsed = System.currentTimeMillis() - startTime;
         long seconds = elapsed / 1000;

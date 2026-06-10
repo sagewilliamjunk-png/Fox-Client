@@ -60,16 +60,32 @@ import java.util.UUID;
  * <p>All data is client-side only. No packets sent, no extra requests — safe
  * on every server.
  *
- * <p>Performance: terrain rebuilds once per chunk-cross or every 40 ticks
- * (whichever first). Entity scan runs every other tick. Per-frame cost is
- * one circle/square fill + cached ARGB writes for terrain + a small list
- * iteration for entities + the info-pill text. Comfortably under a millisecond
- * even at the maximum 150px size.
+ * <p>Performance (v1.5): terrain work is queued nearest-chunk-first and
+ * drained on a per-tick budget (32 surface / 8 cave tiles), so a refresh
+ * never recomputes the whole view in one tick — and because tiles are
+ * re-swept periodically, terrain <i>edits</i> now appear on the map within
+ * ~2 s. Identical recomputes skip the GPU upload entirely. Cave columns scan
+ * at most {@code CAVE_SCAN_DEPTH} blocks. The light overlay samples on a
+ * 10-tick cadence in onTick (never per frame), and slime chunks render as
+ * one pose-transformed fill per chunk from a cached set. Entity scan runs
+ * every other tick. Per-frame cost is one blit per visible chunk plus dots
+ * and pill text — comfortably under a millisecond even at max size.
  */
 public class MinimapModule extends Module implements HudWidget {
 
     private static final int CACHE_TICKS = 2;
     private static final int TERRAIN_REFRESH_TICKS = 40;
+    /** Terrain tiles computed per tick. Surface tiles are cheap (heightmap
+     *  reads); cave tiles column-scan and get a smaller budget. At max range
+     *  (~1 200 chunks in view) a full surface sweep amortises to ~2 s instead
+     *  of stalling a single tick. */
+    private static final int SURFACE_TILES_PER_TICK = 32;
+    private static final int CAVE_TILES_PER_TICK    = 8;
+    /** Cave cross-section scan depth below the player. Anything deeper than
+     *  this renders as the darkest shade — bounding the per-column walk that
+     *  used to go all the way to world bottom (-64). */
+    private static final int CAVE_SCAN_DEPTH = 48;
+    private static final int LIGHT_REFRESH_TICKS = 10;
 
     /** Singleton so the KitsuneClient tick loop can drive zoom keybinds without
      *  needing a ModuleManager lookup each frame. Set in the constructor. */
@@ -141,10 +157,43 @@ public class MinimapModule extends Module implements HudWidget {
     private boolean lastWasCave   = false;
     private int  terrainRefreshCounter = 0;
 
+    /** Distance-prioritised terrain work queue, drained {@code *_TILES_PER_TICK}
+     *  at a time so a refresh never recomputes the whole view in one tick.
+     *  Because re-enqueued surface tiles usually compute identical pixels,
+     *  {@link dev.kitsune.client.worldmap.MapTextureCache#upsert} skips the GPU
+     *  upload — the periodic sweep is mostly heightmap reads. It also means
+     *  terrain EDITS now show up within one sweep (~2 s) instead of only when
+     *  the chunk left the view entirely. */
+    private final java.util.ArrayDeque<ChunkPos> terrainQueue = new java.util.ArrayDeque<>();
+    private boolean queuedCave = false;
+    private int     queuedPlayerY = 0;
+
+    /** Slime-chunk positions within range — recomputed on terrain refresh so
+     *  the render pass is one fill per chunk with zero RNG allocation. */
+    private final java.util.HashSet<ChunkPos> slimeCache = new java.util.HashSet<>();
+
+    /** Light-overlay sample cache: packed (worldX, worldZ) of low-light spots.
+     *  Sampling 16k+ light queries belongs in the tick, not the render loop. */
+    private long[] lightCache = new long[0];
+    private int lightCacheTick = 0;
+
     // Runtime-controlled zoom (keybinds adjust this) — saved into rangeBlocks
     // on tick for persistence. enlargeActive is true while the user holds the
     // enlarge key; rendering multiplies sizePixels by enlargeFactor.
     private volatile boolean enlargeActive = false;
+
+    // ---- cached circle textures -------------------------------------------
+    // Circle mode used to draw the background disc + two outline rings as
+    // ~900 row fills per FRAME. Both are static for a given (radius, cave)
+    // pair, so they're baked into two textures rebuilt only when the size
+    // slider / enlarge key / cave flag changes: one blit each per frame.
+    // The frame texture also paints the corners outside the circle dark,
+    // masking the square terrain spill the bbox scissor used to leave there.
+    private net.minecraft.resources.Identifier circleBgId;
+    private net.minecraft.resources.Identifier circleFrameId;
+    private int circleCachedR = -1;
+    private boolean circleCachedCave = false;
+    private int circleIdCounter = 0;
 
     public MinimapModule() {
         super("Minimap",
@@ -204,7 +253,11 @@ public class MinimapModule extends Module implements HudWidget {
     protected void onDisable() {
         entityCache.clear();
         terrainTextures.closeAll();
+        releaseCircleTextures();
         activeChunkSet.clear();
+        terrainQueue.clear();
+        slimeCache.clear();
+        lightCache = new long[0];
         lastPlayerChunkX = Long.MIN_VALUE;
         lastPlayerChunkZ = Long.MIN_VALUE;
         lastPlayerY      = Integer.MIN_VALUE;
@@ -216,6 +269,18 @@ public class MinimapModule extends Module implements HudWidget {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
             entityCache.clear();
+            terrainQueue.clear();
+            // Drop world-keyed caches so joining a different world/server
+            // can't briefly show the previous world's terrain at matching
+            // chunk coordinates. Resetting the last-chunk markers forces a
+            // full re-enqueue on the first tick of the next world.
+            if (!activeChunkSet.isEmpty()) {
+                terrainTextures.closeAll();
+                activeChunkSet.clear();
+                slimeCache.clear();
+                lastPlayerChunkX = Long.MIN_VALUE;
+                lastPlayerChunkZ = Long.MIN_VALUE;
+            }
             return;
         }
 
@@ -224,8 +289,9 @@ public class MinimapModule extends Module implements HudWidget {
             entityCache = collectEntities(mc, mc.player);
         }
 
-        // 2. Terrain cache — rebuild on chunk-cross, Y-band-cross (cave mode),
-        //    cave-flag flip, or every TERRAIN_REFRESH_TICKS ticks.
+        // 2. Terrain cache — (re)enqueue work on chunk-cross, Y-band-cross
+        //    (cave mode), cave-flag flip, or every TERRAIN_REFRESH_TICKS
+        //    ticks; then drain a bounded slice of the queue each tick.
         if (!"Dots".equals(viewMode.get())) {
             long cx = mc.player.getBlockX() >> 4;
             long cz = mc.player.getBlockZ() >> 4;
@@ -243,8 +309,22 @@ public class MinimapModule extends Module implements HudWidget {
                 lastPlayerY      = py;
                 lastWasCave      = cave;
                 terrainRefreshCounter = 0;
-                rebuildTerrainCache(mc, cx, cz, cave, py);
+                enqueueTerrainWork(cx, cz, cave, py);
             }
+            drainTerrainQueue(mc);
+        } else if (!terrainQueue.isEmpty()) {
+            terrainQueue.clear();
+        }
+
+        // 3. Light-overlay sample cache — heavy light queries happen here, at
+        //    a low cadence, instead of per frame in the render path.
+        if (lightOverlay.get()) {
+            if (++lightCacheTick >= LIGHT_REFRESH_TICKS) {
+                lightCacheTick = 0;
+                rebuildLightCache(mc);
+            }
+        } else if (lightCache.length > 0) {
+            lightCache = new long[0];
         }
     }
 
@@ -317,23 +397,62 @@ public class MinimapModule extends Module implements HudWidget {
 
     // ---- terrain cache ----------------------------------------------------
 
-    private void rebuildTerrainCache(Minecraft mc, long playerCx, long playerCz, boolean cave, int playerY) {
-        ClientLevel level = mc.level;
-        if (level == null) return;
+    /**
+     * Rebuild the active-chunk set, evict out-of-range GPU tiles, refresh the
+     * slime-chunk cache, and refill the work queue nearest-chunk-first. The
+     * actual tile computation happens incrementally in
+     * {@link #drainTerrainQueue} so no single tick pays for the whole view.
+     */
+    private void enqueueTerrainWork(long playerCx, long playerCz, boolean cave, int playerY) {
         int chunkRange = (int) Math.ceil(rangeBlocks.get() / 16.0) + 1;
         activeChunkSet.clear();
+        List<ChunkPos> work = new ArrayList<>((2 * chunkRange + 1) * (2 * chunkRange + 1));
         for (int dx = -chunkRange; dx <= chunkRange; dx++) {
             for (int dz = -chunkRange; dz <= chunkRange; dz++) {
-                activeChunkSet.add(new ChunkPos((int)(playerCx + dx), (int)(playerCz + dz)));
+                ChunkPos cp = new ChunkPos((int)(playerCx + dx), (int)(playerCz + dz));
+                activeChunkSet.add(cp);
+                work.add(cp);
             }
         }
         // Evict GPU textures for chunks outside the new range.
         terrainTextures.retainAndCloseRest(activeChunkSet);
+
+        // Slime-chunk overlay cache — derived from the same chunk window.
+        slimeCache.clear();
+        if (slimeChunks.get()) {
+            for (ChunkPos cp : activeChunkSet) {
+                if (isSlimeChunk(0, cp.x(), cp.z())) slimeCache.add(cp);
+            }
+        }
+
+        // Nearest-first so the centre of the map fills in immediately and the
+        // periphery streams in behind it.
+        work.sort(java.util.Comparator.comparingLong(cp -> {
+            long dx = cp.x() - playerCx;
+            long dz = cp.z() - playerCz;
+            return dx * dx + dz * dz;
+        }));
+        terrainQueue.clear();
+        terrainQueue.addAll(work);
+        queuedCave = cave;
+        queuedPlayerY = playerY;
+    }
+
+    /** Compute up to the per-tick budget of queued tiles. Unchanged surface
+     *  tiles cost one heightmap sweep + an array compare (the GPU upload is
+     *  skipped by MapTextureCache when pixels are identical). */
+    private void drainTerrainQueue(Minecraft mc) {
+        if (terrainQueue.isEmpty()) return;
+        ClientLevel level = mc.level;
+        if (level == null) { terrainQueue.clear(); return; }
         dev.kitsune.client.worldmap.ChunkColorTile.ColorMode mode = currentColorMode();
-        for (ChunkPos cp : activeChunkSet) {
-            if (terrainTextures.contains(cp) && !cave) continue;
-            int[] tile = cave
-                    ? computeCaveTile(level, cp, playerY)
+        int budget = queuedCave ? CAVE_TILES_PER_TICK : SURFACE_TILES_PER_TICK;
+        while (budget-- > 0) {
+            ChunkPos cp = terrainQueue.poll();
+            if (cp == null) return;
+            if (!activeChunkSet.contains(cp)) continue; // stale entry after a re-enqueue
+            int[] tile = queuedCave
+                    ? computeCaveTile(level, cp, queuedPlayerY)
                     : dev.kitsune.client.worldmap.ChunkColorTile.surface(level, cp, mode);
             if (tile != null) terrainTextures.upsert(cp, tile);
         }
@@ -359,8 +478,11 @@ public class MinimapModule extends Module implements HudWidget {
     // minimap-only and doesn't need to be shared with the world map.
 
     /** Cave cross-section tile — for each (lx,lz), walk DOWN from playerY+1
-     *  until we hit a solid block; render its floor in altitude shade. If we
-     *  reach world bottom without finding anything, render a faint dark dot. */
+     *  until we hit a solid block; render its floor in altitude shade. The
+     *  walk is capped at {@link #CAVE_SCAN_DEPTH} blocks below the player —
+     *  anything deeper renders as the darkest shade, which is visually
+     *  identical for a cross-section and bounds the per-column cost (it used
+     *  to scan all the way to world bottom, ~380 levels in a 1.18+ world). */
     private static int[] computeCaveTile(ClientLevel level, ChunkPos cp, int playerY) {
         var access = level.getChunk(cp.x(), cp.z(),
                 net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
@@ -368,13 +490,15 @@ public class MinimapModule extends Module implements HudWidget {
         int[] argb = new int[256];
         int baseX = cp.getMinBlockX();
         int baseZ = cp.getMinBlockZ();
-        int minY  = level.getMinY();
+        int minY  = Math.max(level.getMinY(), playerY - CAVE_SCAN_DEPTH);
         int searchTop = Math.min(playerY + 1, level.getMaxY());
+        // Reused cursor avoids 256 × scan-depth BlockPos allocations per tile.
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
                 int floorY = minY;
                 for (int y = searchTop; y >= minY; y--) {
-                    BlockState s = chunk.getBlockState(new BlockPos(baseX + lx, y, baseZ + lz));
+                    BlockState s = chunk.getBlockState(cursor.set(baseX + lx, y, baseZ + lz));
                     if (!s.isAir() && s.isSolid()) {
                         floorY = y;
                         break;
@@ -413,10 +537,14 @@ public class MinimapModule extends Module implements HudWidget {
         boolean drawDots    = !"Heightmap".equals(viewMode.get());
         boolean north       = northLock.get();
         boolean cave        = caveMode.get() && lastWasCave;
+        boolean circleTex   = !square && ensureCircleTextures(r, cave);
 
-        // 1. Background (square or circle).
+        // 1. Background (square or circle). Circle mode blits the cached disc
+        //    texture — one draw call instead of ~300 row fills.
         if (square) {
             gfx.fill(cx - r, cy - r, cx + r, cy + r, 0xBB0D0D14);
+        } else if (circleTex) {
+            gfx.blit(circleBgId, cx - r, cy - r, cx + r, cy + r, 0f, 1f, 0f, 1f);
         } else {
             drawFilledCircle(gfx, cx, cy, r, 0xBB0D0D14);
         }
@@ -458,12 +586,16 @@ public class MinimapModule extends Module implements HudWidget {
             gfx.fill(cx, cy - 4, cx + 1, cy - 1, 0xCCFFFFFF);
         }
 
-        // 7. Border
+        // 7. Border. Circle mode blits the cached frame texture, whose
+        //    near-opaque corners also mask the square terrain spill that the
+        //    bounding-box scissor leaves outside the circle.
         int border1 = cave ? 0xFF553322 : 0xFF22222E;
         int border2 = cave ? 0xFF775544 : 0xFF333340;
         if (square) {
             drawSquareOutline(gfx, cx - r, cy - r, cx + r, cy + r, border1);
             drawSquareOutline(gfx, cx - r + 1, cy - r + 1, cx + r - 1, cy + r - 1, border2);
+        } else if (circleTex) {
+            gfx.blit(circleFrameId, cx - r, cy - r, cx + r, cy + r, 0f, 1f, 0f, 1f);
         } else {
             drawCircleOutline(gfx, cx, cy, r,     border1);
             drawCircleOutline(gfx, cx, cy, r - 1, border2);
@@ -506,26 +638,10 @@ public class MinimapModule extends Module implements HudWidget {
     private void drawTerrain(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {
         LocalPlayer p = mc.player;
         if (p == null || activeChunkSet.isEmpty()) return;
-        float scale = (float)(r / rangeBlocks.get());
-        float playerX = (float) p.getX();
-        float playerZ = (float) p.getZ();
-        // Yaw used to rotate the pose. (cosY, sinY) is the standard
-        // 2D rotation matrix; reconstruct the angle for pose.rotate.
-        // Note: north-lock passes cosY=1, sinY=0 so this resolves to 0 rad.
-        float yaw = (float) Math.atan2(sinY, cosY);
 
-        // Clip to the minimap's axis-aligned bounding box. The circular border
-        // overlays the corners so any rotated terrain that spills slightly
-        // outside the circle isn't visible to the user.
-        gfx.enableScissor(cx - r, cy - r, cx + r, cy + r);
-        gfx.pose().pushMatrix();
-        // Center the rotation around the minimap centre, scale to map zoom,
-        // then translate world-coords so the player is at the centre.
-        gfx.pose().translate((float) cx, (float) cy);
-        gfx.pose().rotate(yaw);
-        gfx.pose().scale(scale, scale);
-        gfx.pose().translate(-playerX, -playerZ);
-
+        // World-space pose: scissor clips to the minimap's bounding box; the
+        // circular border drawn afterwards hides the corner overflow.
+        openWorldSpace(gfx, p, cx, cy, r, cosY, sinY);
         for (ChunkPos cp : activeChunkSet) {
             net.minecraft.resources.Identifier id = terrainTextures.idFor(cp);
             if (id == null) continue;
@@ -535,71 +651,75 @@ public class MinimapModule extends Module implements HudWidget {
             // handles all rotation/scale; we just give it world coords.
             gfx.blit(id, baseX, baseZ, baseX + 16, baseZ + 16, 0f, 1f, 0f, 1f);
         }
+        closeWorldSpace(gfx);
+    }
 
+    /**
+     * Open the same world-space pose transform {@link #drawTerrain} uses —
+     * scissor to the map's bounding box, rotate/scale around the centre,
+     * translate so the player sits at the origin. Every fill issued inside
+     * is specified in WORLD coordinates. Callers MUST call
+     * {@link #closeWorldSpace} afterwards.
+     */
+    private void openWorldSpace(GuiGraphicsExtractor gfx, LocalPlayer p, int cx, int cy, int r, double cosY, double sinY) {
+        float scale = (float)(r / rangeBlocks.get());
+        float yaw = (float) Math.atan2(sinY, cosY);
+        gfx.enableScissor(cx - r, cy - r, cx + r, cy + r);
+        gfx.pose().pushMatrix();
+        gfx.pose().translate((float) cx, (float) cy);
+        gfx.pose().rotate(yaw);
+        gfx.pose().scale(scale, scale);
+        gfx.pose().translate((float) -p.getX(), (float) -p.getZ());
+    }
+
+    private void closeWorldSpace(GuiGraphicsExtractor gfx) {
         gfx.pose().popMatrix();
         gfx.disableScissor();
     }
 
+    /** Chunk boundary lines drawn as world-space fills under the map's pose
+     *  transform — ~70 fills for the whole grid instead of one fill per chunk
+     *  corner, and they render as actual lines rather than dots. */
     private void drawChunkGrid(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {
         LocalPlayer p = mc.player;
         if (p == null) return;
         double scale = r / rangeBlocks.get();
-        int innerLim = r - 2;
-        double playerX = p.getX();
-        double playerZ = p.getZ();
         int chunkRange = (int) Math.ceil(rangeBlocks.get() / 16.0) + 1;
-        int color = 0x66FFFFFF;
+        int color = 0x44FFFFFF;
         long pcx = p.getBlockX() >> 4;
         long pcz = p.getBlockZ() >> 4;
-        // Vertical and horizontal chunk boundary lines projected on the rotated map.
-        for (int cdx = -chunkRange; cdx <= chunkRange + 1; cdx++) {
-            for (int cdz = -chunkRange; cdz <= chunkRange + 1; cdz++) {
-                int wx = (int)((pcx + cdx) << 4);
-                int wz = (int)((pcz + cdz) << 4);
-                double dx = wx - playerX;
-                double dz = wz - playerZ;
-                double sx = dx * cosY + dz * sinY;
-                double sy = dx * sinY - dz * cosY;
-                int px = cx + (int)(sx * scale);
-                int py = cy + (int)(sy * scale);
-                if (!insideShape(px - cx, py - cy, innerLim, square)) continue;
-                gfx.fill(px, py, px + 1, py + 1, color);
-            }
+        // Line thickness in world blocks — keeps the line ≥1 px on screen
+        // when zoomed out (scale < 1 block/px).
+        int t = Math.max(1, (int) Math.ceil(1.0 / scale));
+        int x0 = (int)((pcx - chunkRange) << 4), x1 = (int)((pcx + chunkRange + 1) << 4);
+        int z0 = (int)((pcz - chunkRange) << 4), z1 = (int)((pcz + chunkRange + 1) << 4);
+
+        openWorldSpace(gfx, p, cx, cy, r, cosY, sinY);
+        for (long cxw = pcx - chunkRange; cxw <= pcx + chunkRange + 1; cxw++) {
+            int wx = (int)(cxw << 4);
+            gfx.fill(wx, z0, wx + t, z1, color);
         }
+        for (long czw = pcz - chunkRange; czw <= pcz + chunkRange + 1; czw++) {
+            int wz = (int)(czw << 4);
+            gfx.fill(x0, wz, x1, wz + t, color);
+        }
+        closeWorldSpace(gfx);
     }
 
+    /** Slime chunks from the tick-built {@link #slimeCache} — one translucent
+     *  fill per chunk under the world-space pose (was 256 per-pixel fills per
+     *  chunk per frame, plus a Random allocation per chunk per frame). */
     private void drawSlimeChunks(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {
         LocalPlayer p = mc.player;
-        if (p == null) return;
-        double scale = r / rangeBlocks.get();
-        int innerLim = r - 2;
-        double playerX = p.getX();
-        double playerZ = p.getZ();
-        int chunkRange = (int) Math.ceil(rangeBlocks.get() / 16.0) + 1;
-        long pcx = p.getBlockX() >> 4;
-        long pcz = p.getBlockZ() >> 4;
-        long worldSeed = 0; // we don't have access to the seed on most servers
+        if (p == null || slimeCache.isEmpty()) return;
         int color = 0x44229922;
-        for (int cdx = -chunkRange; cdx <= chunkRange; cdx++) {
-            for (int cdz = -chunkRange; cdz <= chunkRange; cdz++) {
-                int cxw = (int)(pcx + cdx);
-                int czw = (int)(pcz + cdz);
-                if (!isSlimeChunk(worldSeed, cxw, czw)) continue;
-                // Render as a translucent overlay over the chunk's 16×16 area.
-                for (int lx = 0; lx < 16; lx++) {
-                    for (int lz = 0; lz < 16; lz++) {
-                        double dx = (cxw << 4) + lx - playerX;
-                        double dz = (czw << 4) + lz - playerZ;
-                        double sx = dx * cosY + dz * sinY;
-                        double sy = dx * sinY - dz * cosY;
-                        int px = cx + (int)(sx * scale);
-                        int py = cy + (int)(sy * scale);
-                        if (!insideShape(px - cx, py - cy, innerLim, square)) continue;
-                        gfx.fill(px, py, px + 1, py + 1, color);
-                    }
-                }
-            }
+        openWorldSpace(gfx, p, cx, cy, r, cosY, sinY);
+        for (ChunkPos cp : slimeCache) {
+            int wx = cp.getMinBlockX();
+            int wz = cp.getMinBlockZ();
+            gfx.fill(wx, wz, wx + 16, wz + 16, color);
         }
+        closeWorldSpace(gfx);
     }
 
     /** Slime-chunk RNG. Vanilla uses java.util.Random seeded by world seed +
@@ -616,34 +736,56 @@ public class MinimapModule extends Module implements HudWidget {
         return rng.nextInt(10) == 0;
     }
 
-    private void drawLightOverlay(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {
+    /** Re-sample low-light surface spots into {@link #lightCache}. Runs on a
+     *  {@link #LIGHT_REFRESH_TICKS} cadence from onTick — the render pass
+     *  only projects cached world positions. Sampling step widens with range
+     *  so the worst case stays ~4k queries per refresh instead of ~16k per
+     *  FRAME, which is what the old in-render sampling cost at max range. */
+    private void rebuildLightCache(Minecraft mc) {
         LocalPlayer p = mc.player;
-        if (p == null || mc.level == null) return;
-        double scale = r / rangeBlocks.get();
-        int innerLim = r - 2;
-        double playerX = p.getX();
-        double playerZ = p.getZ();
-        int rangeBlocksInt = (int) Math.ceil(rangeBlocks.get());
-        int color = 0x66FF2222;
+        if (p == null || mc.level == null) { lightCache = new long[0]; return; }
+        int range = (int) Math.ceil(rangeBlocks.get());
+        int step = range > 96 ? 4 : 2;
         Heightmap.Types h = Heightmap.Types.MOTION_BLOCKING_NO_LEAVES;
-        int px0 = mc.player.getBlockX();
-        int pz0 = mc.player.getBlockZ();
-        // Limited sampling — every 2 blocks — to keep cost bounded.
-        for (int dx = -rangeBlocksInt; dx <= rangeBlocksInt; dx += 2) {
-            for (int dz = -rangeBlocksInt; dz <= rangeBlocksInt; dz += 2) {
+        int px0 = p.getBlockX();
+        int pz0 = p.getBlockZ();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        long[] out = new long[1024];
+        int n = 0;
+        for (int dx = -range; dx <= range; dx += step) {
+            for (int dz = -range; dz <= range; dz += step) {
                 int wx = px0 + dx;
                 int wz = pz0 + dz;
                 int wy = mc.level.getHeight(h, wx, wz);
                 int blockLight = mc.level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK,
-                        new BlockPos(wx, wy, wz));
+                        cursor.set(wx, wy, wz));
                 if (blockLight > 7) continue;
-                double sx = dx * cosY + dz * sinY;
-                double sy = dx * sinY - dz * cosY;
-                int spx = cx + (int)(sx * scale);
-                int spy = cy + (int)(sy * scale);
-                if (!insideShape(spx - cx, spy - cy, innerLim, square)) continue;
-                gfx.fill(spx, spy, spx + 2, spy + 2, color);
+                if (n == out.length) out = java.util.Arrays.copyOf(out, out.length * 2);
+                out[n++] = ((long)(wx & 0xFFFFFFFFL) << 32) | (wz & 0xFFFFFFFFL);
             }
+        }
+        lightCache = java.util.Arrays.copyOf(out, n);
+    }
+
+    private void drawLightOverlay(GuiGraphicsExtractor gfx, Minecraft mc, int cx, int cy, int r, boolean square, double cosY, double sinY) {
+        LocalPlayer p = mc.player;
+        if (p == null || lightCache.length == 0) return;
+        double scale = r / rangeBlocks.get();
+        int innerLim = r - 2;
+        double playerX = p.getX();
+        double playerZ = p.getZ();
+        int color = 0x66FF2222;
+        for (long packed : lightCache) {
+            int wx = (int)(packed >> 32);
+            int wz = (int) packed;
+            double dx = wx - playerX;
+            double dz = wz - playerZ;
+            double sx = dx * cosY + dz * sinY;
+            double sy = dx * sinY - dz * cosY;
+            int spx = cx + (int)(sx * scale);
+            int spy = cy + (int)(sy * scale);
+            if (!insideShape(spx - cx, spy - cy, innerLim, square)) continue;
+            gfx.fill(spx, spy, spx + 2, spy + 2, color);
         }
     }
 
@@ -897,6 +1039,70 @@ public class MinimapModule extends Module implements HudWidget {
     }
 
     // ---- circle / square primitives --------------------------------------
+
+    /** (Re)build the cached circle background + frame textures for radius r.
+     *  Returns false if texture creation failed (render falls back to fills). */
+    private boolean ensureCircleTextures(int r, boolean cave) {
+        if (circleBgId != null && circleCachedR == r && circleCachedCave == cave) return true;
+        releaseCircleTextures();
+        try {
+            int d = 2 * r;
+            int r2  = r * r;
+            int ri1 = (r - 1) * (r - 1);
+            int ri2 = (r - 2) * (r - 2);
+            int border1 = cave ? 0xFF553322 : 0xFF22222E;
+            int border2 = cave ? 0xFF775544 : 0xFF333340;
+            int bgArgb = 0xBB0D0D14;
+            int cornerArgb = 0xEE0D0D14; // near-opaque — masks square terrain spill
+
+            var bg    = new com.mojang.blaze3d.platform.NativeImage(d, d, true);
+            var frame = new com.mojang.blaze3d.platform.NativeImage(d, d, true);
+            for (int py = 0; py < d; py++) {
+                for (int px = 0; px < d; px++) {
+                    // Sample at the pixel centre relative to the circle centre.
+                    float fx = px - r + 0.5f;
+                    float fy = py - r + 0.5f;
+                    float d2 = fx * fx + fy * fy;
+                    int bgPix    = d2 <= r2 ? bgArgb : 0;
+                    int framePix;
+                    if (d2 > r2)       framePix = cornerArgb;
+                    else if (d2 > ri1) framePix = border1;
+                    else if (d2 > ri2) framePix = border2;
+                    else               framePix = 0;
+                    bg.setPixelABGR(px, py, dev.kitsune.client.worldmap.MapTextureCache.argbToAbgr(bgPix));
+                    frame.setPixelABGR(px, py, dev.kitsune.client.worldmap.MapTextureCache.argbToAbgr(framePix));
+                }
+            }
+            circleBgId = registerCircleTexture("circle_bg", bg);
+            circleFrameId = registerCircleTexture("circle_frame", frame);
+            circleCachedR = r;
+            circleCachedCave = cave;
+            return circleBgId != null && circleFrameId != null;
+        } catch (Throwable t) {
+            releaseCircleTextures();
+            return false;
+        }
+    }
+
+    private net.minecraft.resources.Identifier registerCircleTexture(String kind, com.mojang.blaze3d.platform.NativeImage img) {
+        var tex = new net.minecraft.client.renderer.texture.DynamicTexture(
+                () -> "kitsune_minimap/" + kind, img);
+        var id = Identifier.fromNamespaceAndPath("kitsune",
+                "minimap_" + kind + "_" + circleIdCounter++);
+        Minecraft.getInstance().getTextureManager().register(id, tex);
+        tex.upload();
+        return id;
+    }
+
+    private void releaseCircleTextures() {
+        try {
+            if (circleBgId != null) Minecraft.getInstance().getTextureManager().release(circleBgId);
+            if (circleFrameId != null) Minecraft.getInstance().getTextureManager().release(circleFrameId);
+        } catch (Throwable ignored) {}
+        circleBgId = null;
+        circleFrameId = null;
+        circleCachedR = -1;
+    }
 
     private static void drawFilledCircle(GuiGraphicsExtractor gfx, int cx, int cy, int r, int argb) {
         int r2 = r * r;

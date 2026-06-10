@@ -1,12 +1,11 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.ClickTracker;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
@@ -20,35 +19,28 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * <p>Layout: three rows. Top row is W. Middle row is A S D. Bottom row is
  * LMB and RMB with per-second click counters.
  */
-public class KeystrokesHudModule extends Module implements HudWidget {
+public class KeystrokesHudModule extends BaseHudModule {
 
     private final BooleanSetting showMouse   = addSetting(new BooleanSetting("Show Mouse",   true));
     private final BooleanSetting showCps     = addSetting(new BooleanSetting("Show CPS",     true));
     private final BooleanSetting showSpace   = addSetting(new BooleanSetting("Show Space",   false));
     private final SliderSetting  keySize     = addSetting(new SliderSetting("Key Size", 18, 12, 28, 1));
-    private final SliderSetting  bgOpacity   = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
+    private final SliderSetting  panelOpacity = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
     private final ColorSetting   idleColor   = addSetting(new ColorSetting("Idle Color",   0x66222222));
-    private final ColorSetting   pressColor  = addSetting(new ColorSetting("Press Color",  0xFF44CCCC));
-    private final ColorSetting   textColor   = addSetting(new ColorSetting("Text Color",   0xFFFFFFFF));
+    private final ColorSetting   pressColor  = addSetting(new ColorSetting("Press Color",  Palette.ACCENT_CYAN));
+    private final ColorSetting   keyText     = addSetting(new ColorSetting("Text Color",   Palette.TEXT_WHITE));
     private final ColorSetting   pressedText = addSetting(new ColorSetting("Pressed Text", 0xFF000000));
     private final BooleanSetting cpsTint     = addSetting(new BooleanSetting("CPS Tint", false));
 
-    // Click tracking for CPS display (populated from edge detection in onTick)
-    private static final int WINDOW_MS = 1000;
-    private final long[] lmbClicks = new long[32];
-    private final long[] rmbClicks = new long[32];
-    private int lmbHead = 0, rmbHead = 0;
+    // Click tracking for the CPS readouts (edge detection in onTick).
+    private final ClickTracker lmb = new ClickTracker();
+    private final ClickTracker rmb = new ClickTracker();
     private int lmbCount = 0, rmbCount = 0;
-    private boolean prevAttack = false;
-    private boolean prevUse    = false;
 
     public KeystrokesHudModule() {
-        super("Keystrokes", "Shows WASD and mouse button presses", Category.HUD);
-        HudManager.register(this);
+        super("Keystrokes", "Shows WASD and mouse button presses", Category.HUD,
+                "keystrokes", "Keystrokes");
     }
-
-    @Override public String widgetId()    { return "keystrokes"; }
-    @Override public String displayName() { return "Keystrokes"; }
 
     private int size()   { return keySize.get().intValue(); }
     private int gap()    { return 2; }
@@ -66,35 +58,16 @@ public class KeystrokesHudModule extends Module implements HudWidget {
         return rows * size() + gap() * (rows - 1);
     }
 
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
-
     @Override
     public void onTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.options == null) return;
 
         long now = System.currentTimeMillis();
-        boolean attack = mc.options.keyAttack.isDown();
-        boolean use    = mc.options.keyUse.isDown();
-
-        if (attack && !prevAttack) addClick(lmbClicks, lmbHead++, now);
-        if (use    && !prevUse)    addClick(rmbClicks, rmbHead++, now);
-        prevAttack = attack;
-        prevUse = use;
-
-        lmbCount = countWithin(lmbClicks, now, WINDOW_MS);
-        rmbCount = countWithin(rmbClicks, now, WINDOW_MS);
-    }
-
-    private void addClick(long[] buf, int head, long ts) {
-        buf[Math.floorMod(head, buf.length)] = ts;
-    }
-
-    private int countWithin(long[] buf, long now, int windowMs) {
-        int c = 0;
-        long cutoff = now - windowMs;
-        for (long t : buf) if (t >= cutoff) c++;
-        return c;
+        lmb.tick(mc.options.keyAttack.isDown(), now);
+        rmb.tick(mc.options.keyUse.isDown(), now);
+        lmbCount = lmb.cps(now);
+        rmbCount = rmb.cps(now);
     }
 
     @Override
@@ -109,7 +82,7 @@ public class KeystrokesHudModule extends Module implements HudWidget {
         int w = widgetWidth();
         int h = widgetHeight();
 
-        int bgAlpha = (int)(bgOpacity.get() * 255) << 24;
+        int bgAlpha = (int)(panelOpacity.get() * 255) << 24;
         gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bgAlpha | 0x000000);
 
         // Row 1: centered W
@@ -155,7 +128,7 @@ public class KeystrokesHudModule extends Module implements HudWidget {
 
     private void drawKey(GuiGraphicsExtractor gfx, Font font, int x, int y, int size, String label, boolean pressed) {
         int bg = pressed ? pressColor.get() : idleColor.get();
-        int fg = pressed ? pressedText.get() : textColor.get();
+        int fg = pressed ? pressedText.get() : keyText.get();
         gfx.fill(x, y, x + size, y + size, bg);
         int tw = font.width(label);
         int tx = x + (size - tw) / 2;
@@ -170,7 +143,7 @@ public class KeystrokesHudModule extends Module implements HudWidget {
     /** Like drawWideKey but the press-state colour is supplied (used by CPS tint). */
     private void drawWideKeyColored(GuiGraphicsExtractor gfx, Font font, int x, int y, int w, int h, String label, boolean pressed, int pressBg) {
         int bg = pressed ? pressBg : idleColor.get();
-        int fg = pressed ? pressedText.get() : textColor.get();
+        int fg = pressed ? pressedText.get() : keyText.get();
         gfx.fill(x, y, x + w, y + h, bg);
         int tw = font.width(label);
         int tx = x + (w - tw) / 2;

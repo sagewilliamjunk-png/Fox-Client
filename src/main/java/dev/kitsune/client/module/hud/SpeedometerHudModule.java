@@ -1,18 +1,13 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
-import dev.kitsune.client.setting.ColorSetting;
 import dev.kitsune.client.setting.ModeSetting;
-import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
@@ -24,7 +19,7 @@ import java.util.List;
  * window to avoid jitter. Optionally shows horizontal-only speed (ignoring
  * vertical motion) and a peak-speed indicator.
  */
-public class SpeedometerHudModule extends Module implements HudWidget {
+public class SpeedometerHudModule extends BaseHudModule {
 
     private static final int SAMPLES = 10; // ~0.5 s window at 20 tps
 
@@ -34,9 +29,6 @@ public class SpeedometerHudModule extends Module implements HudWidget {
             List.of("bps", "m/s", "km/h")));
     private final BooleanSetting showPeak   = addSetting(new BooleanSetting("Show Peak", true));
     private final BooleanSetting showLabel  = addSetting(new BooleanSetting("Show Label", true));
-    private final SliderSetting  bgOpacity  = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
-    private final ColorSetting   accent     = addSetting(new ColorSetting("Accent",     0xFF44CCCC));
-    private final ColorSetting   textColor  = addSetting(new ColorSetting("Text Color", 0xFFFFFFFF));
 
     private final double[] samples = new double[SAMPLES];
     private int sampleIdx = 0;
@@ -46,16 +38,14 @@ public class SpeedometerHudModule extends Module implements HudWidget {
     private double peak = 0;
 
     public SpeedometerHudModule() {
-        super("Speedometer", "Shows player speed in blocks per second", Category.HUD);
-        HudManager.register(this);
+        super("Speedometer", "Shows player speed in blocks per second", Category.HUD,
+                "speedometer", "Speedometer");
+        useStandardPanel(0.50, Palette.ACCENT_CYAN);
+        useTextColor();
     }
-
-    @Override public String widgetId()    { return "speedometer"; }
-    @Override public String displayName() { return "Speedometer"; }
 
     @Override public int widgetWidth()  { return showPeak.get() ? 80 : 58; }
     @Override public int widgetHeight() { return showPeak.get() ? 24 : 14; }
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
     protected void onDisable() {
@@ -106,23 +96,17 @@ public class SpeedometerHudModule extends Module implements HudWidget {
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        int w = widgetWidth();
-        int h = widgetHeight();
-        int bg = (int)(bgOpacity.get() * 255) << 24;
-
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg | 0x000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
+        drawPanel(gfx, x, y, widgetWidth(), widgetHeight());
 
         double bps = avgBps();
         String main = formatSpeed(bps);
-        int color = textColor.get();
 
         if (showLabel.get()) main = "Spd " + main;
-        gfx.text(font, main, x + 2, y + 3, color);
+        gfx.text(font, main, x + 2, y + 3, textArgb());
 
         if (showPeak.get()) {
             String peakStr = "Peak " + formatSpeed(peak);
-            gfx.text(font, peakStr, x + 2, y + 13, 0xFFAAAAAA);
+            gfx.text(font, peakStr, x + 2, y + 13, Palette.TEXT_MUTED);
         }
     }
 

@@ -1,13 +1,17 @@
 {
-  "_doc": "Fox Client cosmetics manifest. To add a cape: drop a 256x128 PNG (2:1 landscape) into assets/kitsune/textures/cape/<id>.png and register under 'capes'. To grant ownership: list cape ids under 'owners' keyed by the player's Minecraft UUID (with or without dashes).",
+  "_doc": "Fox Client cosmetics manifest. To add a cape: drop a 2:1 landscape PNG (64x32 or any HD multiple like 256x128) into assets/kitsune/textures/cape/<id>.png and register under 'capes'. To grant ownership: list cape ids under 'owners' keyed by the player's Minecraft UUID (with or without dashes). The '*' key grants to every player.",
 
   "capes": {
-    "fox":    { "displayName": "Fox Cape" },
-    "devfox": { "displayName": "Dev Fox Cape" }
+    "fox":      { "displayName": "Fox Cape" },
+    "devfox":   { "displayName": "Dev Fox Cape" },
+    "ember":    { "displayName": "Ember" },
+    "midnight": { "displayName": "Midnight" },
+    "snowfox":  { "displayName": "Snowfox" },
+    "forest":   { "displayName": "Forest" }
   },
 
   "owners": {
-    "*":                                     ["fox"],
+    "*":                                     ["fox", "ember", "midnight", "snowfox", "forest"],
     "0d4a5c92-aafd-4e58-90bb-7ece86205bd6": ["devfox"]
   }
 }

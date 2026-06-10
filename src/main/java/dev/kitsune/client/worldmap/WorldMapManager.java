@@ -33,10 +33,34 @@ public final class WorldMapManager {
      *  vanilla's default chunk-load radius so we never lag the cache behind. */
     private static final int DISCOVERY_RADIUS = 6;
     private static final long SAVE_INTERVAL_MS = 30_000;
+    /** Max new tiles computed per tick. Entering a fresh area discovers
+     *  ~169 chunks; without a budget they were all computed in ONE tick
+     *  (169 × 256 heightmap walks) — now it streams in over ~0.5 s. */
+    private static final int DISCOVERY_TILES_PER_TICK = 16;
+    /** Re-sweep the player's immediate 3×3 chunks at this cadence so world
+     *  EDITS show up on the persistent map. WorldMapData.put() no-ops on
+     *  identical tiles, so an idle player costs 9 cheap recomputes / 2 s. */
+    private static final int NEARBY_REFRESH_TICKS = 40;
+
+    /** (dx,dz) offsets within DISCOVERY_RADIUS, sorted nearest-first, so the
+     *  budgeted discovery fills the chunks around the player before the rim. */
+    private static final int[][] RING_OFFSETS = buildRingOffsets(DISCOVERY_RADIUS);
 
     private static final Map<String, WorldMapData> SUBWORLDS = new HashMap<>();
     private static volatile WorldMapData active = null;
     private static long lastSaveMs = 0;
+    private static int refreshCounter = 0;
+
+    private static int[][] buildRingOffsets(int radius) {
+        java.util.List<int[]> out = new java.util.ArrayList<>();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                out.add(new int[]{dx, dz});
+            }
+        }
+        out.sort(java.util.Comparator.comparingInt(o -> o[0] * o[0] + o[1] * o[1]));
+        return out.toArray(new int[0][]);
+    }
 
     private WorldMapManager() {}
 
@@ -75,20 +99,38 @@ public final class WorldMapManager {
         // fail anyway. Once stored, they're persisted forever.
         // The minimap's biome-tint setting drives the world map too so the
         // two views stay visually consistent.
-        boolean biomeTinted = false;
+        ChunkColorTile.ColorMode colorMode = ChunkColorTile.ColorMode.ALTITUDE;
         try {
             var mm = dev.kitsune.client.module.hud.MinimapModule.instance();
-            biomeTinted = mm != null && mm.biomeTinted();
+            if (mm != null) colorMode = mm.currentColorMode();
         } catch (Throwable ignored) {}
         LocalPlayer p = mc.player;
         int pcx = p.getBlockX() >> 4;
         int pcz = p.getBlockZ() >> 4;
-        for (int dx = -DISCOVERY_RADIUS; dx <= DISCOVERY_RADIUS; dx++) {
-            for (int dz = -DISCOVERY_RADIUS; dz <= DISCOVERY_RADIUS; dz++) {
-                ChunkPos cp = new ChunkPos(pcx + dx, pcz + dz);
-                if (active.contains(cp)) continue;
-                int[] tile = ChunkColorTile.surface(mc.level, cp, biomeTinted);
-                if (tile != null) active.put(cp, tile);
+        // Budgeted, nearest-first discovery of unexplored chunks.
+        int budget = DISCOVERY_TILES_PER_TICK;
+        for (int[] off : RING_OFFSETS) {
+            if (budget == 0) break;
+            ChunkPos cp = new ChunkPos(pcx + off[0], pcz + off[1]);
+            if (active.contains(cp)) continue;
+            int[] tile = ChunkColorTile.surface(mc.level, cp, colorMode);
+            if (tile != null) {
+                active.put(cp, tile);
+                budget--;
+            }
+        }
+        // Staleness sweep: periodically recompute the player's 3×3 so mining
+        // and building show up on the persistent map. put() skips identical
+        // tiles, so this neither dirties the save nor re-uploads textures
+        // when the terrain hasn't changed.
+        if (++refreshCounter >= NEARBY_REFRESH_TICKS) {
+            refreshCounter = 0;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    ChunkPos cp = new ChunkPos(pcx + dx, pcz + dz);
+                    int[] tile = ChunkColorTile.surface(mc.level, cp, colorMode);
+                    if (tile != null) active.put(cp, tile);
+                }
             }
         }
 

@@ -28,13 +28,15 @@ import java.util.Iterator;
  *       position. The user can move the mouse anywhere; the grid stays put.</li>
  * </ul>
  *
- * <p>Drawn at the end of {@code Screen.render} so it sits above the inventory
- * but under transient tooltips that may follow the cursor.
+ * <p>Drawn at the end of {@code Screen.extractRenderState} (MC 26.x's rename
+ * of {@code Screen.render}) so it sits above the inventory but under the
+ * deferred tooltips that follow the cursor — those are emitted afterwards by
+ * {@code extractRenderStateWithTooltipAndSubtitles}.
  */
 @Mixin(Screen.class)
 public class ScreenStickyShulkerMixin {
 
-    @Inject(method = "render", at = @At("RETURN"))
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
     private void kitsune$stickyShulker(GuiGraphicsExtractor gfx, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         try {
             if (!ShulkerPinManager.isAltShiftHeld()) {

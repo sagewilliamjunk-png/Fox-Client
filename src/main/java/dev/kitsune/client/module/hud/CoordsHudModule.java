@@ -1,9 +1,6 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
 import dev.kitsune.client.setting.ModeSetting;
 import dev.kitsune.client.setting.SliderSetting;
@@ -20,7 +17,7 @@ import java.util.List;
  * Draggable coordinate / facing-direction HUD widget.
  * Shows XYZ, block position, chunk, nether conversion, direction, and biome.
  */
-public class CoordsHudModule extends Module implements HudWidget {
+public class CoordsHudModule extends BaseHudModule {
 
     /** Time (epoch ms) the user last hit the copy keybind; used for the
      *  "Copied!" overlay. Zero = never. */
@@ -33,19 +30,22 @@ public class CoordsHudModule extends Module implements HudWidget {
     private final BooleanSetting showBiome       = addSetting(new BooleanSetting("Show Biome", false));
     private final BooleanSetting facingArrow     = addSetting(new BooleanSetting("Facing Arrow", true));
     private final BooleanSetting compactMode     = addSetting(new BooleanSetting("Compact Mode", false));
-    private final SliderSetting  bgOpacity       = addSetting(new SliderSetting("BG Opacity", 0.55, 0.0, 1.0, 0.05));
+    private final SliderSetting  bgOpacitySetting = addSetting(new SliderSetting("BG Opacity", 0.55, 0.0, 1.0, 0.05));
     private final ModeSetting    precision       = addSetting(new ModeSetting("Precision", "1 decimal",
             List.of("Integer", "1 decimal", "3 decimal")));
     private final ModeSetting    accentColor     = addSetting(new ModeSetting("Accent", "Teal",
             List.of("Teal", "Orange", "Pink", "Green", "White")));
 
     public CoordsHudModule() {
-        super("Coords HUD", "Shows coordinates, direction, and biome", Category.HUD);
-        HudManager.register(this);
+        super("Coords HUD", "Shows coordinates, direction, and biome", Category.HUD,
+                "coords", "Coords");
     }
 
-    @Override public String widgetId()    { return "coords"; }
-    @Override public String displayName() { return "Coords"; }
+    /** Bespoke appearance: this module predates the standard panel trio and
+     *  keeps its own BG Opacity slider + ModeSetting accent so saved configs
+     *  survive the BaseHudModule migration. */
+    @Override protected int bgArgb()     { return (int)(bgOpacitySetting.get() * 255) << 24; }
+    @Override protected int accentArgb() { return accentModeArgb(); }
 
     @Override
     public int widgetWidth() {
@@ -65,8 +65,6 @@ public class CoordsHudModule extends Module implements HudWidget {
         if (showBiome.get())     rows++;
         return rows * 10 + 8;
     }
-
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     /** Copies the current player coords to the system clipboard and shows a
      *  brief on-widget overlay. Called by KitsuneClient when the copy
@@ -95,12 +93,8 @@ public class CoordsHudModule extends Module implements HudWidget {
 
         int w = widgetWidth();
         int h = widgetHeight();
-        int bgAlpha = (int)(bgOpacity.get() * 255) << 24;
         int accent = accentArgb();
-
-        // Background + accent bar
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bgAlpha | 0x000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent);
+        drawPanel(gfx, x, y, w, h);
 
         double px = player.getX();
         double py = player.getY();
@@ -212,7 +206,7 @@ public class CoordsHudModule extends Module implements HudWidget {
         };
     }
 
-    private int accentArgb() {
+    private int accentModeArgb() {
         return switch (accentColor.get()) {
             case "Orange" -> 0xFFE87722;
             case "Pink"   -> 0xFFFF88CC;

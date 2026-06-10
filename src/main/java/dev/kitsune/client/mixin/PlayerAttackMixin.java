@@ -61,6 +61,13 @@ public abstract class PlayerAttackMixin {
     private void kitsune$emitDamage(Entity target, CallbackInfo ci) {
         if (!kitsune$preCaptured) return;
         kitsune$preCaptured = false;
+
+        // Combat Timer wants to know about every local attack on a living
+        // target, independent of the damage-indicator module's state.
+        dev.kitsune.client.module.combat.CombatTimerModule timer =
+                ModuleManager.getModule(dev.kitsune.client.module.combat.CombatTimerModule.class);
+        if (timer != null) timer.onLocalAttack();
+
         CrosshairDamageIndicatorModule mod =
                 ModuleManager.getModule(CrosshairDamageIndicatorModule.class);
         if (mod == null || !mod.isEnabled()) return;

@@ -3,6 +3,140 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] — 2026-06-10
+
+A full improvement pass over both halves of the repo: new fair-play modules,
+two launcher tools, a large HUD-code refactor, and a 107 → 173 test-count jump.
+
+### Removed — KeepSprint (release blocker)
+
+- **KeepSprintModule is gone.** It shipped in 1.4.1 by mistake: SAFETY.md has
+  always listed KeepSprint in the "never present in the codebase" list, and
+  sprint-reset bypass is exactly what GrimAC-class anti-cheats flag. The class
+  was deleted (not disabled). Profiles that saved a KeepSprint entry load
+  fine — unknown modules are skipped by design.
+- SAFETY.md got a follow-up audit: the gray-zone list now names the four
+  addon-gated modules (Free Look, Reach Display, Hitboxes, Anti-AFK), Minimap
+  is correctly listed as shipped, and a new "Automation modules — where we
+  draw the line" section explains why Auto Eat and Anti-AFK stay (and how
+  they're gated) while AutoSoup/AutoClicker stay banned.
+
+### Added — Client (mod)
+
+- **Compass HUD** *(HUD)* — Lunar-style sliding cardinal strip centred on
+  your yaw (or a compact "NE (135°)" text mode), with edge fade and an
+  accent centre tick.
+- **Combat Timer** *(Combat)* — counts down after you take or land a hit so
+  you know when the combat-log window is over. Hurt detection via
+  `hurtTime` edge; hits-dealt via the existing `PlayerAttackMixin` hook.
+- **Durability Alert** *(Combat)* — one-shot warning toast (and optional
+  ding) when armor or a held tool crosses a threshold %. Re-arms on item
+  swap or repair.
+- **Screenshot Clipboard** *(Misc)* — new screenshots are copied straight to
+  the OS clipboard for pasting into Discord. Deliberately mixin-free: it
+  watches the screenshots folder and copies once the async write settles.
+- **Inventory Preview** *(HUD)* — your 9×3 main inventory as a HUD grid.
+- **AFK Timer** *(HUD)* — appears after N idle minutes and counts how long
+  you've been away. Display only (the gray-zone Anti-AFK module is separate
+  and unchanged).
+- **Four new built-in capes** — Ember, Midnight, Snowfox, Forest — granted to
+  everyone via the cosmetics manifest.
+
+### Added — Fox Launcher
+
+- **Log uploader** — Logs → Upload posts the buffer to mclo.gs and copies the
+  share link. Confirms first (the link is public), scrubs your home-directory
+  paths, and truncates to mclo.gs limits keeping the newest lines.
+- **Java args presets** — Settings → Java: Default / Performance (G1 client
+  tuning) / Low memory / Custom. Preset flags are applied before per-profile
+  JVM args, so profiles still win on conflict.
+- **World Backups** — new Resources sub-tab. One-click zip of any world to
+  ~/.foxlauncher/backups (outside the game dir, so reinstalls can't eat
+  them), with restore (incl. "keep both" restore-as-copy) and delete.
+- **Modpack import audit trail** — SHA-512 mismatches, unverifiable files,
+  and download failures during an .mrpack import are now written to
+  `~/.foxlauncher/logs/import-audit-*.log` and surfaced in the result.
+
+### Changed — internals
+
+- **New `BaseHudModule` base class** absorbs the registration, visibility,
+  widget-identity, and panel/accent-bar rendering that 14 HUD modules each
+  duplicated (~500 lines of copy-paste gone). Saved layouts and configs are
+  untouched: widget ids, setting names, and defaults are all preserved;
+  modules with bespoke appearance settings (Coords, Server Info, Session
+  Stats, K/D, Keystrokes) keep them and override the color hooks instead.
+- **New `ClickTracker` utility** replaces the duplicated rolling-window CPS
+  code in the CPS and Keystrokes modules.
+- **New `Palette` constants** replace scattered raw ARGB hex in the migrated
+  modules.
+- `GameRendererMixin` renamed to `CameraZoomMixin` — it always targeted
+  `Camera`, not `GameRenderer`; the old name was a leftover from before the
+  26.x FOV pipeline change. (A merge with `GameRendererNoHurtCamMixin` was
+  considered and rejected: they target different classes.)
+- Launcher: shared `renderer/util.js` (`escapeHtml` / `formatRelative` /
+  `formatBytes`) replaces five per-screen copies; new `main/gameDirs.js`
+  consolidates ~20 inline game-dir resolution duplicates in ipc.js.
+
+### Fixed — the client crashed on boot since 1.4.1
+
+Two of 1.4.1's mixins were written against pre-26.x method signatures and were
+never runtime-tested — every launch since has died during mixin apply:
+
+- **`ScreenStickyShulkerMixin`** targeted `Screen.render`, which MC 26.x
+  renamed to `extractRenderState`. Retargeted; the Alt+Shift pinned shulker
+  grid now actually loads.
+- **`GameRendererNoHurtCamMixin`** declared the old
+  `bobHurt(PoseStack, float)` shape; 26.x passes
+  `(CameraRenderState, PoseStack)`. Its `require = 0` only forgives a missing
+  target, not a descriptor mismatch, so this was a hard crash. Fixed; No Hurt
+  Cam works.
+
+Caught by the new release smoke test (boot the real client to the title
+screen and read the log) — v1.5.0 boots clean: 68 modules registered, all 6
+capes loaded, no mixin errors.
+
+### Performance — Minimap & World Map
+
+- **Budgeted terrain pipeline.** Terrain tiles are now computed from a
+  nearest-chunk-first work queue drained 32 (surface) / 8 (cave) tiles per
+  tick. Previously a cave-mode refresh at max range recomputed up to ~1 200
+  chunk tiles synchronously in a single tick — a guaranteed stutter every
+  2 seconds underground.
+- **Terrain edits finally show up.** Surface tiles used to be computed once
+  and never refreshed (mined blocks stayed on the map until you walked 17
+  chunks away). The periodic sweep now recomputes tiles continuously; the
+  GPU upload is skipped when pixels are identical (`MapTextureCache.upsert`
+  no-change early-out), so the steady-state cost is heightmap reads only.
+- **Cave scan depth capped** at 48 blocks below the player (was: down to
+  world bottom, ~380 levels per column in a 1.18+ world).
+- **Light overlay moved out of the render loop.** It used to issue ~16k
+  light queries per FRAME at max range; it now samples on a 10-tick cadence
+  in onTick and the render pass just projects cached points.
+- **Slime chunks & chunk grid** render as pose-transformed world-space fills
+  (1 per chunk / ~70 lines total) instead of 256 per-pixel fills per chunk
+  per frame — and the grid now draws actual lines, not corner dots.
+- **Circle frame baked to textures.** Circle mode drew the background disc +
+  border rings as ~900 row fills per frame; they're now two cached textures
+  (rebuilt only on size/cave change) blitted once each. The frame's corners
+  also mask the square terrain spill that used to leak outside the circle.
+- **World map discovery budgeted** (16 tiles/tick instead of up to 169 in
+  one tick when entering a new area) and the player's 3×3 chunks are
+  re-swept every 2 s so edits appear on the persistent map too — without
+  dirtying the save file when nothing changed. New tiles also follow the
+  minimap's full color mode (Vanilla Map / Biome Tinted / Altitude) instead
+  of a boolean tint.
+
+### Tests & hardening
+
+- Launcher suite grew from 107 to 173 tests: resource/shader-pack delete
+  traversal guards, renderer utils, gameDirs resolution branches, log-upload
+  scrub/truncate, world-backup roundtrip (incl. ZIP-slip guard), import
+  audit-trail formatting, Java-preset validation, and unknown-key stripping
+  through `settings:patch` / `profiles:patch`.
+- Mod side: new JUnit tests for `ClickTracker` and `ServerRule` host globs.
+- Recommended mods recheck: EMI, MemoryLeakFix, and World Host still have no
+  MC 26.x builds on Modrinth — they remain disabled.
+
 ## [1.4.1] — 2026-06-03
 
 Finishes the requests deferred in 1.3.9.

@@ -22,7 +22,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GameRendererNoHurtCamMixin {
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true, require = 0)
-    private void kitsune$noHurtCam(PoseStack pose, float partialTick, CallbackInfo ci) {
+    private void kitsune$noHurtCam(net.minecraft.client.renderer.state.level.CameraRenderState camera,
+                                   PoseStack pose, CallbackInfo ci) {
         try {
             if (NoHurtCamModule.multiplier() <= 0.001f) ci.cancel();
         } catch (Throwable ignored) { /* fail safe */ }

@@ -134,3 +134,40 @@ describe('settings.validate', () => {
     expect(patched.resolution.height).toBe(1080);  // preserved
   });
 });
+
+// ---------------------------------------------------------------------------
+// v1.5.0 — Java args preset validation + unknown-key stripping
+// ---------------------------------------------------------------------------
+describe('javaArgsPreset validation', () => {
+  it('accepts every documented preset', () => {
+    const s = freshSettings(null);
+    for (const preset of s.JAVA_ARGS_PRESETS) {
+      expect(s.save({ javaArgsPreset: preset }).javaArgsPreset).toBe(preset);
+    }
+  });
+
+  it('rejects unknown presets back to default', () => {
+    const s = freshSettings(null);
+    expect(s.save({ javaArgsPreset: 'not-a-preset' }).javaArgsPreset).toBe('default');
+  });
+
+  it('length-caps customJavaArgs at 1000 chars and coerces non-strings', () => {
+    const s = freshSettings(null);
+    expect(s.save({ customJavaArgs: 'x'.repeat(2000) }).customJavaArgs).toHaveLength(1000);
+    expect(s.save({ customJavaArgs: 42 }).customJavaArgs).toBe('');
+  });
+});
+
+describe('unknown-key stripping (patch hardening)', () => {
+  it('validate() output contains only whitelisted keys', () => {
+    const s = freshSettings({ evilKey: true, theme: 'fox' });
+    const loaded = s.load();
+    expect(loaded).not.toHaveProperty('evilKey');
+  });
+
+  it('patch() with garbage keys does not persist them', () => {
+    const s = freshSettings(null);
+    const next = s.patch({ injectedSetting: 'boom' });
+    expect(next).not.toHaveProperty('injectedSetting');
+  });
+});

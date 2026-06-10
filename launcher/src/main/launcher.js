@@ -133,6 +133,40 @@ function mergeResolution(global, profile) {
 }
 
 /**
+ * Expand the Settings → Java args preset into concrete JVM flags.
+ * 'default' returns [] — modern JVM ergonomics are already good; the presets
+ * exist for users who want the classic G1 client tuning without researching
+ * flags themselves.
+ */
+function jvmPresetArgs(s) {
+  switch (s.javaArgsPreset) {
+    case 'performance':
+      // Client-tuned G1: bigger young gen + tight pause target. The classic
+      // community set (Aikar-derived), minus server-only flags.
+      return [
+        '-XX:+UseG1GC',
+        '-XX:G1NewSizePercent=20',
+        '-XX:G1ReservePercent=20',
+        '-XX:MaxGCPauseMillis=50',
+        '-XX:G1HeapRegionSize=32M',
+      ];
+    case 'lowmem':
+      // Trades pause time for footprint on 4 GB machines.
+      return [
+        '-XX:+UseG1GC',
+        '-XX:MaxGCPauseMillis=100',
+        '-XX:G1NewSizePercent=10',
+        '-XX:G1ReservePercent=10',
+        '-XX:+UseStringDeduplication',
+      ];
+    case 'custom':
+      return String(s.customJavaArgs || '').split(/\s+/).filter(Boolean);
+    default:
+      return [];
+  }
+}
+
+/**
  * Remove mods whose filenames embed a Minecraft version that doesn't match
  * `targetVersion`. Only removes jars that have an obvious version tag
  * (e.g. `+1.21.11`, `mc1.21.11`, `-1.21.11`) — jars without a version tag
@@ -436,13 +470,19 @@ async function launch(onExit) {
   // Resolution — profile override uses null fields to fall back to global.
   const resolution = mergeResolution(s.resolution, activeProfile && activeProfile.resolution);
 
-  // Extra JVM args from the profile (whitespace-split, simple word splitting).
-  const extraJvmArgs = (activeProfile && activeProfile.jvmArgs)
+  // Preset JVM flags from Settings → Java, then any per-profile args. The
+  // profile's args come last so they win when the JVM resolves duplicates.
+  const presetArgs = jvmPresetArgs(s);
+  if (presetArgs.length) {
+    logs.push('info', `Java preset "${s.javaArgsPreset}": ${presetArgs.join(' ')}`);
+  }
+  const profileArgs = (activeProfile && activeProfile.jvmArgs)
     ? activeProfile.jvmArgs.split(/\s+/).filter(Boolean)
     : [];
-  if (extraJvmArgs.length) {
-    logs.push('info', `Profile JVM args: ${extraJvmArgs.join(' ')}`);
+  if (profileArgs.length) {
+    logs.push('info', `Profile JVM args: ${profileArgs.join(' ')}`);
   }
+  const extraJvmArgs = [...presetArgs, ...profileArgs];
 
   // Server auto-join.
   const serverHost = (activeProfile && activeProfile.serverHost) || '';

@@ -57,7 +57,19 @@ const DEFAULTS = {
    *  during long Minecraft sessions for Modrinth browsing / Discord status.
    *  False keeps the conventional "X = quit" behavior. */
   minimizeToTray: false,
+  /** JVM flags preset applied to every launch (before per-profile jvmArgs,
+   *  so profiles can still override). One of JAVA_ARGS_PRESETS. */
+  javaArgsPreset: 'default',
+  /** Free-form flags used when javaArgsPreset === 'custom'. Whitespace-split
+   *  at launch; length-capped in validate(). */
+  customJavaArgs: '',
 };
+
+/** Allowed javaArgsPreset values → the flags they expand to at launch.
+ *  'default' adds nothing (the JVM's own ergonomics); 'custom' uses
+ *  customJavaArgs. Flag expansion lives in launcher.js. */
+const JAVA_ARGS_PRESETS = ['default', 'performance', 'lowmem', 'custom'];
+const CUSTOM_JAVA_ARGS_MAX_LEN = 1000;
 
 // Hard floors/ceilings. RAM bounds in GB; window bounds in pixels. Anything
 // outside these ranges is silently clamped — the user can re-set it from the
@@ -130,6 +142,9 @@ function validate(raw) {
     firstRunComplete:             asBool(merged.firstRunComplete,             DEFAULTS.firstRunComplete),
     minimizeToTray:               asBool(merged.minimizeToTray,               DEFAULTS.minimizeToTray),
     launchOnStartup:   asBool(merged.launchOnStartup, DEFAULTS.launchOnStartup),
+    javaArgsPreset:    JAVA_ARGS_PRESETS.includes(merged.javaArgsPreset)
+        ? merged.javaArgsPreset : DEFAULTS.javaArgsPreset,
+    customJavaArgs:    asString(merged.customJavaArgs, '').slice(0, CUSTOM_JAVA_ARGS_MAX_LEN),
   };
 }
 
@@ -165,4 +180,4 @@ function patch(partial) {
   return save(merged);
 }
 
-module.exports = { load, save, patch, DEFAULTS, BOUNDS };
+module.exports = { load, save, patch, DEFAULTS, BOUNDS, JAVA_ARGS_PRESETS };

@@ -25,6 +25,10 @@ const paths = {
    *  javaDownloader.js extracts Adoptium JREs here so users don't need
    *  a system Java installation. */
   java: path.join(ROOT, 'java'),
+  /** World backup zips — ~/.foxlauncher/backups/<profile-or-global>/.
+   *  Outside the game dirs on purpose so wiping an instance can't take its
+   *  backups with it. */
+  backups: path.join(ROOT, 'backups'),
 
   /** Resolve the per-profile instance directory. The directory is NOT
    *  created here — call ensureInstance() to materialize it. */
@@ -68,7 +72,7 @@ const paths = {
 
   /** Create all launcher subdirectories if they don't exist. Idempotent. */
   ensureAll() {
-    for (const p of [ROOT, paths.versions, paths.logs, paths.cache, paths.instances, paths.java]) {
+    for (const p of [ROOT, paths.versions, paths.logs, paths.cache, paths.instances, paths.java, paths.backups]) {
       try { fs.mkdirSync(p, { recursive: true }); } catch (_) {}
     }
   },

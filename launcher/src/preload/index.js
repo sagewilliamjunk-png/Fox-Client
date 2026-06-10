@@ -168,10 +168,18 @@ contextBridge.exposeInMainWorld('fox', {
   // Discord RPC live status (for the Settings indicator)
   discordStatus: () => invoke('discord:status'),
 
-  // Settings reset + about + log save
+  // Settings reset + about + log save/upload
   resetSettings: () => invoke('settings:reset'),
   saveLogs:      () => invoke('logs:save'),
+  uploadLogs:    () => invoke('logs:upload'),
   about:         () => invoke('app:about'),
+
+  // World backups
+  listWorlds:         (profileId)        => invoke('worlds:list',          profileId || null),
+  listWorldBackups:   (profileId)        => invoke('worlds:listBackups',   profileId || null),
+  backupWorld:        (payload)          => invoke('worlds:backup',        payload || {}),
+  restoreWorldBackup: (payload)          => invoke('worlds:restoreBackup', payload || {}),
+  deleteWorldBackup:  (payload)          => invoke('worlds:deleteBackup',  payload || {}),
 
   // Screenshots gallery
   listScreenshots:       (profileId) => invoke('screenshots:list',       profileId || null),

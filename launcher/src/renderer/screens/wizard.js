@@ -13,6 +13,8 @@
 // completion. No router integration — it's a transient overlay that
 // app.js shows after the home navigate() based on the settings flag.
 
+import { escapeHtml } from '../util.js';
+
 let wizardState = {
   step: 0,
   template: null,
@@ -226,8 +228,3 @@ async function finish() {
   teardown();
 }
 
-function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}

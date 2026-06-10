@@ -26,6 +26,42 @@ const path  = require('path');
 const crypto = require('crypto');
 const yauzl = require('yauzl');
 const { fetchWithRetry, writeAtomic } = require('./httpClient');
+const paths = require('./paths');
+
+// ── verification audit trail ─────────────────────────────────────────────────
+//
+// Every file that fails (or skips) SHA-512 verification gets a structured
+// line in an audit log under ~/.foxlauncher/logs/, so "the import said 2
+// errors" is diagnosable after the fact instead of vanishing with the toast.
+
+/** One audit event → one stable, greppable log line. */
+function formatAuditLine(ev) {
+  const ts = new Date(ev.ts || Date.now()).toISOString();
+  switch (ev.type) {
+    case 'hash-mismatch':
+      return `[${ts}] HASH-MISMATCH ${ev.file} expected=${ev.expected} actual=${ev.actual} action=${ev.action}`;
+    case 'no-hash':
+      return `[${ts}] NO-HASH ${ev.file} action=${ev.action}`;
+    case 'download-failed':
+      return `[${ts}] DOWNLOAD-FAILED ${ev.file} error=${JSON.stringify(ev.error || 'unknown')} action=${ev.action}`;
+    default:
+      return `[${ts}] ${String(ev.type || 'EVENT').toUpperCase()} ${ev.file || ''}`;
+  }
+}
+
+/** Write the audit events to a timestamped file. Returns the path or null. */
+function writeAuditLog(events, logsDir = paths.logs) {
+  if (!events.length) return null;
+  try {
+    fs.mkdirSync(logsDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const file = path.join(logsDir, `import-audit-${stamp}.log`);
+    fs.writeFileSync(file, events.map(formatAuditLine).join('\n') + '\n');
+    return file;
+  } catch (_) {
+    return null;
+  }
+}
 
 /** Parse the .mrpack into { index, overrides } in memory. */
 function readMrpack(filePath) {
@@ -114,6 +150,7 @@ async function importMrpack(mrpackPath, ctx) {
   let installed = 0;
   let skipped  = 0;
   let errors   = 0;
+  const auditEvents = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     if (!f || !f.path || !Array.isArray(f.downloads) || !f.downloads.length) {
@@ -132,14 +169,23 @@ async function importMrpack(mrpackPath, ctx) {
     }
     if (!buf) {
       onProgress(`  → failed: ${lastErr ? lastErr.message : 'unknown'}`);
+      auditEvents.push({ type: 'download-failed', file: f.path,
+          error: lastErr ? lastErr.message : 'unknown', action: 'skipped', ts: Date.now() });
       errors++; continue;
     }
     if (f.hashes && f.hashes.sha512) {
       const actual = sha512(buf);
       if (actual.toLowerCase() !== f.hashes.sha512.toLowerCase()) {
         onProgress(`  → hash mismatch — skipping ${f.path}`);
+        auditEvents.push({ type: 'hash-mismatch', file: f.path,
+            expected: f.hashes.sha512, actual, action: 'skipped', ts: Date.now() });
         errors++; continue;
       }
+    } else {
+      // No hash in the manifest — we install it, but record that it was
+      // never verified so the audit log tells the whole story.
+      auditEvents.push({ type: 'no-hash', file: f.path,
+          action: 'installed-unverified', ts: Date.now() });
     }
     // Write — sanitized path.
     let dest;
@@ -164,6 +210,10 @@ async function importMrpack(mrpackPath, ctx) {
     } catch (_) { /* best-effort */ }
   }
 
+  // Persist the verification audit trail (if anything noteworthy happened).
+  const auditPath = writeAuditLog(auditEvents);
+  if (auditPath) onProgress(`Verification audit: ${auditEvents.length} event(s) → ${auditPath}`);
+
   return {
     ok: true,
     profileId,
@@ -173,7 +223,9 @@ async function importMrpack(mrpackPath, ctx) {
     skipped,
     errors,
     overrides: overridesWritten,
+    auditCount: auditEvents.length,
+    auditPath,
   };
 }
 
-module.exports = { importMrpack };
+module.exports = { importMrpack, formatAuditLine, writeAuditLog };

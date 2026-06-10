@@ -8,6 +8,8 @@
 // Subscriptions are managed strictly: every onGameExit / onGameCrash listener
 // is owned by the current render and torn down when the screen unmounts.
 
+import { escapeHtml, formatRelative } from '../util.js';
+
 let activeUnsubs = [];
 
 export async function renderHome(mount) {
@@ -600,19 +602,4 @@ function renderInstalledCard(installed, latest, upToDate, usingDevJar) {
   `;
 }
 
-function formatRelative(ts) {
-  if (!ts) return '—';
-  const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (diffSec < 60)   return `${diffSec}s ago`;
-  if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
-  if (diffSec < 7 * 86400) return `${Math.round(diffSec / 86400)}d ago`;
-  return new Date(ts).toLocaleDateString();
-}
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }

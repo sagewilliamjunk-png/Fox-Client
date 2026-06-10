@@ -26,12 +26,13 @@ export async function renderLogs(mount) {
         <option value="error">error</option>
       </select>
       <button class="btn" id="btn-save">Save to file</button>
+      <button class="btn" id="btn-upload" title="Upload to mclo.gs and copy the share link">Upload</button>
       <button class="btn" id="btn-copy">Copy</button>
       <button class="btn" id="btn-clear">Clear</button>
       <label class="checkbox" style="margin-left:12px;">
         <input type="checkbox" id="autoscroll" checked /> Auto-scroll
       </label>
-      <span class="status muted" id="log-status" style="margin-left:auto;"></span>
+      <span class="status muted" id="log-status" style="margin-left:auto;" aria-live="polite"></span>
     </div>
 
     <div class="log-view" id="log-view"></div>
@@ -95,6 +96,26 @@ export async function renderLogs(mount) {
     if (r.cancelled) return;
     if (r.ok) flashStatus(`Saved ${r.path}`);
     else flashStatus(`Save failed: ${r.error}`);
+  });
+
+  document.getElementById('btn-upload').addEventListener('click', async () => {
+    if (!buffer.length) { flashStatus('Nothing to upload.'); return; }
+    // Uploading publishes the log at a public mclo.gs URL — confirm first.
+    if (!confirm('Upload the current log to mclo.gs?\n\nThe log becomes visible to anyone with the link. Your home-directory paths are scrubbed and mclo.gs hides IP addresses.')) return;
+    const btn = document.getElementById('btn-upload');
+    btn.disabled = true;
+    flashStatus('Uploading…');
+    try {
+      const r = await window.fox.uploadLogs();
+      if (r.ok) {
+        try { await navigator.clipboard.writeText(r.url); } catch (_) {}
+        flashStatus(`Uploaded — link copied: ${r.url}`);
+      } else {
+        flashStatus(`Upload failed: ${r.error}`);
+      }
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   // Lifecycle — drop subscription when the screen unmounts.

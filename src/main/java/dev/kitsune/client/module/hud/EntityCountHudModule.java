@@ -1,12 +1,8 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
-import dev.kitsune.client.setting.ColorSetting;
-import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -23,24 +19,21 @@ import net.minecraft.world.entity.player.Player;
  * a single pass — total / living / items / players. No allocations on the
  * hot path beyond the count fields.
  */
-public class EntityCountHudModule extends Module implements HudWidget {
+public class EntityCountHudModule extends BaseHudModule {
 
     private final BooleanSetting showLiving = addSetting(new BooleanSetting("Living", true));
     private final BooleanSetting showItems  = addSetting(new BooleanSetting("Items",  true));
     private final BooleanSetting showPlayers = addSetting(new BooleanSetting("Players", true));
-    private final SliderSetting  bgOpacity  = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
-    private final ColorSetting   accent     = addSetting(new ColorSetting("Accent", 0xFF8C8CFF));
 
     private int total, living, items, players;
 
     public EntityCountHudModule() {
-        super("Entity Count", "Counts entities in the loaded world for a perf glance", Category.HUD);
-        HudManager.register(this);
+        super("Entity Count", "Counts entities in the loaded world for a perf glance", Category.HUD,
+                "entity_count", "Entities");
+        useStandardPanel(0.50, Palette.ACCENT_PERIWINKLE);
     }
 
-    @Override public String widgetId()    { return "entity_count"; }
-    @Override public String displayName() { return "Entities"; }
-    @Override public int widgetWidth()    { return 100; }
+    @Override public int widgetWidth() { return 100; }
     @Override public int widgetHeight() {
         int rows = 1; // total always
         if (showLiving.get())  rows++;
@@ -48,7 +41,6 @@ public class EntityCountHudModule extends Module implements HudWidget {
         if (showPlayers.get()) rows++;
         return 4 + rows * 10;
     }
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
     protected void onDisable() {
@@ -76,17 +68,12 @@ public class EntityCountHudModule extends Module implements HudWidget {
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        int w = widgetWidth();
-        int h = widgetHeight();
-        int bg = (int)(bgOpacity.get() * 255) << 24;
-
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg | 0x000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
+        drawPanel(gfx, x, y, widgetWidth(), widgetHeight());
 
         int rowY = y + 2;
-        gfx.text(font, "Total: " + total, x + 2, rowY, 0xFFFFFFFF); rowY += 10;
-        if (showLiving.get())  { gfx.text(font, "Living: "  + living,  x + 2, rowY, 0xFFCCCCCC); rowY += 10; }
-        if (showPlayers.get()) { gfx.text(font, "Players: " + players, x + 2, rowY, 0xFFCCCCCC); rowY += 10; }
-        if (showItems.get())   { gfx.text(font, "Items: "   + items,   x + 2, rowY, 0xFFCCCCCC); }
+        gfx.text(font, "Total: " + total, x + 2, rowY, Palette.TEXT_WHITE); rowY += 10;
+        if (showLiving.get())  { gfx.text(font, "Living: "  + living,  x + 2, rowY, Palette.TEXT_LIGHT); rowY += 10; }
+        if (showPlayers.get()) { gfx.text(font, "Players: " + players, x + 2, rowY, Palette.TEXT_LIGHT); rowY += 10; }
+        if (showItems.get())   { gfx.text(font, "Items: "   + items,   x + 2, rowY, Palette.TEXT_LIGHT); }
     }
 }

@@ -1,12 +1,8 @@
 package dev.kitsune.client.module.hud;
 
-import dev.kitsune.client.hud.HudManager;
-import dev.kitsune.client.hud.HudWidget;
 import dev.kitsune.client.module.Category;
-import dev.kitsune.client.module.Module;
 import dev.kitsune.client.setting.BooleanSetting;
-import dev.kitsune.client.setting.ColorSetting;
-import dev.kitsune.client.setting.SliderSetting;
+import dev.kitsune.client.util.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -30,7 +26,7 @@ import java.util.Deque;
  * or worlds doesn't clear them; the dimension key is captured alongside the
  * coords so the user can tell whether the entry belongs to the current world.
  */
-public class DeathCoordsHudModule extends Module implements HudWidget {
+public class DeathCoordsHudModule extends BaseHudModule {
 
     /** Cap on stored history. The widget renders at most 3 rows; the rest stay
      *  for the `.fox death` chat command (not implemented here yet). */
@@ -41,8 +37,6 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
     private final BooleanSetting showDimension = addSetting(new BooleanSetting("Show Dimension", true));
     private final BooleanSetting showDistance  = addSetting(new BooleanSetting("Show Distance",  true));
     private final BooleanSetting showRecent    = addSetting(new BooleanSetting("Show Recent",    false));
-    private final SliderSetting  bgOpacity     = addSetting(new SliderSetting("BG Opacity", 0.50, 0.0, 1.0, 0.05));
-    private final ColorSetting   accent        = addSetting(new ColorSetting("Accent", 0xFFE8472A));
 
     /** A single recorded death. */
     private record DeathRecord(int x, int y, int z, ResourceKey<Level> dimension, long timestampMs) {}
@@ -52,13 +46,12 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
     private boolean prevAlive = true;
 
     public DeathCoordsHudModule() {
-        super("Death Coords", "Pins your recent death coordinates so you can recover", Category.HUD);
-        HudManager.register(this);
+        super("Death Coords", "Pins your recent death coordinates so you can recover", Category.HUD,
+                "death_coords", "Death");
+        useStandardPanel(0.50, Palette.ACCENT_RED);
     }
 
-    @Override public String widgetId()    { return "death_coords"; }
-    @Override public String displayName() { return "Death"; }
-    @Override public int widgetWidth()    { return 130; }
+    @Override public int widgetWidth() { return 130; }
     @Override public int widgetHeight() {
         int rowsForLatest = 1;
         if (showDimension.get()) rowsForLatest++;
@@ -66,7 +59,6 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
         int extra = (showRecent.get() ? Math.max(0, Math.min(VISIBLE_ROWS, deaths.size()) - 1) : 0);
         return 4 + (rowsForLatest + extra) * 10;
     }
-    @Override public boolean isWidgetVisible() { return isEnabled(); }
 
     @Override
     public void onTick() {
@@ -95,16 +87,11 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
     public void renderWidget(GuiGraphicsExtractor gfx, int x, int y) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        int w = widgetWidth();
-        int h = widgetHeight();
-        int bg = (int)(bgOpacity.get() * 255) << 24;
-
-        gfx.fill(x - 2, y - 2, x + w + 2, y + h + 2, bg | 0x000000);
-        gfx.fill(x - 2, y - 2, x + w + 2, y - 1, accent.get());
+        drawPanel(gfx, x, y, widgetWidth(), widgetHeight());
 
         int rowY = y + 2;
         if (deaths.isEmpty()) {
-            gfx.text(font, "§8no death recorded", x + 2, rowY, 0xFFAAAAAA);
+            gfx.text(font, "§8no death recorded", x + 2, rowY, Palette.TEXT_MUTED);
             return;
         }
 
@@ -124,12 +111,12 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
                     && latest.dimension.equals(mc.level.dimension()))
                     ? "" : " §8(other dim)";
             gfx.text(font, String.format("→ %.0f m%s", dist, dimMatch),
-                    x + 2, rowY, 0xFFCCCCCC);
+                    x + 2, rowY, Palette.TEXT_LIGHT);
             rowY += 10;
         }
 
         if (showDimension.get() && latest.dimension != null) {
-            gfx.text(font, "in " + dimShort(latest.dimension), x + 2, rowY, 0xFF888888);
+            gfx.text(font, "in " + dimShort(latest.dimension), x + 2, rowY, Palette.TEXT_DIM);
             rowY += 10;
         }
 
@@ -141,7 +128,7 @@ public class DeathCoordsHudModule extends Module implements HudWidget {
                 if (first) { first = false; continue; } // skip latest
                 if (shown >= VISIBLE_ROWS - 1) break;
                 gfx.text(font, String.format("§8• %d, %d, %d", rec.x, rec.y, rec.z),
-                        x + 2, rowY, 0xFF888888);
+                        x + 2, rowY, Palette.TEXT_DIM);
                 rowY += 10;
                 shown++;
             }
