@@ -348,3 +348,34 @@ The update is complete when ALL of the following are true:
 6. The game reaches the main menu without an "Incompatible mods" crash.
 
 If any of these is false, the update is not done.
+
+## Part 5 — Boot smoke test (do this for EVERY release, not just MC bumps)
+
+`./gradlew build` passing does NOT mean the client runs. Mixins validate
+against the real Minecraft classes only at runtime — v1.4.1 shipped with two
+mixins whose targets didn't exist in MC 26.x and the dev client crashed on
+boot for a week without anyone noticing (caught and fixed in v1.5.0).
+
+1. **Boot to the title screen** and read the log:
+
+   ```
+   ./gradlew runClient --console=plain *> smoke.log
+   ```
+
+   Healthy boot shows, in order: `[Fox] ModuleManager init (N modules)`,
+   `[Fox] cosmetics: N cape(s) [...]`, `Sound engine started` — and contains
+   NO `InvalidInjectionException` / `Mixin apply ... failed` lines.
+
+2. **Boot into a world** so module tick/render paths actually run
+   (mixin apply is lazy per-class — the title screen only validates
+   early-loading targets):
+
+   ```
+   ./gradlew runClient "-PquickPlayWorld=New World" *> smoke.log
+   ```
+
+   Let it sit in-world ~60 s, then grep for `tick threw`,
+   `render failed`, and `Exception` — all module errors are caught and
+   logged with those markers rather than crashing.
+
+3. Close the game. If anything fired, it's a release blocker.

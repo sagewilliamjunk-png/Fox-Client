@@ -10,6 +10,22 @@ base {
     archivesName = "kitsune-client"
 }
 
+loom {
+    runs {
+        client {
+            // Smoke-test harness: boot straight into a singleplayer world so
+            // module tick/render paths run without manual clicking.
+            //   .\gradlew runClient "-PquickPlayWorld=New World"
+            // NOTE: the value must be =-attached — quickPlaySingleplayer is a
+            // joptsimple optional-arg option, so a separate token is silently
+            // dropped as a non-option.
+            if (project.hasProperty("quickPlayWorld")) {
+                programArg("--quickPlaySingleplayer=" + project.property("quickPlayWorld"))
+            }
+        }
+    }
+}
+
 repositories {
     mavenCentral()
     maven { url = "https://maven.fabricmc.net/" }
