@@ -7,6 +7,7 @@ import { renderProfiles }    from './screens/profiles.js';
 import { renderLogs }        from './screens/logs.js';
 import { renderScreenshots } from './screens/screenshots.js';
 import { renderResources }   from './screens/resources.js';
+import { renderServers }     from './screens/servers.js';
 
 const ROUTES = {
   home:        renderHome,
@@ -19,6 +20,7 @@ const ROUTES = {
   logs:        renderLogs,
   screenshots: renderScreenshots,
   resources:   renderResources,
+  servers:     renderServers,
   commands:    renderResources, // back-compat: old #commands deep links land in Resources
 };
 

@@ -5,7 +5,7 @@ A fox-themed, **fair-play** Minecraft client mod for **Fabric on Minecraft 26.1.
 This was coded largely with claude, and I don't wish to decieve people into thinking I coded it myself.
 I don't plan on making money from this, I just wanted to make something for myself and some friends
 
-> **Status:** v1.5.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
+> **Status:** v1.6.0 — Stable &nbsp;|&nbsp; [⬇ Download Fox Launcher](https://github.com/sagewilliamjunk-png/Fox-Client/releases/latest)
 
 Fox Client is built around three hard rules:
 
@@ -29,14 +29,14 @@ HUD, Chat, Misc, Cosmetic). Everything is toggleable in the ClickGUI
 
 | Category  | Notable modules |
 |-----------|-----------------|
-| Combat    | Dynamic Crosshair, Crosshair Damage Indicator, Weapon Swap Reminder, **Combat Timer**, **Durability Alert** |
+| Combat    | Dynamic Crosshair, Crosshair Damage Indicator, Weapon Swap Reminder, Combat Timer, Durability Alert, **Combo Counter**, **Damage Tally** |
 | Movement  | Toggle Sprint, Free Look, Anti-AFK |
 | Player    | Auto Eat, Auto Respawn, No Hurt Cam |
 | Render    | Hitbox (F3+B), Chunk Borders, Block Overlay, Menu Blur, Light Level, Hit Flash, Smooth Scroll, Weather Time, 3D Waypoint markers |
 | HUD       | **Minimap** (Xaero-style terrain + mob heads), Coords, **Compass strip**, FPS Graph, Potion Timers, Paper Doll, Shield Status, Kill/Death Tracker, Session Stats, Server Info / TPS, **Mount HUD**, Keystrokes, CPS, Totem counter, **Inventory Preview**, **AFK Timer** |
 | Chat      | Chat Highlights, Chat Logger, Chat Aliases, Transparent Chat |
 | Misc      | Loot History, Death Screen, Disconnect Confirm, Memory Cleaner, **Hotbar Scroll Lock**, Zoom, Shulker / Map Tooltip, **Screenshot → Clipboard**, Adaptive FPS Limit, Deathpoint waypoints |
-| Cosmetic  | Custom capes (6 built-in), fox-themed title screen, idle mascot, procedural starry sky |
+| Cosmetic  | Custom capes (9 built-in), **particle trails**, fox-themed title screen, idle mascot, procedural starry sky |
 
 Plus a full **HUD editor** (drag-and-drop with vanilla-proxy widgets for
 hotbar / health / food / air / xp), an **in-world / world-map waypoint
@@ -57,6 +57,8 @@ Electron app that does more than start the game:
 - **Command Generator** — an MCStacker-style visual builder for `/give`,
   `/summon`, `/execute` chains, and 25-plus more commands (modern 1.21.x
   syntax) with a target-selector builder and saved commands.
+- **Server browser** — save servers, see live status (MOTD, player count,
+  ping) via built-in Server List Ping, and quick-join straight into the game.
 - **World Backups** — one-click zip of any singleplayer world to a directory
   that survives reinstalls, with restore and "keep both" modes.
 - **Log uploader** — share a game log as an mclo.gs link (home-dir paths
@@ -76,13 +78,13 @@ Electron app that does more than start the game:
 ## Manual install
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) 0.19.x or newer for Minecraft 26.1.2.
-2. Drop `kitsune-client-1.5.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
+2. Drop `kitsune-client-1.6.0.jar` and the matching `fabric-api` jar into your `mods/` folder.
 3. Launch.
 
 ## Build from source
 
 ```bash
-./gradlew build          # produces build/libs/kitsune-client-1.5.0.jar
+./gradlew build          # produces build/libs/kitsune-client-1.6.0.jar
 ./gradlew runClient      # launches a dev client
 ```
 

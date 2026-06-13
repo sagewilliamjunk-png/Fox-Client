@@ -174,6 +174,18 @@ contextBridge.exposeInMainWorld('fox', {
   uploadLogs:    () => invoke('logs:upload'),
   about:         () => invoke('app:about'),
 
+  // Server browser
+  listServers:   ()        => invoke('servers:list'),
+  addServer:     (entry)   => invoke('servers:add', entry || {}),
+  removeServer:  (id)      => invoke('servers:remove', id),
+  pingServer:    (payload) => invoke('servers:ping', payload || {}),
+  // Sets the active profile's server, then chains the normal launch.
+  quickJoin:     async (payload) => {
+    const r = await invoke('servers:quickJoin', payload || {});
+    if (!r || !r.ok) return r;
+    return invoke('game:launch');
+  },
+
   // World backups
   listWorlds:         (profileId)        => invoke('worlds:list',          profileId || null),
   listWorldBackups:   (profileId)        => invoke('worlds:listBackups',   profileId || null),

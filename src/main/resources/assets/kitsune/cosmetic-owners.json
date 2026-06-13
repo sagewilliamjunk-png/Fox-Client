@@ -1,5 +1,5 @@
 {
-  "_doc": "Fox Client cosmetics manifest. To add a cape: drop a 2:1 landscape PNG (64x32 or any HD multiple like 256x128) into assets/kitsune/textures/cape/<id>.png and register under 'capes'. To grant ownership: list cape ids under 'owners' keyed by the player's Minecraft UUID (with or without dashes). The '*' key grants to every player.",
+  "_doc": "Fox Client cosmetics manifest. CAPES: drop a 2:1 landscape PNG (64x32 or an HD multiple) into assets/kitsune/textures/cape/<id>.png and register under 'capes'. TRAILS (v1.6): register under 'trails' with a 'particle' key (flame|heart|crit|soul|happy|portal|end_rod|smoke|snowflake|enchant). OWNERS: list cape AND/OR trail ids under 'owners' keyed by the player's Minecraft UUID (dashes optional). The '*' key grants to every player.",
 
   "capes": {
     "fox":      { "displayName": "Fox Cape" },
@@ -7,11 +7,21 @@
     "ember":    { "displayName": "Ember" },
     "midnight": { "displayName": "Midnight" },
     "snowfox":  { "displayName": "Snowfox" },
-    "forest":   { "displayName": "Forest" }
+    "forest":   { "displayName": "Forest" },
+    "aurora":   { "displayName": "Aurora" },
+    "crimson":  { "displayName": "Crimson" },
+    "gold":     { "displayName": "Gold" }
+  },
+
+  "trails": {
+    "flame":     { "displayName": "Flame Trail",     "particle": "flame" },
+    "hearts":    { "displayName": "Heart Trail",     "particle": "heart" },
+    "soulfire":  { "displayName": "Soul Fire Trail", "particle": "soul" },
+    "snow":      { "displayName": "Snow Trail",      "particle": "snowflake" }
   },
 
   "owners": {
-    "*":                                     ["fox", "ember", "midnight", "snowfox", "forest"],
+    "*":                                     ["fox", "ember", "midnight", "snowfox", "forest", "aurora", "crimson", "gold", "flame", "hearts", "soulfire", "snow"],
     "0d4a5c92-aafd-4e58-90bb-7ece86205bd6": ["devfox"]
   }
 }

@@ -33,8 +33,12 @@ const RECOMMENDED = [
     description: 'Game-logic optimization without behaviour changes.' },
   { slug: 'ferrite-core',    displayName: 'FerriteCore',      essential: true,
     description: 'Cuts memory use of block models (~20–40% less RAM).' },
-  // MemoryLeakFix: no Minecraft 26.x build on Modrinth yet — removed so it
-  // stops failing on every auto-install. Re-add when a 26.x version ships.
+  // MemoryLeakFix had no 26.x build at v1.5.0. Re-added with `recheck: true`
+  // (v1.6.0): the install pass resolves it for the current MC version and
+  // only includes it if a compatible build now exists — no "failed" toast
+  // while we wait, and it auto-appears the moment 26.x ships.
+  { slug: 'memoryleakfix',   displayName: 'MemoryLeakFix',    essential: true, recheck: true,
+    description: 'Fixes assorted memory leaks for long sessions.' },
   { slug: 'immediatelyfast', displayName: 'ImmediatelyFast',  essential: true,
     description: 'Optimizes immediate-mode rendering (GUI, particles).' },
   { slug: 'entityculling',   displayName: 'EntityCulling',    essential: true,
@@ -64,16 +68,19 @@ const RECOMMENDED = [
   // first-launch user gets the same experience without hunting for
   // each one individually on Modrinth.
   // ----------------------------------------------------------------
-  // EMI (recipe viewer): no Minecraft 26.x build on Modrinth yet — removed so
-  // it stops failing on every auto-install. Re-add when a 26.x version ships.
+  // EMI (recipe viewer): no 26.x build at v1.5.0 — re-added with `recheck: true`
+  // (see MemoryLeakFix note above) so it auto-includes when a build ships.
+  { slug: 'emi',                   displayName: 'EMI',         essential: false, recheck: true,
+    description: 'Item & recipe viewer — search recipes, uses, and crafting trees.' },
   { slug: 'mouse-tweaks',          displayName: 'Mouse Tweaks', essential: true,
     description: 'Drag-and-distribute mouse controls for inventories. The "wait, vanilla doesn\'t do this?" mod.' },
   { slug: 'no-chat-reports',       displayName: 'No Chat Reports', essential: false,
     description: 'Removes the Mojang chat-report system. Privacy-first chat for multiplayer.' },
   { slug: 'visuality',             displayName: 'Visuality',   essential: false,
     description: 'Extra particle effects (water ripples, leaf falls, ender block ambient particles).' },
-  // World Host: no Minecraft 26.x build on Modrinth yet — removed so it stops
-  // failing on every auto-install. Re-add when a 26.x version ships.
+  // World Host: no 26.x build at v1.5.0 — re-added with `recheck: true`.
+  { slug: 'world-host',            displayName: 'World Host',  essential: false, recheck: true,
+    description: 'Share your singleplayer world to friends without port-forwarding.' },
   { slug: '3dskinlayers',          displayName: '3D Skin Layers', essential: false,
     description: 'Renders the second skin layer in proper 3D — gives every player a bit more presence.' },
   { slug: 'continuity',            displayName: 'Continuity',  essential: false,
@@ -467,11 +474,33 @@ async function resolveAndInstallDeps(version, parentKey, gameDir, mcVersion, ctx
 /** Install every recommended mod that isn't already present. `essentialOnly`
  *  defaults to true so the first-launch flow doesn't haul in optional ones
  *  like Iris without explicit user consent. */
+/**
+ * Drop `recheck: true` mods that have no build for the current MC version yet
+ * (EMI / MemoryLeakFix / World Host were pending 26.x at v1.5.0). This keeps
+ * them out of the install pass — so no "failed N" toast — while auto-including
+ * them the instant a compatible build ships. Mods without the flag pass
+ * through untouched and pay no network cost here. A transient fetch failure
+ * skips the mod for this pass only (retried next boot).
+ */
+async function filterAvailable(list, mcVersion, fetchJsonFn = fetchJson) {
+  const out = [];
+  for (const m of list) {
+    if (!m.recheck) { out.push(m); continue; }
+    try {
+      const versions = await fetchJsonFn(`${MODRINTH_BASE}/project/${encodeURIComponent(m.slug)}/version`);
+      if (pickVersion(versions, mcVersion)) out.push(m); // build exists → include
+      // else: silently skip — not an error, just not available yet
+    } catch (_) { /* network hiccup — try again next pass */ }
+  }
+  return out;
+}
+
 async function installAll(gameDir, mcVersion, opts = {}) {
   const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : () => {};
   const essentialOnly = opts.essentialOnly !== false;
 
-  const list = RECOMMENDED.filter(m => !essentialOnly || m.essential);
+  const candidates = RECOMMENDED.filter(m => !essentialOnly || m.essential);
+  const list = await filterAvailable(candidates, mcVersion, opts.fetchJson || fetchJson);
   const modsDir = path.join(gameDir, 'mods');
   // One shared `visited` across the whole pass so fabric-api only resolves once
   // even though half the recommended mods require it.
@@ -580,6 +609,7 @@ module.exports = {
   manifest,
   RECOMMENDED,
   // helpers exposed for tests
+  filterAvailable,
   isAlreadyInstalled,
   findInstalledJar,
   purgeOldVersions,

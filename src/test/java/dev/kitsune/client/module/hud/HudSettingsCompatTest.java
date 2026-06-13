@@ -115,4 +115,15 @@ class HudSettingsCompatTest {
                 "Show Mouse", "Show CPS", "Show Space", "Key Size", "BG Opacity",
                 "Idle Color", "Press Color", "Text Color", "Pressed Text", "CPS Tint");
     }
+
+    // v1.6 PvP widgets — combat package but extend BaseHudModule.
+    @Test void comboCounter() {
+        assertWidget(dev.kitsune.client.module.combat.ComboCounterModule::new, "combo_counter",
+                "Reset Window (s)", "Show Best", "BG Opacity", "Accent", "Text Color");
+    }
+
+    @Test void damageTally() {
+        assertWidget(dev.kitsune.client.module.combat.DamageTallyModule::new, "damage_tally",
+                "Show Ratio", "BG Opacity", "Accent", "Text Color");
+    }
 }

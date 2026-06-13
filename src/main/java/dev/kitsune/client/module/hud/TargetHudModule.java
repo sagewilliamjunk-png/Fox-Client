@@ -35,7 +35,14 @@ public class TargetHudModule extends Module implements HudWidget {
     private final BooleanSetting showDistance = addSetting(new BooleanSetting("Show Distance", true));
     private final BooleanSetting showArmor    = addSetting(new BooleanSetting("Show Armor",    true));
     private final BooleanSetting showHelmet   = addSetting(new BooleanSetting("Show Helmet",   true));
+    private final BooleanSetting stickyAfterHit = addSetting(new BooleanSetting("Sticky After Hit", true));
     private final SliderSetting  widthSetting = addSetting(new SliderSetting("Width", 130, 80, 220, 10));
+
+    /** How long a hit keeps the HUD pinned to that target after the crosshair
+     *  leaves it (v1.6: so the HUD doesn't vanish mid-fight when you strafe). */
+    private static final float STICKY_SECS = 3.0f;
+    private net.minecraft.world.entity.LivingEntity lastAttacked = null;
+    private long lastAttackedMs = 0;
 
     // Cached data — updated each tick
     private String  targetName     = null;
@@ -66,26 +73,48 @@ public class TargetHudModule extends Module implements HudWidget {
 
     // ---- Module -----------------------------------------------------------
 
+    /** Called by PlayerAttackMixin when the local player lands a hit, so the
+     *  HUD can stick to that target briefly after the crosshair moves off. */
+    public void noteAttacked(LivingEntity e) {
+        if (!isEffectivelyEnabled() || !stickyAfterHit.get()) return;
+        lastAttacked = e;
+        lastAttackedMs = System.currentTimeMillis();
+    }
+
     @Override
     public void onTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) {
             targetName = null;
+            lastAttacked = null;
             return;
         }
         LocalPlayer self = mc.player;
 
-        Entity target = mc.crosshairPickEntity;
-        if (!(target instanceof LivingEntity living)) {
-            // No living entity targeted — start fade countdown if we had one
-            if (targetName != null) {
-                targetName = null;
-                fadeTimer = HOLD_SECS + FADE_SECS;
-            }
+        // 1. Live crosshair target wins.
+        if (mc.crosshairPickEntity instanceof LivingEntity living) {
+            populate(self, living);
             return;
         }
 
-        // Populate cached info
+        // 2. Sticky fallback — keep showing the last entity we hit for a few
+        //    seconds so the HUD survives a strafe mid-fight.
+        if (stickyAfterHit.get() && lastAttacked != null) {
+            boolean valid = lastAttacked.isAlive() && !lastAttacked.isRemoved()
+                    && System.currentTimeMillis() - lastAttackedMs <= (long) (STICKY_SECS * 1000);
+            if (valid) { populate(self, lastAttacked); return; }
+            lastAttacked = null;
+        }
+
+        // 3. Nothing targeted — start fade countdown if we had one.
+        if (targetName != null) {
+            targetName = null;
+            fadeTimer = HOLD_SECS + FADE_SECS;
+        }
+    }
+
+    /** Snapshot a living target into the cached display fields. */
+    private void populate(LocalPlayer self, LivingEntity living) {
         Component nameComp = living.getDisplayName();
         targetName     = nameComp != null ? nameComp.getString() : living.getClass().getSimpleName();
         targetHp       = living.getHealth();

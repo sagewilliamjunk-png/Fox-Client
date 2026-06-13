@@ -95,6 +95,32 @@ jobs:
           $notes | Out-File -FilePath notes.md -Encoding utf8
           gh release edit "$tag" --draft=false --latest --notes-file notes.md
 
+      # ── 5b. Verify release assets ──────────────────────────────────────────
+      # Guardrail against the v1.5.0 failure mode: electron-builder silently
+      # "skipped publishing" latest.yml + the installer because a published
+      # release already existed, yet every step stayed green. If any of the
+      # three required assets is missing we FAIL here — before the cleanup step
+      # below deletes the previous (good) release — so a broken release can't
+      # become "latest" and strand the launcher's self-update on a missing
+      # latest.yml.
+      - name: Verify release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $names = gh release view "$tag" --json assets --jq '.assets[].name'
+          Write-Host "Assets on ${tag}:`n$names"
+          $missing = @()
+          if (-not ($names | Select-String -Quiet 'latest\.yml')) { $missing += 'latest.yml' }
+          if (-not ($names | Select-String -Quiet 'Fox-Launcher-Setup-.*\.exe$')) { $missing += 'Fox-Launcher-Setup-*.exe' }
+          if (-not ($names | Select-String -Quiet 'kitsune-client-.*\.jar$')) { $missing += 'kitsune-client-*.jar' }
+          if ($missing.Count -gt 0) {
+            Write-Error "Release $tag is missing required asset(s): $($missing -join ', '). Refusing to finish — the previous release is left intact as 'latest'."
+            exit 1
+          }
+          Write-Host "All required assets present (latest.yml, installer, mod jar)."
+
       # ── 6. Delete old releases ─────────────────────────────────────────────
       # Only the latest release matters — new users always get the newest, and
       # existing users auto-update. Old releases just create confusion.

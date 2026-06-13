@@ -62,31 +62,42 @@ public abstract class PlayerAttackMixin {
         if (!kitsune$preCaptured) return;
         kitsune$preCaptured = false;
 
-        // Combat Timer wants to know about every local attack on a living
-        // target, independent of the damage-indicator module's state.
-        dev.kitsune.client.module.combat.CombatTimerModule timer =
-                ModuleManager.getModule(dev.kitsune.client.module.combat.CombatTimerModule.class);
-        if (timer != null) timer.onLocalAttack();
-
-        CrosshairDamageIndicatorModule mod =
-                ModuleManager.getModule(CrosshairDamageIndicatorModule.class);
-        if (mod == null || !mod.isEnabled()) return;
-
         Player self = (Player) (Object) this;
+        // Pre/post HP delta + crit — computed once and shared by every combat
+        // consumer below, independent of which modules are enabled.
         float post;
-        boolean killed;
         if (target instanceof LivingEntity le && le.getId() == kitsune$preId) {
-            killed = le.isRemoved() || le.getHealth() <= 0f;
-            post   = killed ? 0f : le.getHealth();
+            post = (le.isRemoved() || le.getHealth() <= 0f) ? 0f : le.getHealth();
         } else {
-            killed = true;
-            post   = 0f;
+            post = 0f;
         }
         float delta = kitsune$preHp - post;
         boolean crit = self.fallDistance > 0.0f
                 && !self.onGround()
                 && !self.isInWater();
 
+        // ---- v1.5/v1.6 combat module feeds (each no-ops when disabled) ----
+        // Combat Timer + Combo counter fire on every landed attack on a living
+        // target, regardless of whether a clientside damage delta is visible.
+        var timer = ModuleManager.getModule(dev.kitsune.client.module.combat.CombatTimerModule.class);
+        if (timer != null) timer.onLocalAttack();
+        var combo = ModuleManager.getModule(dev.kitsune.client.module.combat.ComboCounterModule.class);
+        if (combo != null) combo.onLocalHit();
+        // Damage tally only counts a hit we can actually measure clientside.
+        if (delta > 0.05f) {
+            var tally = ModuleManager.getModule(dev.kitsune.client.module.combat.DamageTallyModule.class);
+            if (tally != null) tally.onDamageDealt(delta);
+        }
+        // Target HUD "sticky after hit" — remember who we just struck.
+        if (target instanceof LivingEntity hit) {
+            var thud = ModuleManager.getModule(dev.kitsune.client.module.hud.TargetHudModule.class);
+            if (thud != null) thud.noteAttacked(hit);
+        }
+
+        // ---- Crosshair damage indicator (v1.0) — unchanged behaviour ----
+        CrosshairDamageIndicatorModule mod =
+                ModuleManager.getModule(CrosshairDamageIndicatorModule.class);
+        if (mod == null || !mod.isEnabled()) return;
         if (delta > 0.05f) {
             mod.submitDirectHit(delta, crit);
         } else {

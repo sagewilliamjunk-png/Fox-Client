@@ -172,6 +172,9 @@ public final class ModuleManager {
         // v1.5: combat-info additions (display/alert only — see SAFETY.md).
         register(new dev.kitsune.client.module.combat.CombatTimerModule());
         register(new dev.kitsune.client.module.combat.LowDurabilityAlertModule());
+        // v1.6: PvP toolkit — combo counter + session damage tally (display-only).
+        register(new dev.kitsune.client.module.combat.ComboCounterModule());
+        register(new dev.kitsune.client.module.combat.DamageTallyModule());
 
         // ---- Client-tier HUD additions (keystrokes/cps/clock/speed/totems/tps) ----
         register(new KeystrokesHudModule());
@@ -207,6 +210,8 @@ public final class ModuleManager {
 
         // ---- Cosmetics ----
         register(new CapesModule());
+        // v1.6: particle trail cosmetic (client-side particles, no render mixin).
+        register(new dev.kitsune.client.module.cosmetic.ParticleTrailModule());
 
         // ---- Legacy FoxFeature wrappers ----
         for (FoxFeature f : FeatureRegistry.all()) {

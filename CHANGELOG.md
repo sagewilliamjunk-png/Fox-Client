@@ -3,6 +3,65 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] — 2026-06-13
+
+A four-front release: a fair-play PvP toolkit, a generalized cosmetics system,
+a launcher server browser, and reliability work so the v1.5.0 release mishaps
+can't recur.
+
+### Added — Client (mod)
+
+- **Combo Counter** *(Combat)* — consecutive hits landed within a reset window,
+  with a session best and a colour ramp as it climbs. Fed by the same
+  `PlayerAttackMixin` hook as Combat Timer, so it counts the connect regardless
+  of whether a clientside damage delta is visible.
+- **Damage Tally** *(Combat)* — running session totals of damage dealt
+  (measured clientside, matching the Crosshair Damage Indicator) vs. taken
+  (exact, from your own health decreases), with an optional ratio.
+- **Target HUD: "Sticky After Hit"** — opt-in mode that keeps the HUD pinned to
+  the last entity you struck for a few seconds, so it doesn't vanish when you
+  strafe off-target mid-fight.
+- **Particle Trail** *(Cosmetic)* — the second cosmetic type: trail-cosmetic
+  owners emit a client-side particle trail while moving (flame / hearts / soul
+  fire / snow, per the manifest). No render mixin — pure `addParticle`, so
+  trivially server-safe.
+- **Three more built-in capes** — Aurora, Crimson, Gold (9 total).
+
+### Added — Fox Launcher
+
+- **Server browser** — a new Servers tab: save servers, see live status (MOTD,
+  player count, latency) via a from-scratch Server List Ping engine, and
+  **quick-join** (writes the server into the active profile's auto-join field
+  and launches through the normal path — the launcher never speaks the join
+  protocol itself).
+
+### Changed — internals
+
+- **Cosmetic registry generalized** from cape-only to multi-type
+  (`cosmetic/CosmeticRegistry.java`): a new optional `trails` manifest block
+  with per-trail particle keys, and the `owners` block now grants ids of
+  either type, routed by which registry defines them. Fully back-compatible —
+  existing cape-only manifests behave exactly as before; `CapesModule` and
+  `AvatarRendererCapeMixin` are untouched.
+
+### Reliability
+
+- **CI release-asset guard** (`.github/workflows/release.yml`): the workflow now
+  fails if a release is missing `latest.yml`, the installer, or the mod jar —
+  *before* it deletes the previous release. This turns the exact silent
+  `electron-builder` "skipped publishing" failure that broke v1.5.0's launcher
+  self-update into a red build instead of a green one.
+- **Recommended-mods auto-recheck**: EMI, MemoryLeakFix, and World Host are back
+  in the pack flagged `recheck: true` — the install pass resolves each for the
+  current MC version and includes it only if a build now exists, with no
+  "failed N" toast while we wait and automatic inclusion the moment 26.x ships.
+
+### Tests
+
+- Launcher suite 174 → 190: SLP VarInt/status-response/MOTD parsing, the
+  recommended-mods recheck gate, and the server-entry validator. Mod-side
+  `HudSettingsCompatTest` extended to cover the two new Combat widgets.
+
 ## [1.5.0] — 2026-06-10
 
 A full improvement pass over both halves of the repo: new fair-play modules,

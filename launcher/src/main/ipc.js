@@ -28,6 +28,7 @@ const profiles = require('./profiles');
 const { resolveGameDir, gameDirForProfile } = require('./gameDirs');
 const resourcepacks = require('./resourcepacks');
 const worldBackups = require('./worldBackups');
+const servers = require('./servers');
 const skins = require('./skins');
 const javaDownloader = require('./javaDownloader');
 const mcInstaller = require('./mcInstaller');
@@ -1082,6 +1083,33 @@ function register(getWindow) {
   ipcMain.handle('worlds:deleteBackup', (_e, payload) => {
     const { profileId, file } = payload || {};
     return worldBackups.deleteBackup(profileId || null, file);
+  });
+
+  // ---- Server browser ----
+  // SLP ping is read-only and never joins; quick-join sets the active
+  // profile's serverHost (validated in profiles.js) and launches via the
+  // normal game:launch path.
+  ipcMain.handle('servers:list', () => servers.listServers());
+  ipcMain.handle('servers:add', (_e, entry) => servers.addServer(entry || {}));
+  ipcMain.handle('servers:remove', (_e, id) =>
+      (typeof id === 'string' ? servers.removeServer(id) : { ok: false, error: 'Invalid id' }));
+  ipcMain.handle('servers:ping', (_e, payload) => {
+    const { host, port } = payload || {};
+    if (typeof host !== 'string' || !host) return Promise.resolve({ ok: false, error: 'Invalid host' });
+    return servers.ping(host, Number(port) || servers.DEFAULT_PORT);
+  });
+  // Quick-join: write the chosen server into the active profile's serverHost/
+  // serverPort (validated by profiles.sanitize → fed to auto-join in
+  // launcher.js), then the preload chains the normal game:launch. The launcher
+  // never speaks the join protocol itself.
+  ipcMain.handle('servers:quickJoin', (_e, payload) => {
+    const { host, port } = payload || {};
+    if (typeof host !== 'string' || !host) return { ok: false, error: 'Invalid host' };
+    const s = settings.load();
+    const id = s.selectedProfile;
+    if (!id || !profiles.find(id)) return { ok: false, error: 'No active profile' };
+    profiles.patch(id, { serverHost: host, serverPort: Number(port) || servers.DEFAULT_PORT });
+    return { ok: true };
   });
 
   // ---- Logs: upload the ring buffer to mclo.gs and return the share URL.

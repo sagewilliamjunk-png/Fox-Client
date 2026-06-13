@@ -62,6 +62,19 @@ public final class CosmeticRegistry {
     /** Capes granted to ALL players via the special "*" owner key. */
     private static final Set<String> GLOBAL_CAPES = ConcurrentHashMap.newKeySet();
 
+    // ---- v1.6: second cosmetic type — particle trails. Mirrors the cape
+    //      maps exactly; the `owners` block grants ids of EITHER type, routed
+    //      here by which registry the id belongs to. ----
+
+    /** trailId → display name. */
+    private static final Map<String, String> TRAILS = new java.util.LinkedHashMap<>();
+    /** trailId → vanilla particle key (e.g. "flame", "heart", "crit"). */
+    private static final Map<String, String> TRAIL_PARTICLE = new java.util.HashMap<>();
+    /** UUID → set of trail ids owned. */
+    private static final Map<UUID, Set<String>> TRAIL_OWNERSHIP = new ConcurrentHashMap<>();
+    /** Trails granted to ALL players via "*". */
+    private static final Set<String> GLOBAL_TRAILS = ConcurrentHashMap.newKeySet();
+
     private static volatile boolean loaded = false;
 
     private CosmeticRegistry() {}
@@ -76,6 +89,10 @@ public final class CosmeticRegistry {
         OWNERSHIP.clear();
         ANY_OWNER.clear();
         GLOBAL_CAPES.clear();
+        TRAILS.clear();
+        TRAIL_PARTICLE.clear();
+        TRAIL_OWNERSHIP.clear();
+        GLOBAL_TRAILS.clear();
         loaded = true;
 
         if (rm == null) return;
@@ -110,34 +127,62 @@ public final class CosmeticRegistry {
                 }
             }
 
+            // v1.6: optional `trails` block — same shape as `capes`, plus a
+            // "particle" field naming the vanilla particle to emit.
+            if (root.has("trails") && root.get("trails").isJsonObject()) {
+                JsonObject trails = root.getAsJsonObject("trails");
+                for (var e : trails.entrySet()) {
+                    String id = e.getKey();
+                    if (!isValidCapeId(id)) continue; // same id rules
+                    String displayName = id;
+                    String particle = "flame";
+                    if (e.getValue().isJsonObject()) {
+                        JsonObject o = e.getValue().getAsJsonObject();
+                        if (o.has("displayName") && o.get("displayName").isJsonPrimitive())
+                            displayName = o.get("displayName").getAsString();
+                        if (o.has("particle") && o.get("particle").isJsonPrimitive())
+                            particle = o.get("particle").getAsString();
+                    }
+                    TRAILS.put(id, displayName);
+                    TRAIL_PARTICLE.put(id, particle);
+                }
+            }
+
+            // The `owners` block grants ids of EITHER type. Each id is routed
+            // to the cape or trail bucket by which registry defines it, so a
+            // single entry can grant a cape AND a trail. Legacy manifests that
+            // only list cape ids behave exactly as before.
             if (root.has("owners") && root.get("owners").isJsonObject()) {
                 JsonObject owners = root.getAsJsonObject("owners");
                 for (var e : owners.entrySet()) {
                     JsonElement v = e.getValue();
                     Set<String> capeSet = new HashSet<>();
+                    Set<String> trailSet = new HashSet<>();
                     if (v.isJsonArray()) {
                         for (JsonElement item : v.getAsJsonArray()) {
                             if (!item.isJsonPrimitive()) continue;
-                            String capeId = item.getAsString();
-                            if (CAPES.containsKey(capeId)) capeSet.add(capeId);
+                            String id = item.getAsString();
+                            if (CAPES.containsKey(id))       capeSet.add(id);
+                            else if (TRAILS.containsKey(id)) trailSet.add(id);
                         }
                     }
-                    if (capeSet.isEmpty()) continue;
+                    if (capeSet.isEmpty() && trailSet.isEmpty()) continue;
 
-                    // Special wildcard key "*" — grant these capes to every player.
+                    // Special wildcard key "*" — grant to every player.
                     if ("*".equals(e.getKey())) {
                         GLOBAL_CAPES.addAll(capeSet);
+                        GLOBAL_TRAILS.addAll(trailSet);
                         continue;
                     }
 
                     UUID uuid = parseUuid(e.getKey());
                     if (uuid == null) continue;
-                    OWNERSHIP.put(uuid, capeSet);
-                    ANY_OWNER.add(uuid);
+                    if (!capeSet.isEmpty())  { OWNERSHIP.put(uuid, capeSet); ANY_OWNER.add(uuid); }
+                    if (!trailSet.isEmpty()) { TRAIL_OWNERSHIP.put(uuid, trailSet); }
                 }
             }
             // Verbose-but-bounded summary so the user (and future devs) can
-            // diagnose "my cape doesn't show up" without enabling DEBUG logs.
+            // diagnose "my cosmetic doesn't show up" without enabling DEBUG logs.
             String capeIds = String.join(",", CAPES.keySet());
             String sampleOwners = OWNERSHIP.keySet().stream()
                     .limit(3)
@@ -145,8 +190,9 @@ public final class CosmeticRegistry {
                     .reduce((a, b) -> a + ", " + b)
                     .orElse("(none)");
             KitsuneClient.LOGGER.info(
-                    "[Fox] cosmetics: {} cape(s) [{}], {} owner(s), {} globally-granted cape(s), sample owners: {}",
-                    CAPES.size(), capeIds, OWNERSHIP.size(), GLOBAL_CAPES.size(), sampleOwners);
+                    "[Fox] cosmetics: {} cape(s) [{}], {} trail(s) [{}], {} cape-owner(s), {} global cape(s)/{} global trail(s), sample owners: {}",
+                    CAPES.size(), capeIds, TRAILS.size(), String.join(",", TRAILS.keySet()),
+                    OWNERSHIP.size(), GLOBAL_CAPES.size(), GLOBAL_TRAILS.size(), sampleOwners);
         }
     }
 
@@ -197,6 +243,34 @@ public final class CosmeticRegistry {
         Set<String> merged = new HashSet<>(GLOBAL_CAPES);
         merged.addAll(perUser);
         return Collections.unmodifiableSet(merged);
+    }
+
+    // ---- trails (v1.6) ----
+
+    /** Trail ids owned by the given uuid; includes globally-granted trails. */
+    public static Set<String> trailsOwnedBy(UUID uuid) {
+        if (uuid == null) return Collections.emptySet();
+        Set<String> perUser = TRAIL_OWNERSHIP.getOrDefault(uuid, Collections.emptySet());
+        if (GLOBAL_TRAILS.isEmpty()) return perUser;
+        if (perUser.isEmpty()) return Collections.unmodifiableSet(GLOBAL_TRAILS);
+        Set<String> merged = new HashSet<>(GLOBAL_TRAILS);
+        merged.addAll(perUser);
+        return Collections.unmodifiableSet(merged);
+    }
+
+    /** Vanilla particle key for a trail id (defaults to "flame" if unknown). */
+    public static String trailParticle(String trailId) {
+        return TRAIL_PARTICLE.getOrDefault(trailId, "flame");
+    }
+
+    /** Every defined trail id, registration order. */
+    public static List<String> allTrailIds() {
+        return List.copyOf(TRAILS.keySet());
+    }
+
+    /** True if any trail is defined + granted (cheap gate for the trail module). */
+    public static boolean anyTrails() {
+        return !GLOBAL_TRAILS.isEmpty() || !TRAIL_OWNERSHIP.isEmpty();
     }
 
     /** Whether reload() has run at least once (so callers can avoid redundant

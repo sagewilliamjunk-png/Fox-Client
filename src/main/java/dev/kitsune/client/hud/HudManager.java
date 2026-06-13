@@ -205,6 +205,9 @@ public final class HudManager {
             case "combat_timer"      -> new Position(Anchor.BOTTOM_CENTER, 0, 80);
             case "inventory_preview" -> new Position(Anchor.BOTTOM_RIGHT, 4, 150);
             case "afk_timer"         -> new Position(Anchor.TOP_CENTER, 0, 24);
+            // v1.6 PvP widgets — near the combat timer, not overlapping it.
+            case "combo_counter"     -> new Position(Anchor.BOTTOM_CENTER, 90, 80);
+            case "damage_tally"      -> new Position(Anchor.BOTTOM_CENTER, -90, 80);
             // Vanilla HUD proxies — defaults match where vanilla draws them.
             // BOTTOM_CENTER means "centred horizontally, anchored to bottom";
             // offsets are relative to the centred reference rectangle.
