@@ -52,6 +52,7 @@ meteor-*.jar
 # the project (same spirit as the root-jar rule above).
 /*.zip
 /potato.png
+/*.webp
 
 # Decompiled / copied class & source files from auditing the cached MC jar.
 # These are Mojang-owned and must never be tracked.
