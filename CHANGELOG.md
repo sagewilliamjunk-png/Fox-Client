@@ -3,6 +3,16 @@
 All notable changes to Kitsune Client are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added — Client (mod)
+
+- **Fight Summary** *(Combat)* — when a fight ends (no hits dealt or damage
+  taken for a short window), posts a one-line recap toast: hits landed, damage
+  dealt vs. taken, and bout duration. Self-contained: tracks its own bout from
+  the shared `PlayerAttackMixin` hit feed plus a health-delta watch, so it
+  doesn't depend on Combo Counter / Damage Tally being on. Display-only.
+
 ## [1.6.0] — 2026-06-13
 
 A four-front release: a fair-play PvP toolkit, a generalized cosmetics system,

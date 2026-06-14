@@ -88,6 +88,9 @@ public abstract class PlayerAttackMixin {
             var tally = ModuleManager.getModule(dev.kitsune.client.module.combat.DamageTallyModule.class);
             if (tally != null) tally.onDamageDealt(delta);
         }
+        // Fight summary — every connect (delta may be 0 on remote servers).
+        var summary = ModuleManager.getModule(dev.kitsune.client.module.combat.FightSummaryModule.class);
+        if (summary != null) summary.onLocalHit(delta);
         // Target HUD "sticky after hit" — remember who we just struck.
         if (target instanceof LivingEntity hit) {
             var thud = ModuleManager.getModule(dev.kitsune.client.module.hud.TargetHudModule.class);

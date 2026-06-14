@@ -175,6 +175,8 @@ public final class ModuleManager {
         // v1.6: PvP toolkit — combo counter + session damage tally (display-only).
         register(new dev.kitsune.client.module.combat.ComboCounterModule());
         register(new dev.kitsune.client.module.combat.DamageTallyModule());
+        // v1.6.1: post-fight recap toast.
+        register(new dev.kitsune.client.module.combat.FightSummaryModule());
 
         // ---- Client-tier HUD additions (keystrokes/cps/clock/speed/totems/tps) ----
         register(new KeystrokesHudModule());
