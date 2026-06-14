@@ -5,7 +5,11 @@
     "name": "Fox Client",
     "description": "Lunar/Feather-style Minecraft client with a fox twist. Modules, ClickGUI, profiles, server-safe by design.",
     "authors": ["Sage"],
-    "contact": {},
+    "contact": {
+        "homepage": "https://github.com/sagewilliamjunk-png/Fox-Client",
+        "sources": "https://github.com/sagewilliamjunk-png/Fox-Client",
+        "issues": "https://github.com/sagewilliamjunk-png/Fox-Client/issues"
+    },
     "license": "MIT",
     "icon": "assets/kitsune/textures/icon/icon.png",
     "environment": "client",

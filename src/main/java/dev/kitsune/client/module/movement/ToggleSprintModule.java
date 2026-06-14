@@ -14,15 +14,22 @@ import net.minecraft.client.player.LocalPlayer;
 import java.util.List;
 
 /**
- * Toggle Sprint — auto-holds sprint so you don't have to.
- * Also shows a small on-screen HUD indicator with sprint / sneak state.
+ * Toggle Sprint — auto-holds sprint so you don't have to, with a small HUD
+ * indicator for sprint / sneak state. The same toggle/auto-sprint convenience
+ * Lunar and Badlion ship and that vanilla offers as an accessibility option;
+ * not banned by the large majority of servers.
  *
  * <p>Three sprint modes:
  * <ul>
  *   <li><b>Always</b>: sprint whenever possible (not hungry, not blocking)</li>
- *   <li><b>Forward</b>: sprint only when walking forward</li>
+ *   <li><b>Forward</b>: sprint only when walking forward (vanilla-equivalent)</li>
  *   <li><b>Omni</b>: sprint in any direction</li>
  * </ul>
+ *
+ * <p><b>Server-safety:</b> sprint is never re-asserted while {@code hurtTime > 0}
+ * (the damage knockback window), so this cannot be used as a sprint-reset bypass
+ * — that combat-advantage behaviour is what got KeepSprint removed and is what
+ * anti-cheats actually flag. See SAFETY.md.
  */
 public class ToggleSprintModule extends Module implements HudWidget {
 
@@ -92,7 +99,13 @@ public class ToggleSprintModule extends Module implements HudWidget {
 
         if (sprintToggle.get()) {
             boolean hungry = requireFood.get() && player.getFoodData().getFoodLevel() <= 6;
-            if (!hungry && !player.isUsingItem() && !player.isCrouching()) {
+            // SAFETY (v1.6.1): do NOT re-assert sprint during the damage knockback
+            // window. hurtTime is set on a hit and decays over ~0.5s; vanilla drops
+            // sprint there, and re-setting it the same tick is the sprint-reset
+            // bypass that GrimAC-class anti-cheats flag (and the reason KeepSprint
+            // was removed). Skipping the window keeps this a plain toggle/auto-sprint
+            // convenience — the same feature Lunar/Badlion ship and servers allow.
+            if (!hungry && player.hurtTime <= 0 && !player.isUsingItem() && !player.isCrouching()) {
                 boolean shouldSprint = switch (sprintMode.get()) {
                     case "Always" -> true;
                     case "Omni"   -> hasAnyMovementInput(player);

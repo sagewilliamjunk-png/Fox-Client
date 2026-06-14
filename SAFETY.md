@@ -48,6 +48,13 @@ banned list above matters:
   explicitly ban it, which is why it is double-gated: the addon flag must be
   on **and** the user must enable an explicit "I accept the risk" setting,
   otherwise enabling it is a no-op with a warning toast.
+- **Toggle Sprint** *(Movement)* — auto-holds sprint (and optionally sneak), the
+  same convenience Lunar/Badlion ship and that vanilla exposes as an
+  accessibility option. The large majority of servers allow it. The one thing
+  that *would* cross the line — re-asserting sprint the tick after a hit to
+  defeat the knockback sprint-reset, which is exactly why **KeepSprint** was
+  removed — is explicitly prevented: Toggle Sprint never sets the sprint flag
+  while `hurtTime > 0`, so it cannot act as a sprint-reset bypass.
 
 **KeepSprint was removed in v1.5.0.** It shipped briefly in v1.4.1 by
 mistake — it is on the never-ship list above (sprint-reset bypass is exactly

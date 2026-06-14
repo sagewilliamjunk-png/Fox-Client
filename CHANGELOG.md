@@ -13,6 +13,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the shared `PlayerAttackMixin` hit feed plus a health-delta watch, so it
   doesn't depend on Combo Counter / Damage Tally being on. Display-only.
 
+### Changed / Fixed (user-reported)
+
+- **Toggle Sprint is now sprint-reset-safe.** It no longer re-asserts the sprint
+  flag while `hurtTime > 0` (the damage knockback window), so it can't double as
+  the sprint-reset bypass that got KeepSprint removed. It remains the ordinary
+  toggle/auto-sprint convenience Lunar/Badlion ship and most servers allow;
+  documented in SAFETY.md.
+- **Launcher nav icons** — the Servers and Screenshots icons were colour emoji
+  that ignored the orange theme tint; swapped to monochrome glyphs so the whole
+  sidebar is consistently orange.
+- **ModMenu integration** — `fabric.mod.json` now declares `contact` (homepage /
+  sources / issues), so ModMenu shows working Source and **Report Bugs** links
+  for Fox Client; the mod icon is regenerated at 128px from the launcher's brand
+  logo so it matches the rest of the UI.
+
 ## [1.6.0] — 2026-06-13
 
 A four-front release: a fair-play PvP toolkit, a generalized cosmetics system,
